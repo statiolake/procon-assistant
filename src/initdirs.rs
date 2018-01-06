@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::fs;
 
 pub fn main(args: Vec<String>) -> bool { 
+    let mut start_char = 'a';
     match args.len() {
         0 => {
             print_error!("please specify the contest name and number of problems.");
@@ -12,6 +13,7 @@ pub fn main(args: Vec<String>) -> bool {
             return false;
         },
         2 => {},
+        3 if args[2].len() > 0 => { start_char = args[2].chars().nth(0).unwrap(); },
         _ => {
             print_error!("too many arguments for initdirs command.");
             return false;
@@ -28,7 +30,7 @@ pub fn main(args: Vec<String>) -> bool {
     };
 
     let mut dir_path = PathBuf::from(contest_name);
-    for ch in (0..numof_problems).map(|x| (x + 'a' as u8) as char) {
+    for ch in (0..numof_problems).map(|x| (x + start_char as u8) as char) {
         dir_path.push(ch.to_string());
         fs::create_dir_all(&dir_path).unwrap();
         dir_path.pop();
