@@ -14,9 +14,7 @@ fn ensure_create(name: &str) -> bool {
 
 fn spawn(name: &str) -> bool {
     if cfg!(windows) {
-        let successful = Command::new("cmd")
-            .arg("/c")
-            .arg("start")
+        let successful = Command::new("open")
             .arg(name)
             .output()
             .map(|x| println!("{:?}", x))
