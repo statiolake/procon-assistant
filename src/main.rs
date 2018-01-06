@@ -5,6 +5,7 @@ extern crate colored_print;
 mod tags;
 mod initdirs;
 mod init;
+mod addcase;
 mod run;
 
 use std::process;
@@ -32,7 +33,7 @@ fn main() {
     let successful = match args[1].as_str() {
         "initdirs"      => initdirs::main(args.into_iter().skip(2).collect()),
         "init"          => init::main(),
-        "addcase"       => false,
+        "addcase"       => addcase::main(),
         "run"           => false,
         "--help" | "-h" => { help(); true  },
         _               => { help(); false },
