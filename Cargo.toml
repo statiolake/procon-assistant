@@ -1,0 +1,9 @@
+[package]
+name = "procon-assistant"
+version = "0.1.0"
+authors = ["statiolake <statiolake@gmail.com>"]
+
+[dependencies]
+
+[dependencies.colored_print]
+git = "https://github.com/statiolake/colored_print.git"
