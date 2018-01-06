@@ -3,6 +3,7 @@ extern crate colored_print;
 
 #[macro_use]
 mod tags;
+mod initdirs;
 mod init;
 mod run;
 
@@ -14,10 +15,10 @@ fn help() {
     println!("Usage: procon-assistant [command] [options]");
     println!("");
     println!("List of commands:");
-    println!("    initdirs  initializes directories tree (contest-name/{{a,...,x}})");
-    println!("    init      initializes files in directory");
-    println!("    addcase   adds new sample case. creates inX.txt, outX.txt in current directory.");
-    println!("    run       runs and tests current solution (main.cpp) with input inX.txt.");
+    println!("    initdirs [name] [num] initializes directories tree (name/{{a,...,a+num}})");
+    println!("    init           initializes files in directory");
+    println!("    addcase        adds new sample case. creates inX.txt, outX.txt in current directory.");
+    println!("    run            runs and tests current solution (main.cpp) with input inX.txt.");
 }
 
 fn main() {
@@ -29,7 +30,7 @@ fn main() {
     }
 
     let successful = match args[1].as_str() {
-        "initdirs"      => false,
+        "initdirs"      => initdirs::main(args.into_iter().skip(2).collect()),
         "init"          => init::main(),
         "addcase"       => false,
         "run"           => false,
