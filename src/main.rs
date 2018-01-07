@@ -33,12 +33,12 @@ fn main() {
     }
 
     let successful = match args[1].as_str() {
-        "initdirs"      => initdirs::main(args.into_iter().skip(2).collect()),
-        "init"          => init::main(),
-        "addcase"       => addcase::main(),
-        "run" | "r"     => run::main(args.into_iter().skip(2).collect()),
-        "--help" | "-h" => { help(); true  },
-        _               => { help(); false },
+        "initdirs" | "id"      => initdirs::main(args.into_iter().skip(2).collect()),
+        "init" | "i"           => init::main(),
+        "addcase" | "a" | "ac" => addcase::main(),
+        "run" | "r"            => run::main(args.into_iter().skip(2).collect()),
+        "--help" | "-h"        => { help(); true  },
+        _                      => { help(); false },
     };
 
     if !successful {
