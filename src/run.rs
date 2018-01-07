@@ -1,1 +1,315 @@
+use colored_print::color::ConsoleColor;
+use colored_print::color::ConsoleColor::*;
+use std::io::prelude::*;
+use std::process::{Command, Stdio};
+use std::path::Path;
+use std::fs::File;
+use std::thread;
 
+const TIMEOUT_MILLISECOND: i64 = 1000;
+const OUTPUT_COLOR: ConsoleColor = LightMagenta;
+
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub enum JudgeResult {
+    Accepted,
+    WrongAnswer(Option<(Vec<u8>, Vec<u8>)>), // expected, actual
+    TimeLimitExceeded,
+    RuntimeError(String), // reason
+    CompilationError,
+}
+
+impl JudgeResult {
+    pub fn to_long_name(&self) -> (ConsoleColor, &'static str) {
+        use self::JudgeResult::*;
+        match *self {
+            Accepted => (Green, "Accepted"),
+            WrongAnswer(_) => (Yellow, "Wrong Answer"),
+            TimeLimitExceeded => (Yellow, "Time Limit Exceeded"),
+            RuntimeError(_) => (Red, "Runtime Error"),
+            CompilationError => (Yellow, "Compilation Error"),
+        }
+    }
+
+    pub fn to_short_name(&self) -> (ConsoleColor, &'static str) {
+        use self::JudgeResult::*;
+        match *self {
+            Accepted => (Green, "AC "),
+            WrongAnswer(_) => (Yellow, "WA "),
+            TimeLimitExceeded => (Yellow, "TLE"),
+            RuntimeError(_) => (Red, "RE "),
+            CompilationError => (Yellow, "CE "),
+        }
+    }
+}
+
+fn print_compiler_output(kind: &str, output: &Vec<u8>) {
+    if !output.is_empty() {
+        let output = String::from_utf8_lossy(output);
+        let output = output.trim();
+        let output = output.split('\n');
+        print_info!("compiler {}:", kind);
+        for line in output {
+            colored_println! {
+                true;
+                OUTPUT_COLOR, "        {}", line;
+            }
+        }
+    }
+}
+
+fn compile() -> Result<bool, String> {
+    print_compiling!("main.cpp");
+    let result = Command::new("g++")
+        .arg("-std=c++14")
+        .arg("-Wall")
+        .arg("-Wextra")
+        .arg("-omain.exe")
+        .arg("main.cpp")
+        .output()
+        .map_err(|x| format!("failed to spawn g++: {}. check you instlaled g++ correctly.", x))?;
+
+    print_compiler_output("standard output", &result.stdout);
+    print_compiler_output("standard error",  &result.stderr);
+
+    Ok(result.status.success())
+}
+
+type Filenames = Vec<(String, String)>;
+
+fn check_exists(filenames: &Filenames) -> Result<(), String> {
+    for filename in filenames.iter() {
+        let (ref infile_name, ref outfile_name) = *filename;
+        if !Path::new(infile_name).exists() {
+            return Err(format!("{} does not exist.", infile_name));
+        }
+        if !Path::new(outfile_name).exists() {
+            return Err(format!("{} does not exist.", outfile_name));
+        }
+    }
+
+    Ok(())
+}
+
+fn get_current_dirs_cases() -> Filenames {
+    let mut result = vec![];
+    let mut i = 1;
+    while Path::new(&::common::make_infile_name(i)).exists() {
+        let infile_name = ::common::make_infile_name(i);
+        let outfile_name = ::common::make_outfile_name(i);
+        result.push((infile_name, outfile_name));
+        i += 1;
+    }
+
+    result
+}
+
+fn parse_argument_cases(args: &Vec<String>) -> Result<Filenames, String> {
+    let mut result = vec![];
+    for arg in args.iter() {
+        let n: i32 = arg.parse().map_err(|x| format!("failed to parse argument: {}", x))?;
+        let infile_name = ::common::make_infile_name(n);
+        let outfile_name = ::common::make_outfile_name(n);
+        result.push((infile_name, outfile_name));
+    }
+
+    Ok(result)
+}
+
+fn enumerate_filenames(args: &Vec<String>) -> Result<Filenames, String> {
+    let filenames = if args.is_empty() {
+        get_current_dirs_cases()
+    } else {
+        parse_argument_cases(args)?
+    };
+
+    check_exists(&filenames)?;
+    Ok(filenames)
+}
+
+fn run_for_one_file(infile_name: &str, outfile_name: &str) -> Result<JudgeResult, String> {
+    // get infile content
+    let mut infile = File::open(infile_name).unwrap();
+    let mut infile_content = Vec::new();
+    infile.read_to_end(&mut infile_content).unwrap();
+
+    // spawn executable
+    let mut child = Command::new("./main")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .map_err(|x| format!("failed to spawn main: {}", x))?;
+
+    // pipe infile content into child stdin
+    child.stdin.as_mut().unwrap().write_all(&infile_content).unwrap();
+
+    // checking loop: during current time become timeout_time, pooling the child aliving status.
+    let timeout_time = ::time::now() + ::time::Duration::milliseconds(TIMEOUT_MILLISECOND);
+    loop {
+        let try_wait_result = child.try_wait();
+        if let Ok(Some(status)) = try_wait_result {
+            if status.code().is_none() {
+                // signal termination. consider it as a runtime error here.
+                return Ok(JudgeResult::RuntimeError("process was terminated by a signal.".into()));
+            }
+            if status.success() {
+                // ok, child succesfully exited in time.
+                break;
+            } else {
+                // some error occurs, returning runtime error.
+                return Ok(JudgeResult::RuntimeError("exit status was not successful.".into()));
+            }
+        } else if let Ok(None) = try_wait_result {
+            // running
+        } else if let Err(_) = try_wait_result {
+            // some error occurs, returning runtime error.
+            return Ok(JudgeResult::RuntimeError("error occured while waiting process finish.".into()));
+        }
+
+        if timeout_time < ::time::now() {
+            // timeout!
+            child.kill().unwrap();
+            return Ok(JudgeResult::TimeLimitExceeded);
+        }
+    }
+
+    // read outfile content
+    let mut outfile = File::open(outfile_name).unwrap();
+    let mut outfile_content = Vec::new();
+    outfile.read_to_end(&mut outfile_content).unwrap();
+
+    // read child stdout
+    let mut childstdout = Vec::new();
+    child.stdout.unwrap().read_to_end(&mut childstdout).unwrap();
+
+    // when they don't match:
+    if childstdout != outfile_content {
+        return Ok(JudgeResult::WrongAnswer(Some((outfile_content, childstdout))));
+    }
+
+    // they matches.
+    Ok(JudgeResult::Accepted)
+}
+
+fn print_solution_output(kind: &str, result: &Vec<&str>) {
+    print_info!("{} result:", kind);
+    for line in result.iter() {
+        colored_println! {
+            true;
+            OUTPUT_COLOR, "        {}", line;
+        }
+    }
+}
+
+fn enumerate_different_lines(expected: &Vec<&str>, actual: &Vec<&str>) -> String {
+    if expected.len() != actual.len() { 
+        return format!("in the first place, the number of output lines is different.");
+    }
+
+    let mut different_lines = vec![];
+    for i in 0..expected.len() {
+        if expected[i] != actual[i] {
+            different_lines.push(i+1);
+        }
+    }
+
+    let message = different_lines
+        .into_iter()
+        .map(|x| x.to_string())
+        .collect::<Vec<_>>()
+        .join(&", ".to_string());
+
+    format!("line {} differs.", message)
+}
+
+fn run(filenames: Filenames) -> Result<JudgeResult, String> {
+    print_running!("{} testcases (current timeout is {} millisecs)", filenames.len(), TIMEOUT_MILLISECOND);
+    let handles: Vec<_> = filenames.into_iter().map(|filename| {
+        thread::spawn(move || {
+            let (infile_name, outfile_name) = filename;
+            let judge = run_for_one_file(&infile_name, &outfile_name);
+            (infile_name, outfile_name, judge)
+        })
+    }).collect();
+
+    // if don't collect, its just save the iterator, and join() is not executed here
+    // (will be executed in `for` loop). so then `Finished running` is instantly
+    // displayed regardless of judging finished or not.
+    let judge_results: Vec<_> = handles.into_iter().map(|x| x.join().unwrap()).collect();
+
+    print_finished!("running");
+    println!("");
+    let mut whole_result = JudgeResult::Accepted;
+    for (infile_name, _, result) in judge_results.into_iter() {
+        let result = result?;
+        // get color and short result string
+        let (color, short_name) = result.to_short_name();
+        colored_println! {
+            true;
+            Reset, "    ";
+            color, "{}", short_name;
+            Reset, " {}", infile_name;
+        }
+
+        if let JudgeResult::WrongAnswer(Some((ref expected, ref actual))) = result {
+            let expected = String::from_utf8_lossy(expected);
+            let expected = expected.trim().split('\n').collect();
+            let actual = String::from_utf8_lossy(actual);
+            let actual = actual.trim().split('\n').collect();
+            print_solution_output("expected", &expected);
+            print_solution_output("actual", &actual);
+            print_info!("{}", enumerate_different_lines(&expected, &actual));
+        }
+
+        if let JudgeResult::RuntimeError(ref reason) = result {
+            print_info!("{}", reason);
+        }
+
+        if result != JudgeResult::Accepted && whole_result == JudgeResult::Accepted {
+            whole_result = result;
+        }
+    }
+    Ok(whole_result)
+}
+
+pub fn main(args: Vec<String>) -> bool {
+    let result = match compile() {
+        Err(msg) => {
+            print_error!("{}", msg);
+            return false;
+        },
+        Ok(b) if !b => {
+            JudgeResult::CompilationError
+        },
+        _ => {
+            let filenames = match enumerate_filenames(&args) {
+                Ok(f) => f,
+                Err(msg) => {
+                    print_error!("{}", msg);
+                    return false;
+                },
+            };
+
+            match run(filenames) {
+                Ok(r) => r,
+                Err(msg) => {
+                    print_error!("{}", msg);
+                    return false;
+                }
+            }
+        }
+    };
+
+    let (result_color, result_long_name) = result.to_long_name();
+    println!("");
+    colored_println!{
+        true;
+        Reset, "    Your solution was ";
+        result_color, "{}", result_long_name;
+        Reset, ".";
+    };
+
+    match result {
+        JudgeResult::Accepted => true,
+        _ => false,
+    }
+}

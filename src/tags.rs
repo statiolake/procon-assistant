@@ -3,9 +3,14 @@ use colored_print::color::ConsoleColor::*;
 
 pub const TAGS_COLOR: ConsoleColor = Green;
 pub const TAGS_ERROR_COLOR: ConsoleColor = Red;
+pub const TAGS_INFO_COLOR: ConsoleColor = LightBlue;
 
-pub const CREATED: &str = "Created";
-pub const   ERROR: &str = "  Error";
+pub const COMPILING: &str = "  Compiling";
+pub const   CREATED: &str = "    Created";
+pub const   RUNNING: &str = "    Running";
+pub const  FINISHED: &str = "   Finished";
+pub const     ERROR: &str = "      Error";
+pub const      INFO: &str = "       Info";
 
 macro_rules! print_error {
     ($($args:expr),*) => (
@@ -19,6 +24,38 @@ macro_rules! print_created {
     ($($args:expr),*) => (
         print_with_tag! {
             $crate::tags::TAGS_COLOR, $crate::tags::CREATED, $($args),*
+        }
+    )
+}
+
+macro_rules! print_compiling {
+    ($($args:expr),*) => (
+        print_with_tag! {
+            $crate::tags::TAGS_COLOR, $crate::tags::COMPILING, $($args),*
+        }
+    )
+}
+
+macro_rules! print_running {
+    ($($args:expr),*) => (
+        print_with_tag! {
+            $crate::tags::TAGS_COLOR, $crate::tags::RUNNING, $($args),*
+        }
+    )
+}
+
+macro_rules! print_finished {
+    ($($args:expr),*) => (
+        print_with_tag! {
+            $crate::tags::TAGS_COLOR, $crate::tags::FINISHED, $($args),*
+        }
+    )
+}
+
+macro_rules! print_info {
+    ($($args:expr),*) => (
+        print_with_tag! {
+            $crate::tags::TAGS_INFO_COLOR, $crate::tags::INFO, $($args),*
         }
     )
 }

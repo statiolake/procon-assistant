@@ -1,8 +1,10 @@
 #[macro_use]
 extern crate colored_print;
+extern crate time;
 
 #[macro_use]
 mod tags;
+mod common;
 mod initdirs;
 mod init;
 mod addcase;
@@ -34,7 +36,7 @@ fn main() {
         "initdirs"      => initdirs::main(args.into_iter().skip(2).collect()),
         "init"          => init::main(),
         "addcase"       => addcase::main(),
-        "run"           => false,
+        "run"           => run::main(args.into_iter().skip(2).collect()),
         "--help" | "-h" => { help(); true  },
         _               => { help(); false },
     };
