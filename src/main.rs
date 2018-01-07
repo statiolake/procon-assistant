@@ -36,7 +36,7 @@ fn main() {
         "initdirs"      => initdirs::main(args.into_iter().skip(2).collect()),
         "init"          => init::main(),
         "addcase"       => addcase::main(),
-        "run"           => run::main(args.into_iter().skip(2).collect()),
+        "run" | "r"     => run::main(args.into_iter().skip(2).collect()),
         "--help" | "-h" => { help(); true  },
         _               => { help(); false },
     };

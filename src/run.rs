@@ -12,7 +12,7 @@ const OUTPUT_COLOR: ConsoleColor = LightMagenta;
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum JudgeResult {
     Accepted,
-    WrongAnswer(Option<(Vec<u8>, Vec<u8>)>), // expected, actual
+    WrongAnswer(Option<(Vec<u8>, Vec<u8>, Vec<u8>)>), // in, expected, actual
     TimeLimitExceeded,
     RuntimeError(String), // reason
     CompilationError,
@@ -183,7 +183,7 @@ fn run_for_one_file(infile_name: &str, outfile_name: &str) -> Result<JudgeResult
 
     // when they don't match:
     if childstdout != outfile_content {
-        return Ok(JudgeResult::WrongAnswer(Some((outfile_content, childstdout))));
+        return Ok(JudgeResult::WrongAnswer(Some((infile_content, outfile_content, childstdout))));
     }
 
     // they matches.
@@ -191,7 +191,7 @@ fn run_for_one_file(infile_name: &str, outfile_name: &str) -> Result<JudgeResult
 }
 
 fn print_solution_output(kind: &str, result: &Vec<&str>) {
-    print_info!("{} result:", kind);
+    print_info!("{}:", kind);
     for line in result.iter() {
         colored_println! {
             true;
@@ -250,13 +250,16 @@ fn run(filenames: Filenames) -> Result<JudgeResult, String> {
             Reset, " {}", infile_name;
         }
 
-        if let JudgeResult::WrongAnswer(Some((ref expected, ref actual))) = result {
+        if let JudgeResult::WrongAnswer(Some((ref infile, ref expected, ref actual))) = result {
+            let infile = String::from_utf8_lossy(infile);
+            let infile = infile.trim().split('\n').collect();
             let expected = String::from_utf8_lossy(expected);
             let expected = expected.trim().split('\n').collect();
             let actual = String::from_utf8_lossy(actual);
             let actual = actual.trim().split('\n').collect();
-            print_solution_output("expected", &expected);
-            print_solution_output("actual", &actual);
+            print_solution_output("sample case input", &infile);
+            print_solution_output("expected output", &expected);
+            print_solution_output("actual output", &actual);
             print_info!("{}", enumerate_different_lines(&expected, &actual));
         }
 
