@@ -12,20 +12,14 @@ fn ensure_create(name: &str) -> bool {
     successful
 }
 
-fn spawn(name: &str) -> bool {
-    if cfg!(windows) {
-        let successful = Command::new("open")
-            .arg(name)
-            .output()
-            .is_ok();
+fn spawn(name: &str) {
+    let successful = Command::new("open")
+        .arg(name)
+        .output()
+        .is_ok();
 
-        if !successful {
-            print_error!("failed to open case file.");
-        }
-
-        successful
-    } else {
-        unimplemented!();
+    if !successful {
+        print_error!("failed to open case file. please manually open the file.");
     }
 }
 
@@ -46,10 +40,10 @@ pub fn main() -> bool {
     if !ensure_create(&infile_name) { return false; }
     if !ensure_create(&outfile_name) { return false; }
 
-    if !spawn(&infile_name) { return false; }
-    if !spawn(&outfile_name) { return false; }
-
     print_created!("{}, {}", infile_name, outfile_name);
+
+    spawn(&infile_name);
+    spawn(&outfile_name);
 
     return true;
 }
