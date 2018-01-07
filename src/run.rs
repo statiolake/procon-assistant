@@ -13,6 +13,7 @@ const OUTPUT_COLOR: ConsoleColor = LightMagenta;
 pub enum JudgeResult {
     Accepted,
     WrongAnswer(Option<(Vec<u8>, Vec<u8>, Vec<u8>)>), // in, expected, actual
+    PresentationError,
     TimeLimitExceeded,
     RuntimeError(String), // reason
     CompilationError,
@@ -24,6 +25,7 @@ impl JudgeResult {
         match *self {
             Accepted => (Green, "Accepted"),
             WrongAnswer(_) => (Yellow, "Wrong Answer"),
+            PresentationError => (Yellow, "Presentation Error"),
             TimeLimitExceeded => (Yellow, "Time Limit Exceeded"),
             RuntimeError(_) => (Red, "Runtime Error"),
             CompilationError => (Yellow, "Compilation Error"),
@@ -35,6 +37,7 @@ impl JudgeResult {
         match *self {
             Accepted => (Green, "AC "),
             WrongAnswer(_) => (Yellow, "WA "),
+            PresentationError => (Yellow, "PE "),
             TimeLimitExceeded => (Yellow, "TLE"),
             RuntimeError(_) => (Red, "RE "),
             CompilationError => (Yellow, "CE "),
@@ -200,9 +203,9 @@ fn print_solution_output(kind: &str, result: &Vec<&str>) {
     }
 }
 
-fn enumerate_different_lines(expected: &Vec<&str>, actual: &Vec<&str>) -> String {
+fn enumerate_different_lines(expected: &Vec<&str>, actual: &Vec<&str>) -> Result<String, ()> {
     if expected.len() != actual.len() { 
-        return format!("in the first place, the number of output lines is different.");
+        return Ok(format!("in the first place, the number of output lines is different."));
     }
 
     let mut different_lines = vec![];
@@ -212,13 +215,17 @@ fn enumerate_different_lines(expected: &Vec<&str>, actual: &Vec<&str>) -> String
         }
     }
 
-    let message = different_lines
-        .into_iter()
-        .map(|x| x.to_string())
-        .collect::<Vec<_>>()
-        .join(&", ".to_string());
-
-    format!("line {} differs.", message)
+    if different_lines.is_empty() {
+        // this is not wrong answer, but presentation error;
+        Err(())
+    } else {
+        let message = different_lines
+            .into_iter()
+            .map(|x| x.to_string())
+            .collect::<Vec<_>>()
+            .join(&", ".to_string());
+        Ok(format!("line {} differs.", message))
+    }
 }
 
 fn run(filenames: Filenames) -> Result<JudgeResult, String> {
@@ -240,7 +247,21 @@ fn run(filenames: Filenames) -> Result<JudgeResult, String> {
     println!("");
     let mut whole_result = JudgeResult::Accepted;
     for (infile_name, _, result) in judge_results.into_iter() {
-        let result = result?;
+        let mut result = result?;
+
+        let mut presentation_error = false;
+        // @cleanup: 
+        if let JudgeResult::WrongAnswer(Some((_, ref expected, ref actual))) = result {
+            let expected = String::from_utf8_lossy(expected);
+            let expected = expected.trim().split('\n').collect();
+            let actual = String::from_utf8_lossy(actual);
+            let actual = actual.trim().split('\n').collect();
+            if let Err(_) = enumerate_different_lines(&expected, &actual) {
+                presentation_error = true;
+            }
+        }
+        if presentation_error { result = JudgeResult::PresentationError; }
+
         // get color and short result string
         let (color, short_name) = result.to_short_name();
         colored_println! {
@@ -257,11 +278,14 @@ fn run(filenames: Filenames) -> Result<JudgeResult, String> {
             let expected = expected.trim().split('\n').collect();
             let actual = String::from_utf8_lossy(actual);
             let actual = actual.trim().split('\n').collect();
-            print_solution_output("sample case input", &infile);
-            print_solution_output("expected output", &expected);
-            print_solution_output("actual output", &actual);
-            print_info!("{}", enumerate_different_lines(&expected, &actual));
+            if let Ok(different_lines_message) = enumerate_different_lines(&expected, &actual) {
+                print_solution_output("sample case input", &infile);
+                print_solution_output("expected output", &expected);
+                print_solution_output("actual output", &actual);
+                print_info!("{}", different_lines_message);
+            }
         }
+
 
         if let JudgeResult::RuntimeError(ref reason) = result {
             print_info!("{}", reason);
