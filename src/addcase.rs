@@ -15,7 +15,7 @@ fn ensure_create(name: &str) -> bool {
 fn spawn(name: &str) {
     let successful = Command::new("open")
         .arg(name)
-        .output()
+        .spawn()
         .is_ok();
 
     if !successful {
