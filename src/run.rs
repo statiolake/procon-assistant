@@ -66,7 +66,7 @@ fn compile() -> Result<bool, String> {
         .arg("-std=c++14")
         .arg("-Wall")
         .arg("-Wextra")
-        .arg("-omain.exe")
+        .arg("-omain")
         .arg("main.cpp")
         .output()
         .map_err(|x| format!("failed to spawn g++: {}. check you instlaled g++ correctly.", x))?;
