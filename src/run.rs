@@ -151,7 +151,7 @@ fn run_for_one_file(infile_name: &str, outfile_name: &str) -> Result<JudgeResult
     // pipe infile content into child stdin
     child
         .stdin
-        .as_mut()
+        .take()
         .unwrap()
         .write_all(&infile_content)
         .unwrap();
