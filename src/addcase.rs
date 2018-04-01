@@ -1,15 +1,24 @@
 use std::fs::File;
-use std::path::Path;
+use std::io::Write;
 use std::process::Command;
 
-fn ensure_create(name: &str) -> bool {
-    let successful = File::create(name).is_ok();
+use common;
 
-    if !successful {
+pub fn ensure_create(name: &str, text: &str) -> bool {
+    if let Ok(mut f) = File::create(name) {
+        if text != "" {
+            match f.write_all(text.as_bytes()) {
+                Ok(_) => (),
+                Err(_) => {
+                    print_error!("failed to write into case file");
+                }
+            }
+        }
+    } else {
         print_error!("failed to create file {}.", name);
+        return false;
     }
-
-    successful
+    return true;
 }
 
 fn spawn(name: &str) {
@@ -21,27 +30,15 @@ fn spawn(name: &str) {
 }
 
 pub fn main() -> bool {
-    let mut i = 1;
-    while Path::new(&::common::make_infile_name(i)).exists() {
-        i += 1;
-    }
+    let (infile_name, outfile_name) = match common::make_next_iofile_name() {
+        Ok(r) => r,
+        Err(_) => return false, // error message is displayed inside make_next_iofile_name()
+    };
 
-    let infile_name = ::common::make_infile_name(i);
-    let outfile_name = ::common::make_outfile_name(i);
-
-    if Path::new(&outfile_name).exists() {
-        print_error!(
-            "{} file exists while {} file doesn't exist.",
-            outfile_name,
-            infile_name
-        );
+    if !ensure_create(&infile_name, "") {
         return false;
     }
-
-    if !ensure_create(&infile_name) {
-        return false;
-    }
-    if !ensure_create(&outfile_name) {
+    if !ensure_create(&outfile_name, "") {
         return false;
     }
 

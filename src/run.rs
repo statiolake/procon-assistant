@@ -23,7 +23,7 @@ impl JudgeResult {
     fn to_long_name(&self) -> (ConsoleColor, &'static str) {
         use self::JudgeResult::*;
         match *self {
-            Accepted => (Green, "Accepted"),
+            Accepted => (Green, "Sample Case Passed"),
             WrongAnswer(_) => (Yellow, "Wrong Answer"),
             PresentationError => (Yellow, "Presentation Error"),
             TimeLimitExceeded => (Yellow, "Time Limit Exceeded"),

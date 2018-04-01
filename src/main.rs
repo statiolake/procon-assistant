@@ -1,5 +1,7 @@
 #[macro_use]
 extern crate colored_print;
+extern crate reqwest;
+extern crate scraper;
 extern crate time;
 
 #[macro_use]
@@ -20,6 +22,9 @@ fn help() {
     println!("List of commands:");
     println!("    initdirs [name] [num] initializes directories tree (name/{{a,...,a+num}})");
     println!("    init           initializes files in directory");
+    println!("    fetch [ID]     downloads test cases from webpages");
+    println!("      [ID] is:");
+    println!("      - aoj:xxxx   id xxxx of Aizu Online Judge");
     println!(
         "    addcase        adds new sample case. creates inX.txt, outX.txt in current directory."
     );

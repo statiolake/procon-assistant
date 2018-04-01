@@ -4,6 +4,8 @@ name = "procon-assistant"
 version = "0.1.0"
 
 [dependencies]
+reqwest = "0.8.5"
+scraper = "0.6.0"
 time = "0.1.39"
 
 [dependencies.colored_print]
