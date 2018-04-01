@@ -28,6 +28,23 @@ alias: `i`
 creates `main.cpp` in the **current directory** with a simple template
 (hard-coded) and automatically open it.
 
+### `fetch`
+
+alias: `f`
+
+(experimental) fetches sample cases from the contest site. currently only
+supports Aizu Online Judge / AtCoder. You can use it like this:
+
+```
+% procon-assistant fetch aoj:0000 # Aizu Online Judge Problem id 0000
+```
+
+or
+
+```
+% procon-assistant fetch atcoder:agc022a # AtCoder Grand Contest 022 problem A
+```
+
 ### `addcase`
 
 alias: `a`, `ac`
@@ -49,10 +66,9 @@ testcase 1, 3, 5. Of course sample case files needs to exist.
 
 your program's output is judged and result will be as follows.
 
-- Accepted
+- Sample Case Passed
 
-    Your program prints the correct answer. Your program is accepted (as
-    far as with sample cases).
+    Your program prints the correct answer at least for the sample inputs.
 
 - Wrong Answer
 
