@@ -25,7 +25,8 @@ fn help() {
     println!("    init           initializes files in directory");
     println!("    fetch [ID]     downloads test cases from webpages");
     println!("      [ID] is:");
-    println!("      - aoj:xxxx   id xxxx of Aizu Online Judge");
+    println!("      - aoj:xxxx        id xxxx of Aizu Online Judge");
+    println!("      - atcoder:a?cXXXY Atcoder ? Contest XXX Problem Y");
     println!(
         "    addcase        adds new sample case. creates inX.txt, outX.txt in current directory."
     );
