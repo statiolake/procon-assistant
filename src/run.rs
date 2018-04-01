@@ -11,7 +11,7 @@ const OUTPUT_COLOR: ConsoleColor = LightMagenta;
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 enum JudgeResult {
-    Accepted,
+    Passed,
     WrongAnswer(Option<(Vec<String>, Vec<String>, Vec<String>, OutputDifference)>), // in, expected, actual, different lines
     PresentationError,
     TimeLimitExceeded,
@@ -23,7 +23,7 @@ impl JudgeResult {
     fn to_long_name(&self) -> (ConsoleColor, &'static str) {
         use self::JudgeResult::*;
         match *self {
-            Accepted => (Green, "Sample Case Passed"),
+            Passed => (Green, "Sample Case Passed"),
             WrongAnswer(_) => (Yellow, "Wrong Answer"),
             PresentationError => (Yellow, "Presentation Error"),
             TimeLimitExceeded => (Yellow, "Time Limit Exceeded"),
@@ -35,7 +35,7 @@ impl JudgeResult {
     fn to_short_name(&self) -> (ConsoleColor, &'static str) {
         use self::JudgeResult::*;
         match *self {
-            Accepted => (Green, "AC "),
+            Passed => (Green, "PS "),
             WrongAnswer(_) => (Yellow, "WA "),
             PresentationError => (Yellow, "PE "),
             TimeLimitExceeded => (Yellow, "TLE"),
@@ -224,7 +224,7 @@ fn run_for_one_file(infile_name: &str, outfile_name: &str) -> Result<JudgeResult
     }
 
     // otherwise, they matches (the solution is accepted).
-    Ok(JudgeResult::Accepted)
+    Ok(JudgeResult::Passed)
 }
 
 fn print_solution_output(kind: &str, result: &Vec<String>) {
@@ -247,9 +247,7 @@ enum OutputDifference {
 impl OutputDifference {
     fn message(&self) -> String {
         match *self {
-            OutputDifference::SizeDiffers => {
-                format!("in the first place, the number of output lines is different.")
-            }
+            OutputDifference::SizeDiffers => format!("the number of output lines is different."),
             OutputDifference::NotDifferent => unreachable!(), // this should be treated as Presentation Error.
             OutputDifference::Different(ref different_lines) => {
                 let message = different_lines
@@ -307,7 +305,7 @@ fn run(filenames: Filenames) -> Result<JudgeResult, String> {
 
     print_finished!("running");
     println!("");
-    let mut whole_result = JudgeResult::Accepted;
+    let mut whole_result = JudgeResult::Passed;
     for (infile_name, _, result) in judge_results.into_iter() {
         let result = result?;
 
@@ -339,7 +337,7 @@ fn run(filenames: Filenames) -> Result<JudgeResult, String> {
         }
 
         // update whole result
-        if result != JudgeResult::Accepted && whole_result == JudgeResult::Accepted {
+        if result != JudgeResult::Passed && whole_result == JudgeResult::Passed {
             whole_result = result;
         }
     }
@@ -382,7 +380,7 @@ pub fn main(args: Vec<String>) -> bool {
     };
 
     match result {
-        JudgeResult::Accepted => true,
+        JudgeResult::Passed => true,
         _ => false,
     }
 }
