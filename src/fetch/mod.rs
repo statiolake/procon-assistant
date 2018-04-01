@@ -1,4 +1,7 @@
+mod print_msg;
+
 pub mod aoj;
+pub mod atcoder;
 
 pub fn main(args: Vec<String>) -> bool {
     if args.is_empty() {
@@ -18,6 +21,7 @@ pub fn main(args: Vec<String>) -> bool {
 
     match contest {
         "aoj" => aoj::main(id),
+        "atcoder" => atcoder::main(id),
         _ => {
             print_error!("the contest site {} is not available.", contest);
             false
