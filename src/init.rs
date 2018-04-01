@@ -1,13 +1,10 @@
+use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
-use std::fs::File;
 use std::process::Command;
 
 fn spawn(name: &str) {
-    let successful = Command::new("open")
-        .arg(name)
-        .spawn()
-        .is_ok();
+    let successful = Command::new("open").arg(name).spawn().is_ok();
 
     if !successful {
         print_error!("failed to open main.cpp file. please manually open the file.");

@@ -1,9 +1,9 @@
 use colored_print::color::ConsoleColor;
 use colored_print::color::ConsoleColor::*;
-use std::io::prelude::*;
-use std::process::{Command, Stdio};
-use std::path::Path;
 use std::fs::File;
+use std::io::prelude::*;
+use std::path::Path;
+use std::process::{Command, Stdio};
 use std::thread;
 
 const TIMEOUT_MILLISECOND: i64 = 1000;
@@ -69,10 +69,15 @@ fn compile() -> Result<bool, String> {
         .arg("-omain")
         .arg("main.cpp")
         .output()
-        .map_err(|x| format!("failed to spawn g++: {}. check you instlaled g++ correctly.", x))?;
+        .map_err(|x| {
+            format!(
+                "failed to spawn g++: {}. check you instlaled g++ correctly.",
+                x
+            )
+        })?;
 
     print_compiler_output("standard output", &result.stdout);
-    print_compiler_output("standard error",  &result.stderr);
+    print_compiler_output("standard error", &result.stderr);
 
     Ok(result.status.success())
 }
@@ -109,7 +114,8 @@ fn get_current_dirs_cases() -> Filenames {
 fn parse_argument_cases(args: &Vec<String>) -> Result<Filenames, String> {
     let mut result = vec![];
     for arg in args.iter() {
-        let n: i32 = arg.parse().map_err(|x| format!("failed to parse argument: {}", x))?;
+        let n: i32 = arg.parse()
+            .map_err(|x| format!("failed to parse argument: {}", x))?;
         let infile_name = ::common::make_infile_name(n);
         let outfile_name = ::common::make_outfile_name(n);
         result.push((infile_name, outfile_name));
@@ -143,7 +149,12 @@ fn run_for_one_file(infile_name: &str, outfile_name: &str) -> Result<JudgeResult
         .map_err(|x| format!("failed to spawn main: {}", x))?;
 
     // pipe infile content into child stdin
-    child.stdin.as_mut().unwrap().write_all(&infile_content).unwrap();
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(&infile_content)
+        .unwrap();
 
     // checking loop: during current time become timeout_time, pooling the child aliving status.
     let timeout_time = ::time::now() + ::time::Duration::milliseconds(TIMEOUT_MILLISECOND);
@@ -152,20 +163,26 @@ fn run_for_one_file(infile_name: &str, outfile_name: &str) -> Result<JudgeResult
         if let Ok(Some(status)) = try_wait_result {
             if status.code().is_none() {
                 // signal termination. consider it as a runtime error here.
-                return Ok(JudgeResult::RuntimeError("process was terminated by a signal.".into()));
+                return Ok(JudgeResult::RuntimeError(
+                    "process was terminated by a signal.".into(),
+                ));
             }
             if status.success() {
                 // ok, child succesfully exited in time.
                 break;
             } else {
                 // some error occurs, returning runtime error.
-                return Ok(JudgeResult::RuntimeError("exit status was not successful.".into()));
+                return Ok(JudgeResult::RuntimeError(
+                    "exit status was not successful.".into(),
+                ));
             }
         } else if let Ok(None) = try_wait_result {
             // running
         } else if let Err(_) = try_wait_result {
             // some error occurs, returning runtime error.
-            return Ok(JudgeResult::RuntimeError("error occured while waiting process finish.".into()));
+            return Ok(JudgeResult::RuntimeError(
+                "error occured while waiting process finish.".into(),
+            ));
         }
 
         if timeout_time < ::time::now() {
@@ -197,8 +214,13 @@ fn run_for_one_file(infile_name: &str, outfile_name: &str) -> Result<JudgeResult
         return if difference == OutputDifference::NotDifferent {
             Ok(JudgeResult::PresentationError)
         } else {
-            Ok(JudgeResult::WrongAnswer(Some((infile, expected, actual, difference))))
-        }
+            Ok(JudgeResult::WrongAnswer(Some((
+                infile,
+                expected,
+                actual,
+                difference,
+            ))))
+        };
     }
 
     // otherwise, they matches (the solution is accepted).
@@ -225,7 +247,9 @@ enum OutputDifference {
 impl OutputDifference {
     fn message(&self) -> String {
         match *self {
-            OutputDifference::SizeDiffers => format!("in the first place, the number of output lines is different."),
+            OutputDifference::SizeDiffers => {
+                format!("in the first place, the number of output lines is different.")
+            }
             OutputDifference::NotDifferent => unreachable!(), // this should be treated as Presentation Error.
             OutputDifference::Different(ref different_lines) => {
                 let message = different_lines
@@ -234,20 +258,20 @@ impl OutputDifference {
                     .collect::<Vec<_>>()
                     .join(&", ".to_string());
                 format!("line {} differs.", message)
-            },
+            }
         }
     }
 }
 
 fn enumerate_different_lines(expected: &Vec<String>, actual: &Vec<String>) -> OutputDifference {
-    if expected.len() != actual.len() { 
+    if expected.len() != actual.len() {
         return OutputDifference::SizeDiffers;
     }
 
     let mut different_lines = vec![];
     for i in 0..expected.len() {
         if expected[i] != actual[i] {
-            different_lines.push(i+1);
+            different_lines.push(i + 1);
         }
     }
 
@@ -260,14 +284,21 @@ fn enumerate_different_lines(expected: &Vec<String>, actual: &Vec<String>) -> Ou
 }
 
 fn run(filenames: Filenames) -> Result<JudgeResult, String> {
-    print_running!("{} testcases (current timeout is {} millisecs)", filenames.len(), TIMEOUT_MILLISECOND);
-    let handles: Vec<_> = filenames.into_iter().map(|filename| {
-        thread::spawn(move || {
-            let (infile_name, outfile_name) = filename;
-            let judge = run_for_one_file(&infile_name, &outfile_name);
-            (infile_name, outfile_name, judge)
+    print_running!(
+        "{} testcases (current timeout is {} millisecs)",
+        filenames.len(),
+        TIMEOUT_MILLISECOND
+    );
+    let handles: Vec<_> = filenames
+        .into_iter()
+        .map(|filename| {
+            thread::spawn(move || {
+                let (infile_name, outfile_name) = filename;
+                let judge = run_for_one_file(&infile_name, &outfile_name);
+                (infile_name, outfile_name, judge)
+            })
         })
-    }).collect();
+        .collect();
 
     // if don't collect, its just save the iterator, and join() is not executed here
     // (will be executed in `for` loop). so then `Finished running` is instantly
@@ -290,16 +321,21 @@ fn run(filenames: Filenames) -> Result<JudgeResult, String> {
         }
 
         match result {
-            JudgeResult::WrongAnswer(Some((ref infile, ref expected, ref actual, ref difference))) => {
+            JudgeResult::WrongAnswer(Some((
+                ref infile,
+                ref expected,
+                ref actual,
+                ref difference,
+            ))) => {
                 print_solution_output("sample case input", &infile);
                 print_solution_output("expected output", &expected);
                 print_solution_output("actual output", &actual);
                 print_info!("{}", difference.message());
-            },
+            }
             JudgeResult::RuntimeError(ref reason) => {
                 print_info!("{}", reason);
-            },
-            _ => {},
+            }
+            _ => {}
         }
 
         // update whole result
@@ -315,17 +351,15 @@ pub fn main(args: Vec<String>) -> bool {
         Err(msg) => {
             print_error!("{}", msg);
             return false;
-        },
-        Ok(b) if !b => {
-            JudgeResult::CompilationError
-        },
+        }
+        Ok(b) if !b => JudgeResult::CompilationError,
         _ => {
             let filenames = match enumerate_filenames(&args) {
                 Ok(f) => f,
                 Err(msg) => {
                     print_error!("{}", msg);
                     return false;
-                },
+                }
             };
 
             match run(filenames) {

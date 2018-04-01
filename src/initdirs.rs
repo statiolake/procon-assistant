@@ -1,23 +1,25 @@
-use std::path::PathBuf;
 use std::fs;
+use std::path::PathBuf;
 
-pub fn main(args: Vec<String>) -> bool { 
+pub fn main(args: Vec<String>) -> bool {
     let mut start_char = 'a';
     match args.len() {
         0 => {
             print_error!("please specify the contest name and number of problems.");
             return false;
-        },
+        }
         1 => {
             print_error!("please specify the number of problems.");
             return false;
-        },
-        2 => {},
-        3 if args[2].len() > 0 => { start_char = args[2].chars().nth(0).unwrap(); },
+        }
+        2 => {}
+        3 if args[2].len() > 0 => {
+            start_char = args[2].chars().nth(0).unwrap();
+        }
         _ => {
             print_error!("too many arguments for initdirs command.");
             return false;
-        },
+        }
     }
 
     let contest_name = args[0].as_str();
@@ -26,7 +28,7 @@ pub fn main(args: Vec<String>) -> bool {
         Err(e) => {
             print_error!("failed to parse the number of problems: {}", e);
             return false;
-        },
+        }
     };
 
     let mut dir_path = PathBuf::from(contest_name);

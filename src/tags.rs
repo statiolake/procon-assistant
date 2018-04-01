@@ -6,11 +6,11 @@ pub const TAGS_ERROR_COLOR: ConsoleColor = Red;
 pub const TAGS_INFO_COLOR: ConsoleColor = LightBlue;
 
 pub const COMPILING: &str = "  Compiling";
-pub const   CREATED: &str = "    Created";
-pub const   RUNNING: &str = "    Running";
-pub const  FINISHED: &str = "   Finished";
-pub const     ERROR: &str = "      Error";
-pub const      INFO: &str = "       Info";
+pub const CREATED: &str = "    Created";
+pub const RUNNING: &str = "    Running";
+pub const FINISHED: &str = "   Finished";
+pub const ERROR: &str = "      Error";
+pub const INFO: &str = "       Info";
 
 macro_rules! print_error {
     ($($args:expr),*) => (
