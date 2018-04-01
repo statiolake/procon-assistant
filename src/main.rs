@@ -8,6 +8,7 @@ extern crate time;
 mod tags;
 mod addcase;
 mod common;
+mod fetch;
 mod init;
 mod initdirs;
 mod run;
@@ -43,6 +44,7 @@ fn main() {
         "initdirs" | "id" => initdirs::main(args.into_iter().skip(2).collect()),
         "init" | "i" => init::main(),
         "addcase" | "a" | "ac" => addcase::main(),
+        "fetch" | "f" => fetch::main(args.into_iter().skip(2).collect()),
         "run" | "r" => run::main(args.into_iter().skip(2).collect()),
         "--help" | "-h" => {
             help();
