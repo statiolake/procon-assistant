@@ -28,7 +28,7 @@ alias: `i`
 creates `main.cpp` in the **current directory** with a simple template
 (hard-coded) and automatically open it.
 
-### `fetch`
+### `fetch {contest-site:problem-id}`
 
 alias: `f`
 
