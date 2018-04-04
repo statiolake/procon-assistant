@@ -18,19 +18,23 @@ use std::process;
 
 fn help() {
     println!("Procon Assistant");
-    println!("Usage: procon-assistant [command] [options]");
+    println!("Usage: procon-assistant {{command}} [options]");
     println!("");
     println!("List of commands:");
-    println!("    initdirs [name] [num] initializes directories tree (name/{{a,...,a+num}})");
-    println!("    init           initializes files in directory");
-    println!("    fetch [ID]     downloads test cases from webpages");
-    println!("      [ID] is:");
-    println!("      - aoj:xxxx        id xxxx of Aizu Online Judge");
-    println!("      - atcoder:a?cXXXY Atcoder ? Contest XXX Problem Y");
-    println!(
-        "    addcase        adds new sample case. creates inX.txt, outX.txt in current directory."
-    );
-    println!("    run            runs and tests current solution (main.cpp) with input inX.txt.");
+    println!("    initdirs {{name}} {{num}} [beginning-char]");
+    println!("        initializes directories tree (name/{{a,...,a+num}})");
+    println!("    init");
+    println!("        initializes files in directory");
+    println!("    fetch {{contest-site}}:{{problem-id}}");
+    println!("        fetches sample cases of given problem-id in given contest-site.");
+    println!("        examples:");
+    println!("          - aoj:0123        problem of id 0123 in Aizu Online Judge");
+    println!("          - atcoder:abc012a Atcoder Beginner Contest 012 Problem A");
+    println!("    addcase");
+    println!("        adds new sample case.");
+    println!("        creates inX.txt, outX.txt in current directory.");
+    println!("    run [testcase]");
+    println!("        runs and tests current solution (main.cpp) with input inX.txt.");
 }
 
 fn main() {
