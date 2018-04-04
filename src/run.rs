@@ -380,7 +380,26 @@ pub fn main(args: Vec<String>) -> bool {
     };
 
     match result {
-        JudgeResult::Passed => true,
+        JudgeResult::Passed => {
+            let mut main_cpp_content = String::new();
+            File::open("main.cpp")
+                .unwrap()
+                .read_to_string(&mut main_cpp_content)
+                .unwrap();
+
+            // copy content into clipboard
+            let resultchild = Command::new("xsel").arg("-b").stdin(Stdio::piped()).spawn();
+            if let Ok(mut child) = resultchild {
+                child
+                    .stdin
+                    .take()
+                    .unwrap()
+                    .write_all(main_cpp_content.as_bytes())
+                    .unwrap();
+                child.wait().unwrap();
+            }
+            true
+        }
         _ => false,
     }
 }
