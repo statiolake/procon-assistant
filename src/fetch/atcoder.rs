@@ -7,11 +7,10 @@ use common;
 use super::print_msg;
 
 const CONTEST: &str = "AtCoder";
-
 const CONTEST_TYPES: [&str; 3] = ["abc", "arc", "agc"];
 
 fn print_id_err() {
-    print_error!("id's format is invalid. the example format of atcoder id: agc022a");
+    print_error!("id's format is invalid. the example format for AtCoder Grand Contest 022 Problem A: agc022a");
 }
 
 pub fn main(id: &str) -> bool {

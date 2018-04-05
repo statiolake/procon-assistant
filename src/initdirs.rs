@@ -31,14 +31,17 @@ pub fn main(args: Vec<String>) -> bool {
         }
     };
 
+    create_directories(contest_name, start_char, numof_problems);
+    print_created!("directory tree");
+
+    return true;
+}
+
+pub fn create_directories(contest_name: &str, start_char: char, numof_problems: u8) {
     let mut dir_path = PathBuf::from(contest_name);
     for ch in (0..numof_problems).map(|x| (x + start_char as u8) as char) {
         dir_path.push(ch.to_string());
         fs::create_dir_all(&dir_path).unwrap();
         dir_path.pop();
     }
-
-    print_created!("directory tree");
-
-    return true;
 }

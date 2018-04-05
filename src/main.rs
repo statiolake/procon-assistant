@@ -8,6 +8,7 @@ extern crate time;
 mod tags;
 mod addcase;
 mod common;
+mod download;
 mod fetch;
 mod init;
 mod initdirs;
@@ -30,6 +31,10 @@ fn help() {
     println!("        examples:");
     println!("          - aoj:0123        problem of id 0123 in Aizu Online Judge");
     println!("          - atcoder:abc012a Atcoder Beginner Contest 012 Problem A");
+    println!("    download {{contest-site}}:{{contest-id}}");
+    println!("        fetches sample cases of given problem-id in given contest-site.");
+    println!("        examples:");
+    println!("          - atcoder:abc012  Atcoder Beginner Contest 012");
     println!("    addcase");
     println!("        adds new sample case.");
     println!("        creates inX.txt, outX.txt in current directory.");
@@ -50,6 +55,7 @@ fn main() {
         "init" | "i" => init::main(),
         "addcase" | "a" | "ac" => addcase::main(),
         "fetch" | "f" => fetch::main(args.into_iter().skip(2).collect()),
+        "download" | "d" | "dl" => download::main(args.into_iter().skip(2).collect()),
         "run" | "r" => run::main(args.into_iter().skip(2).collect()),
         "--help" | "-h" => {
             help();
