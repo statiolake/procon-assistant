@@ -1,13 +1,3 @@
-pub fn err_in_fetching_problem(_contest: &str, _id: &str, error: &str) {
-    print_error!("failed to fetch a problem.");
-    print_info!("due to {}", error);
-}
-
-pub fn err_in_parsing_problem(_contest: &str, _id: &str, error: &str) {
-    print_error!("failed to parse a problem.");
-    print_info!("due to {:?}", error);
-}
-
 pub fn in_fetching_problem(contest: &str, id: &str, url: &str) {
     print_fetching!("{} id {} (at {})", contest, id, url);
 }

@@ -1,39 +1,50 @@
 use std::fs::File;
+use std::io;
 use std::io::prelude::*;
 use std::path::Path;
-use std::process::Command;
 
-fn spawn(name: &str) {
-    let successful = Command::new("open").arg(name).spawn().is_ok();
+use common::open;
 
-    if !successful {
-        print_error!("failed to open main.cpp file. please manually open the file.");
+use Error;
+use Result;
+
+fn ensure_not_exists(p: &str) -> Result<&Path> {
+    let p = Path::new(p);
+    if p.exists() {
+        Err(Some(Error::new(
+            "creating main.cpp",
+            "file main.cpp already exists.",
+            None,
+        )))
+    } else {
+        Ok(p)
     }
 }
 
-pub fn main() -> bool {
-    let p: &Path = "main.cpp".as_ref();
-    if p.exists() {
-        print_error!("file main.cpp already exists.");
-        return false;
-    }
+fn generate_main_cpp(p: &Path) -> io::Result<()> {
+    let mut f = File::create(p)?;
 
-    {
-        let mut f = match File::create("main.cpp") {
-            Ok(f) => f,
-            Err(_) => return false,
-        };
+    writeln!(f, "#include <bits/stdc++.h>")?;
+    writeln!(f, "using namespace std;")?;
+    writeln!(f, "int main() {{")?;
+    writeln!(f, "")?;
+    writeln!(f, "    return 0;")?;
+    writeln!(f, "}}")?;
+    Ok(())
+}
 
-        writeln!(f, "#include <bits/stdc++.h>").unwrap();
-        writeln!(f, "using namespace std;").unwrap();
-        writeln!(f, "int main() {{").unwrap();
-        writeln!(f, "").unwrap();
-        writeln!(f, "    return 0;").unwrap();
-        writeln!(f, "}}").unwrap();
-    }
-    print_created!("main.cpp");
+pub fn main() -> Result<()> {
+    let p = ensure_not_exists("main.cpp")?;
+    generate_main_cpp(p).map_err(|e| {
+        Some(Error::new(
+            "generating main.cpp",
+            "failed to write.",
+            Some(Box::new(e)),
+        ))
+    })?;
+    print_generated!("main.cpp");
 
-    spawn("main.cpp");
+    open("main.cpp")?;
 
-    return true;
+    Ok(())
 }

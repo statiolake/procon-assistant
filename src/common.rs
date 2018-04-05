@@ -1,6 +1,24 @@
 use std::path::Path;
+use std::process::Command;
 
-pub fn make_next_iofile_name() -> Result<(String, String), ()> {
+use Error;
+use Result;
+
+pub fn open(name: &str) -> Result<()> {
+    Command::new("open")
+        .arg(name)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| {
+            Some(Error::new(
+                format!("opening {}", name),
+                "failed to spawn open command.",
+                Some(Box::new(e)),
+            ))
+        })
+}
+
+pub fn make_next_iofile_name() -> Result<(String, String)> {
     let mut i = 1;
     while Path::new(&make_infile_name(i)).exists() {
         i += 1;
@@ -10,12 +28,14 @@ pub fn make_next_iofile_name() -> Result<(String, String), ()> {
     let outfile_name = make_outfile_name(i);
 
     if Path::new(&outfile_name).exists() {
-        print_error!(
-            "{} file exists while {} file doesn't exist.",
-            outfile_name,
-            infile_name
-        );
-        return Err(());
+        return Err(Some(Error::new(
+            "generating next sample case file name",
+            format!(
+                "{} exists while {} doesn't exist.",
+                outfile_name, infile_name
+            ),
+            None,
+        )));
     }
 
     Ok((infile_name, outfile_name))

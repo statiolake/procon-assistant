@@ -9,6 +9,7 @@ pub const COMPILING: &str = "  Compiling";
 pub const CREATED: &str = "    Created";
 pub const RUNNING: &str = "    Running";
 pub const GENERATING: &str = " Generating";
+pub const GENERATED: &str = "  Generated";
 pub const FINISHED: &str = "   Finished";
 pub const FETCHING: &str = "   Fetching";
 pub const ERROR: &str = "      Error";
@@ -50,6 +51,14 @@ macro_rules! print_generating {
     ($($args:expr),*) => (
         print_with_tag! {
             $crate::tags::TAGS_COLOR, $crate::tags::GENERATING, $($args),*
+        }
+    )
+}
+
+macro_rules! print_generated {
+    ($($args:expr),*) => (
+        print_with_tag! {
+            $crate::tags::TAGS_COLOR, $crate::tags::GENERATED, $($args),*
         }
     )
 }

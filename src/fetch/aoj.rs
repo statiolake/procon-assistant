@@ -6,42 +6,52 @@ use common;
 
 use super::print_msg;
 
+use Error;
+use Result;
+
 const CONTEST: &str = "Aizu Online Judge";
 
-pub fn main(id: &str) -> bool {
-    let text = match download_text(id) {
-        Ok(text) => text,
-        Err(e) => {
-            print_msg::err_in_fetching_problem(CONTEST, id, &format!("{:?}", e));
-            return false;
-        }
-    };
+pub fn main(problem_id: &str) -> Result<()> {
+    let text = download_text(problem_id).map_err(|e| {
+        Some(Error::new(
+            "downloading html",
+            format!("failed to fetch the problem {}", problem_id),
+            Some(Box::new(e)),
+        ))
+    })?;
+
     let document = Html::parse_document(&text);
     let sel_pre = Selector::parse("pre").unwrap();
 
     let pres: Vec<_> = document.select(&sel_pre).collect();
     if pres.len() <= 1 || (pres.len() - 1) % 2 != 0 {
-        print_msg::err_in_parsing_problem(
-            CONTEST,
-            id,
-            &format!("the number of <pre> elements is unexpected: {}", pres.len()),
-        );
-        return false;
+        return Err(Some(Error::new(
+            "parsing problem html",
+            format!(
+                "the number of <pre> elements is unexpected: detected {}",
+                pres.len()
+            ),
+            None,
+        )));
     }
 
     for i in 0..(pres.len() / 2) {
-        print_msg::in_generating_sample_case(CONTEST, id, i + 1);
-        let (infile_name, outfile_name) = match common::make_next_iofile_name() {
-            Ok(r) => r,
-            Err(_) => return false,
-        };
-        addcase::ensure_create(&infile_name, &pres[i * 2 + 1].inner_html());
-        addcase::ensure_create(&outfile_name, &pres[i * 2 + 2].inner_html());
+        print_msg::in_generating_sample_case(CONTEST, problem_id, i + 1);
+        let (infile_name, outfile_name) = common::make_next_iofile_name().map_err(|e| {
+            Some(Error::new(
+                "creating testcase file",
+                "failed to generate testcase file's name.",
+                Some(Box::new(e.unwrap())),
+            ))
+        })?;
+
+        addcase::ensure_create(&infile_name, &pres[i * 2 + 1].inner_html())?;
+        addcase::ensure_create(&outfile_name, &pres[i * 2 + 2].inner_html())?;
     }
 
-    print_msg::in_generating_sample_case_finished(CONTEST, id, pres.len() / 2);
+    print_msg::in_generating_sample_case_finished(CONTEST, problem_id, pres.len() / 2);
 
-    true
+    Ok(())
 }
 
 fn download_text(id: &str) -> reqwest::Result<String> {

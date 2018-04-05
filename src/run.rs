@@ -344,30 +344,15 @@ fn run(filenames: Filenames) -> Result<JudgeResult, String> {
     Ok(whole_result)
 }
 
-pub fn main(args: Vec<String>) -> bool {
+pub fn main(args: Vec<String>) -> ::Result<()> {
     let result = match compile() {
-        Err(msg) => {
-            print_error!("{}", msg);
-            return false;
-        }
+        Err(msg) => return Err(Some(::Error::new("compiling", msg, None))),
         Ok(b) if !b => JudgeResult::CompilationError,
-        _ => {
-            let filenames = match enumerate_filenames(&args) {
-                Ok(f) => f,
-                Err(msg) => {
-                    print_error!("{}", msg);
-                    return false;
-                }
-            };
-
-            match run(filenames) {
-                Ok(r) => r,
-                Err(msg) => {
-                    print_error!("{}", msg);
-                    return false;
-                }
-            }
-        }
+        _ => enumerate_filenames(&args)
+            .map_err(|e| Some(::Error::new("enumerating filenames", e, None)))
+            .and_then(|filenames| {
+                run(filenames).map_err(|msg| Some(::Error::new("running testcase", msg, None)))
+            })?,
     };
 
     let (result_color, result_long_name) = result.to_long_name();
@@ -379,27 +364,25 @@ pub fn main(args: Vec<String>) -> bool {
         Reset, ".";
     };
 
-    match result {
-        JudgeResult::Passed => {
-            let mut main_cpp_content = String::new();
-            File::open("main.cpp")
-                .unwrap()
-                .read_to_string(&mut main_cpp_content)
-                .unwrap();
+    if let JudgeResult::Passed = result {
+        let mut main_cpp_content = String::new();
+        File::open("main.cpp")
+            .unwrap()
+            .read_to_string(&mut main_cpp_content)
+            .unwrap();
 
-            // copy content into clipboard
-            let resultchild = Command::new("xsel").arg("-b").stdin(Stdio::piped()).spawn();
-            if let Ok(mut child) = resultchild {
-                child
-                    .stdin
-                    .take()
-                    .unwrap()
-                    .write_all(main_cpp_content.as_bytes())
-                    .unwrap();
-                child.wait().unwrap();
-            }
-            true
+        // copy content into clipboard
+        let resultchild = Command::new("xsel").arg("-b").stdin(Stdio::piped()).spawn();
+        if let Ok(mut child) = resultchild {
+            child
+                .stdin
+                .take()
+                .unwrap()
+                .write_all(main_cpp_content.as_bytes())
+                .unwrap();
+            child.wait().unwrap();
         }
-        _ => false,
     }
+
+    Ok(())
 }
