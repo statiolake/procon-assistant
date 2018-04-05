@@ -2,7 +2,7 @@
 
 ## Usage
 
-### `initdirs {contest-name} {numof-problems} [problem-beginning-char]`
+### `initdirs {contest-name} {numof-problems} [beginning-char]`
 
 alias: `id`
 
@@ -28,7 +28,7 @@ alias: `i`
 creates `main.cpp` in the **current directory** with a simple template
 (hard-coded) and automatically open it.
 
-### `fetch {contest-site:problem-id}`
+### `fetch {contest-site}:{problem-id}`
 
 alias: `f`
 
@@ -43,6 +43,18 @@ or
 
 ```
 % procon-assistant fetch atcoder:agc022a # AtCoder Grand Contest 022 problem A
+```
+
+### `download {contest-site}:{contest-id}`
+
+alias: `d`, `dl`
+
+downloads the contest webpage, parses its html and determine the number of
+problems. then initializes directory tree (`initdirs`) and fetch sample cases
+for each problem.
+
+```
+% procon-assistant download atcoder:agc022 # AtCder Grand Contest 022
 ```
 
 ### `addcase`
