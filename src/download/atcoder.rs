@@ -64,7 +64,7 @@ fn get_range_of_problems(long_contest_name: &str, contest_id: &str) -> Result<(c
     print_msg::in_fetching_tasks(long_contest_name);
     let text = reqwest::get(&url)
         .and_then(|mut g| g.text())
-        .map_err(|e| Error::with_cause("downloading html", "failed to get text", Box::new(e)))?;
+        .map_err(|e| Error::with_cause("downloading html", "failed to get text", box e))?;
 
     let document = Html::parse_document(&text);
     let sel_tbody = Selector::parse("tbody").unwrap();
