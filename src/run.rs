@@ -53,7 +53,7 @@ fn print_compiler_output(kind: &str, output: &Vec<u8>) {
         print_info!("compiler {}:", kind);
         for line in output {
             colored_println! {
-                true;
+                ::common::COLORIZE;
                 OUTPUT_COLOR, "        {}", line;
             }
         }
@@ -231,7 +231,7 @@ fn print_solution_output(kind: &str, result: &Vec<String>) {
     print_info!("{}:", kind);
     for line in result.iter() {
         colored_println! {
-            true;
+            ::common::COLORIZE;
             OUTPUT_COLOR, "        {}", line;
         }
     }
@@ -312,7 +312,7 @@ fn run(filenames: Filenames) -> Result<JudgeResult, String> {
         // get color and short result string
         let (color, short_name) = result.to_short_name();
         colored_println! {
-            true;
+            ::common::COLORIZE;
             Reset, "    ";
             color, "{}", short_name;
             Reset, " {}", infile_name;
@@ -358,7 +358,7 @@ pub fn main(args: Vec<String>) -> ::Result<()> {
     let (result_color, result_long_name) = result.to_long_name();
     println!("");
     colored_println!{
-        true;
+        ::common::COLORIZE;
         Reset, "    Your solution was ";
         result_color, "{}", result_long_name;
         Reset, ".";

@@ -4,6 +4,8 @@ use std::process::Command;
 use Error;
 use Result;
 
+pub const COLORIZE: bool = false;
+
 pub fn open(name: &str) -> Result<()> {
     Command::new("open")
         .arg(name)

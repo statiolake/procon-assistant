@@ -90,7 +90,7 @@ macro_rules! print_info {
 macro_rules! print_with_tag {
     ($color:expr, $tag:expr, $fmt:expr $(,$args:expr)*) => (
         colored_println! {
-            true;
+            ::common::COLORIZE;
             $color, "{}", $tag;
             ::colored_print::color::ConsoleColor::Reset, " ";
             ::colored_print::color::ConsoleColor::Reset, $fmt $(,$args)*;
