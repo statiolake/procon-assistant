@@ -11,11 +11,10 @@ use Result;
 fn ensure_not_exists(p: &str) -> Result<&Path> {
     let p = Path::new(p);
     if p.exists() {
-        Err(Some(Error::new(
+        Err(Error::new(
             "creating main.cpp",
             "file main.cpp already exists.",
-            None,
-        )))
+        ))
     } else {
         Ok(p)
     }
@@ -35,13 +34,8 @@ fn generate_main_cpp(p: &Path) -> io::Result<()> {
 
 pub fn main() -> Result<()> {
     let p = ensure_not_exists("main.cpp")?;
-    generate_main_cpp(p).map_err(|e| {
-        Some(Error::new(
-            "generating main.cpp",
-            "failed to write.",
-            Some(Box::new(e)),
-        ))
-    })?;
+    generate_main_cpp(p)
+        .map_err(|e| Error::with_cause("generating main.cpp", "failed to write.", box e))?;
     print_generated!("main.cpp");
 
     open("main.cpp")?;

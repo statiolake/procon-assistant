@@ -9,16 +9,11 @@ use Result;
 
 pub fn ensure_create(name: &str, text: &str) -> Result<()> {
     let mut f = File::create(name)
-        .map_err(|e| Error::new(format!("creating {}", name), "failed", Some(Box::new(e))))?;
+        .map_err(|e| Error::with_cause(format!("creating {}", name), "failed", box e))?;
 
     if text != "" {
-        f.write_all(text.as_bytes()).map_err(|e| {
-            Error::new(
-                format!("writing into {}", name),
-                "failed",
-                Some(Box::new(e)),
-            )
-        })?;
+        f.write_all(text.as_bytes())
+            .map_err(|e| Error::with_cause(format!("writing into {}", name), "failed", box e))?;
     }
 
     Ok(())
@@ -29,7 +24,6 @@ pub fn main() -> Result<()> {
         Error::new(
             "creating testcase file",
             "failed to generate testcase file's name.",
-            None,
         )
     })?;
 

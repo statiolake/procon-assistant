@@ -13,11 +13,11 @@ const CONTEST: &str = "Aizu Online Judge";
 
 pub fn main(problem_id: &str) -> Result<()> {
     let text = download_text(problem_id).map_err(|e| {
-        Some(Error::new(
+        Error::with_cause(
             "downloading html",
             format!("failed to fetch the problem {}", problem_id),
-            Some(Box::new(e)),
-        ))
+            box e,
+        )
     })?;
 
     let document = Html::parse_document(&text);
@@ -25,26 +25,18 @@ pub fn main(problem_id: &str) -> Result<()> {
 
     let pres: Vec<_> = document.select(&sel_pre).collect();
     if pres.len() <= 1 || (pres.len() - 1) % 2 != 0 {
-        return Err(Some(Error::new(
+        return Err(Error::new(
             "parsing problem html",
             format!(
                 "the number of <pre> elements is unexpected: detected {}",
                 pres.len()
             ),
-            None,
-        )));
+        ));
     }
 
     for i in 0..(pres.len() / 2) {
         print_msg::in_generating_sample_case(CONTEST, problem_id, i + 1);
-        let (infile_name, outfile_name) = common::make_next_iofile_name().map_err(|e| {
-            Some(Error::new(
-                "creating testcase file",
-                "failed to generate testcase file's name.",
-                Some(Box::new(e.unwrap())),
-            ))
-        })?;
-
+        let (infile_name, outfile_name) = common::make_next_iofile_name()?;
         addcase::ensure_create(&infile_name, &pres[i * 2 + 1].inner_html())?;
         addcase::ensure_create(&outfile_name, &pres[i * 2 + 2].inner_html())?;
     }

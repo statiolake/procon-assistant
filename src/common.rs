@@ -12,11 +12,11 @@ pub fn open(name: &str) -> Result<()> {
         .spawn()
         .map(|_| ())
         .map_err(|e| {
-            Some(Error::new(
+            Error::with_cause(
                 format!("opening {}", name),
                 "failed to spawn open command.",
-                Some(Box::new(e)),
-            ))
+                box e,
+            )
         })
 }
 
@@ -30,14 +30,13 @@ pub fn make_next_iofile_name() -> Result<(String, String)> {
     let outfile_name = make_outfile_name(i);
 
     if Path::new(&outfile_name).exists() {
-        return Err(Some(Error::new(
+        return Err(Error::new(
             "generating next sample case file name",
             format!(
                 "{} exists while {} doesn't exist.",
                 outfile_name, infile_name
             ),
-            None,
-        )));
+        ));
     }
 
     Ok((infile_name, outfile_name))

@@ -346,12 +346,12 @@ fn run(filenames: Filenames) -> Result<JudgeResult, String> {
 
 pub fn main(args: Vec<String>) -> ::Result<()> {
     let result = match compile() {
-        Err(msg) => return Err(Some(::Error::new("compiling", msg, None))),
+        Err(msg) => return Err(::Error::new("compiling", msg)),
         Ok(b) if !b => JudgeResult::CompilationError,
         _ => enumerate_filenames(&args)
-            .map_err(|e| Some(::Error::new("enumerating filenames", e, None)))
+            .map_err(|e| ::Error::new("enumerating filenames", e))
             .and_then(|filenames| {
-                run(filenames).map_err(|msg| Some(::Error::new("running testcase", msg, None)))
+                run(filenames).map_err(|msg| ::Error::new("running testcase", msg))
             })?,
     };
 

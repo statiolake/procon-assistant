@@ -1,3 +1,4 @@
+#![feature(box_syntax)]
 #[macro_use]
 extern crate colored_print;
 extern crate reqwest;
@@ -26,7 +27,7 @@ pub struct Error {
 }
 
 impl Error {
-    pub fn new<S, T>(when: S, description: T, cause: Option<Box<std::error::Error>>) -> Error
+    pub fn new<S, T>(when: S, description: T) -> Error
     where
         S: Into<String>,
         T: Into<String>,
@@ -34,7 +35,19 @@ impl Error {
         Error {
             when: when.into(),
             description: description.into(),
-            cause,
+            cause: None,
+        }
+    }
+
+    pub fn with_cause<S, T>(when: S, description: T, cause: Box<std::error::Error>) -> Error
+    where
+        S: Into<String>,
+        T: Into<String>,
+    {
+        Error {
+            when: when.into(),
+            description: description.into(),
+            cause: Some(cause),
         }
     }
 
@@ -62,9 +75,9 @@ impl std::error::Error for Error {
     }
 }
 
-type Result<T> = std::result::Result<T, Option<Error>>;
+type Result<T> = std::result::Result<T, Error>;
 
-fn help(with_flag: bool) -> Result<()> {
+fn help() {
     println!("Procon Assistant");
     println!("Usage: procon-assistant {{command}} [options]");
     println!("");
@@ -87,21 +100,13 @@ fn help(with_flag: bool) -> Result<()> {
     println!("        creates inX.txt, outX.txt in current directory.");
     println!("    run [testcase]");
     println!("        runs and tests current solution (main.cpp) with input inX.txt.");
-
-    if with_flag {
-        Ok(())
-    } else {
-        Err(None)
-    }
 }
 
 fn main() {
     let args: Vec<_> = env::args().collect();
 
     if args.len() < 2 {
-        match help(false) {
-            _ => (),
-        }
+        help();
         process::exit(1);
     }
 
@@ -112,14 +117,18 @@ fn main() {
         "fetch" | "f" => fetch::main(args.into_iter().skip(2).collect()),
         "download" | "d" | "dl" => download::main(args.into_iter().skip(2).collect()),
         "run" | "r" => run::main(args.into_iter().skip(2).collect()),
-        "--help" | "-h" => help(true),
-        _ => help(false),
+        "--help" | "-h" => {
+            help();
+            return;
+        }
+        _ => {
+            help();
+            process::exit(1)
+        }
     };
 
     if let Err(e) = result {
-        if let Some(e) = e {
-            e.display();
-        }
+        e.display();
         process::exit(1);
     }
 }

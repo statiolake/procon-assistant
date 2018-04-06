@@ -15,14 +15,13 @@ fn get_long_contest_name(contest_name: &str) -> Result<&str> {
     let conversion_error = Error::new(
         "converting short name to long name",
         format!("unknown contest name {}", contest_name),
-        None,
     );
 
     match contest_name {
         "abc" => Ok("AtCoder Beginner Contest"),
         "arc" => Ok("AtCoder Regular Contest"),
         "agc" => Ok("AtCoder Grand Contest"),
-        _ => Err(Some(conversion_error)),
+        _ => Err(conversion_error),
     }
 }
 
@@ -30,25 +29,17 @@ pub fn main(contest_id: &str) -> Result<()> {
     let contest_id_error = Error::new(
         "parsing contest_id",
         "format is invalid; the example format for AtCoder Grand Contest 022: agc022",
-        None,
     );
 
     if contest_id.len() != 6 {
-        return Err(Some(contest_id_error));
+        return Err(contest_id_error);
     }
 
     let contest_name = &contest_id[0..3];
     let long_contest_name = get_long_contest_name(contest_name)?;
     // let round = &contest_id[3..6];
 
-    let (beginning_char, numof_problems) = get_range_of_problems(long_contest_name, contest_id)
-        .map_err(|e| {
-            Some(Error::new(
-                "getting range of problems",
-                "failed to get range",
-                Some(Box::new(e.unwrap())),
-            ))
-        })?;
+    let (beginning_char, numof_problems) = get_range_of_problems(long_contest_name, contest_id)?;
 
     initdirs::create_directories(contest_id, beginning_char, numof_problems);
 
@@ -71,13 +62,9 @@ fn get_range_of_problems(long_contest_name: &str, contest_id: &str) -> Result<(c
     // fetch the tasks
     let url = format!("https://beta.atcoder.jp/contests/{}/tasks", contest_id);
     print_msg::in_fetching_tasks(long_contest_name);
-    let text = reqwest::get(&url).and_then(|mut g| g.text()).map_err(|e| {
-        Some(Error::new(
-            "downloading html",
-            "failed to get text",
-            Some(Box::new(e)),
-        ))
-    })?;
+    let text = reqwest::get(&url)
+        .and_then(|mut g| g.text())
+        .map_err(|e| Error::with_cause("downloading html", "failed to get text", Box::new(e)))?;
 
     let document = Html::parse_document(&text);
     let sel_tbody = Selector::parse("tbody").unwrap();
@@ -88,7 +75,7 @@ fn get_range_of_problems(long_contest_name: &str, contest_id: &str) -> Result<(c
     let rows: Vec<_> = document
         .select(&sel_tbody)
         .next()
-        .ok_or(Error::new("parsing html", "failed to get the tasks.", None))?
+        .ok_or(Error::new("parsing html", "failed to get the tasks."))?
         .select(&sel_tr)
         .collect();
 
@@ -96,19 +83,11 @@ fn get_range_of_problems(long_contest_name: &str, contest_id: &str) -> Result<(c
     let beginning_char_uppercase = rows[0]
         .select(&sel_a)
         .next()
-        .ok_or(Error::new(
-            "parsing html",
-            "failed to get the problem id.",
-            None,
-        ))?
+        .ok_or(Error::new("parsing html", "failed to get the problem id."))?
         .inner_html()
         .chars()
         .next()
-        .ok_or(Error::new(
-            "parsing html",
-            "the problem id is empty string",
-            None,
-        ))?;
+        .ok_or(Error::new("parsing html", "the problem id is empty string"))?;
 
     Ok((
         beginning_char_uppercase.to_lowercase().next().unwrap(),

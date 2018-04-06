@@ -10,29 +10,22 @@ pub fn main(args: Vec<String>) -> Result<()> {
         0 => Err(Error::new(
             "parsing argument",
             "please specify contest-name and the number of problems.",
-            None,
         )),
         1 => Err(Error::new(
             "parsing argument",
             "please specify the number of problems.",
-            None,
         )),
         2 => Ok('a'),
         3 if args[2].len() > 0 => Ok(args[2].chars().next().unwrap()),
         _ => Err(Error::new(
             "parsing argument",
             "too many arguments for initdirs command.",
-            None,
         )),
     }?;
 
     let contest_name = args[0].as_str();
     let numof_problems: u8 = args[1].parse().map_err(|e: num::ParseIntError| {
-        Error::new(
-            "parsing the number of problems",
-            "parse failed",
-            Some(Box::new(e)),
-        )
+        Error::with_cause("parsing the number of problems", "parse failed", box e)
     })?;
 
     create_directories(contest_name, beginning_char, numof_problems);
