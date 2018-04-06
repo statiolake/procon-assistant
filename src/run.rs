@@ -6,6 +6,13 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use std::thread;
 
+use std::result;
+
+use common;
+
+use Error;
+use Result;
+
 const TIMEOUT_MILLISECOND: i64 = 1000;
 const OUTPUT_COLOR: ConsoleColor = LightMagenta;
 
@@ -60,7 +67,7 @@ fn print_compiler_output(kind: &str, output: &Vec<u8>) {
     }
 }
 
-fn compile() -> Result<bool, String> {
+fn compile() -> result::Result<bool, String> {
     print_compiling!("main.cpp");
     let result = Command::new("g++")
         .arg("-std=c++14")
@@ -84,7 +91,7 @@ fn compile() -> Result<bool, String> {
 
 type Filenames = Vec<(String, String)>;
 
-fn check_exists(filenames: &Filenames) -> Result<(), String> {
+fn check_exists(filenames: &Filenames) -> result::Result<(), String> {
     for filename in filenames.iter() {
         let (ref infile_name, ref outfile_name) = *filename;
         if !Path::new(infile_name).exists() {
@@ -101,9 +108,9 @@ fn check_exists(filenames: &Filenames) -> Result<(), String> {
 fn get_current_dirs_cases() -> Filenames {
     let mut result = vec![];
     let mut i = 1;
-    while Path::new(&::common::make_infile_name(i)).exists() {
-        let infile_name = ::common::make_infile_name(i);
-        let outfile_name = ::common::make_outfile_name(i);
+    while Path::new(&common::make_infile_name(i)).exists() {
+        let infile_name = common::make_infile_name(i);
+        let outfile_name = common::make_outfile_name(i);
         result.push((infile_name, outfile_name));
         i += 1;
     }
@@ -111,20 +118,20 @@ fn get_current_dirs_cases() -> Filenames {
     result
 }
 
-fn parse_argument_cases(args: &Vec<String>) -> Result<Filenames, String> {
+fn parse_argument_cases(args: &Vec<String>) -> result::Result<Filenames, String> {
     let mut result = vec![];
     for arg in args.iter() {
         let n: i32 = arg.parse()
             .map_err(|x| format!("failed to parse argument: {}", x))?;
-        let infile_name = ::common::make_infile_name(n);
-        let outfile_name = ::common::make_outfile_name(n);
+        let infile_name = common::make_infile_name(n);
+        let outfile_name = common::make_outfile_name(n);
         result.push((infile_name, outfile_name));
     }
 
     Ok(result)
 }
 
-fn enumerate_filenames(args: &Vec<String>) -> Result<Filenames, String> {
+fn enumerate_filenames(args: &Vec<String>) -> result::Result<Filenames, String> {
     let filenames = if args.is_empty() {
         get_current_dirs_cases()
     } else {
@@ -135,7 +142,7 @@ fn enumerate_filenames(args: &Vec<String>) -> Result<Filenames, String> {
     Ok(filenames)
 }
 
-fn run_for_one_file(infile_name: &str, outfile_name: &str) -> Result<JudgeResult, String> {
+fn run_for_one_file(infile_name: &str, outfile_name: &str) -> result::Result<JudgeResult, String> {
     // get infile content
     let mut infile = File::open(infile_name).unwrap();
     let mut infile_content = Vec::new();
@@ -281,7 +288,7 @@ fn enumerate_different_lines(expected: &Vec<String>, actual: &Vec<String>) -> Ou
     }
 }
 
-fn run(filenames: Filenames) -> Result<JudgeResult, String> {
+fn run(filenames: Filenames) -> result::Result<JudgeResult, String> {
     print_running!(
         "{} testcases (current timeout is {} millisecs)",
         filenames.len(),
@@ -344,14 +351,14 @@ fn run(filenames: Filenames) -> Result<JudgeResult, String> {
     Ok(whole_result)
 }
 
-pub fn main(args: Vec<String>) -> ::Result<()> {
+pub fn main(args: Vec<String>) -> Result<()> {
     let result = match compile() {
-        Err(msg) => return Err(::Error::new("compiling", msg)),
+        Err(msg) => return Err(Error::new("compiling", msg)),
         Ok(b) if !b => JudgeResult::CompilationError,
         _ => enumerate_filenames(&args)
-            .map_err(|e| ::Error::new("enumerating filenames", e))
+            .map_err(|e| Error::new("enumerating filenames", e))
             .and_then(|filenames| {
-                run(filenames).map_err(|msg| ::Error::new("running testcase", msg))
+                run(filenames).map_err(|msg| Error::new("running testcase", msg))
             })?,
     };
 
