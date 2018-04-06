@@ -9,7 +9,6 @@ use super::print_msg;
 use Error;
 use Result;
 
-// const CONTEST: &str = "AtCoder";
 fn get_long_contest_name(contest_name: &str) -> Result<&str> {
     let conversion_error = Error::new(
         "converting short name to long name",
