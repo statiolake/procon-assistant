@@ -25,6 +25,7 @@ fn generate_main_cpp(p: &Path) -> io::Result<()> {
 
     writeln!(f, "#include <bits/stdc++.h>")?;
     writeln!(f, "using namespace std;")?;
+    writeln!(f, "using ll = long long;")?;
     writeln!(f, "int main() {{")?;
     writeln!(f, "")?;
     writeln!(f, "    return 0;")?;
