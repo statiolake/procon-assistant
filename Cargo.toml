@@ -4,7 +4,10 @@ name = "procon-assistant"
 version = "0.1.0"
 
 [dependencies]
+isatty = "0.1.6"
+percent-encoding = "1.0.1"
 reqwest = "0.8.5"
+rpassword = "2.0.0"
 scraper = "0.6.0"
 time = "0.1.39"
 
