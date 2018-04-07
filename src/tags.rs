@@ -13,6 +13,7 @@ pub const GENERATED: &str = "  Generated";
 pub const FINISHED: &str = "   Finished";
 pub const FETCHING: &str = "   Fetching";
 pub const ERROR: &str = "      Error";
+pub const LOGGING_IN: &str = " Logging in";
 pub const INFO: &str = "       Info";
 
 macro_rules! print_error {
@@ -75,6 +76,14 @@ macro_rules! print_finished {
     ($($args:expr),*) => (
         print_with_tag! {
             $crate::tags::TAGS_COLOR, $crate::tags::FINISHED, $($args),*
+        }
+    )
+}
+
+macro_rules! print_logging_in {
+    ($($args:expr),*) => (
+        print_with_tag! {
+            $crate::tags::TAGS_COLOR, $crate::tags::LOGGING_IN, $($args),*
         }
     )
 }

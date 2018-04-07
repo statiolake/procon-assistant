@@ -1,7 +1,9 @@
 #![feature(box_syntax)]
 #[macro_use]
 extern crate colored_print;
+extern crate percent_encoding;
 extern crate reqwest;
+extern crate rpassword;
 extern crate scraper;
 extern crate time;
 
@@ -13,6 +15,7 @@ mod download;
 mod fetch;
 mod init;
 mod initdirs;
+mod login;
 mod run;
 
 use std::env;
@@ -100,6 +103,8 @@ fn help() {
     println!("        creates inX.txt, outX.txt in current directory.");
     println!("    run [testcase]");
     println!("        runs and tests current solution (main.cpp) with input inX.txt.");
+    println!("    login {{contest-site}}");
+    println!("        log in to the contest-site.");
 }
 
 fn main() {
@@ -110,13 +115,16 @@ fn main() {
         process::exit(1);
     }
 
-    let result = match args[1].as_str() {
-        "initdirs" | "id" => initdirs::main(args.into_iter().skip(2).collect()),
+    let cmd = args[1].clone();
+    let args: Vec<_> = args.into_iter().skip(2).collect();
+    let result = match cmd.as_str() {
+        "initdirs" | "id" => initdirs::main(args),
         "init" | "i" => init::main(),
         "addcase" | "a" | "ac" => addcase::main(),
-        "fetch" | "f" => fetch::main(args.into_iter().skip(2).collect()),
-        "download" | "d" | "dl" => download::main(args.into_iter().skip(2).collect()),
-        "run" | "r" => run::main(args.into_iter().skip(2).collect()),
+        "fetch" | "f" => fetch::main(args),
+        "download" | "d" | "dl" => download::main(args),
+        "run" | "r" => run::main(args),
+        "login" | "l" => login::main(args),
         "--help" | "-h" => {
             help();
             return;

@@ -1,6 +1,9 @@
 use reqwest;
 use scraper::{Html, Selector};
 
+use std::fs::File;
+use std::io::Read;
+
 use addcase::ensure_create;
 use common;
 
@@ -103,6 +106,19 @@ fn download_text(
         "https://beta.atcoder.jp/contests/{}/tasks/{}_{}",
         contest_id, contest_id, problem
     );
+
+    let client = reqwest::Client::new();
+    let mut builder = client.get(&url);
+    if let Ok(mut f) = File::open(".accesscode").or_else(|_| File::open("../.accesscode")) {
+        let mut revel_session = String::new();
+        f.read_to_string(&mut revel_session).unwrap();
+        let mut cookie = reqwest::header::Cookie::new();
+        cookie.append("REVEL_SESSION", revel_session.trim().to_string());
+        builder.header(cookie);
+    }
+
     print_msg::in_fetching_problem(long_contest_name, problem_id, &url);
-    reqwest::get(&url)?.text()
+    let mut res = builder.send()?;
+    ::login::atcoder::store_cookie(&mut res);
+    res.text()
 }
