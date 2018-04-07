@@ -17,7 +17,7 @@ pub fn main(args: Vec<String>) -> Result<()> {
     let arg = args.into_iter().next().unwrap();
 
     let (contest_site, problem_id) = {
-        let sp: Vec<_> = arg.split(':').collect();
+        let sp: Vec<_> = arg.splitn(2, ':').collect();
 
         if sp.len() != 2 {
             return Err(Error::new(

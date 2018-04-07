@@ -27,22 +27,19 @@ fn get_long_contest_name(contest_name: &str) -> Result<&str> {
 }
 
 pub fn main(problem_id: &str) -> Result<()> {
-    if problem_id.len() != 7 {
-        let problem_id_error = Error::new(
-            "parsing problem_id",
-            "format is invalid; the example format for AtCoder Grand Contest 022 Problem A: agc022a",
-        );
-
-        return Err(problem_id_error);
-    }
-
-    let contest_name = &problem_id[0..3];
-    let long_contest_name = get_long_contest_name(contest_name)?;
-    // let round = &problem_id[3..6];
-    let contest_id = &problem_id[0..6];
-    let problem = &problem_id[6..7];
-
-    let text = download_text(long_contest_name, problem_id, contest_id, problem).map_err(|e| {
+    let long_contest_name;
+    let problem;
+    let text = if problem_id.len() != 7 {
+        long_contest_name = "unknown";
+        problem = "unknown";
+        download_text_by_url("Unknown", "Unknown", problem_id)
+    } else {
+        let contest_name = &problem_id[0..3];
+        let contest_id = &problem_id[0..6];
+        long_contest_name = get_long_contest_name(contest_name)?;
+        problem = &problem_id[6..7];
+        download_text(long_contest_name, problem_id, contest_id, problem)
+    }.map_err(|e| {
         Error::with_cause(
             "downloading html",
             format!(
@@ -107,8 +104,16 @@ fn download_text(
         contest_id, contest_id, problem
     );
 
+    download_text_by_url(long_contest_name, problem_id, &url)
+}
+
+fn download_text_by_url(
+    long_contest_name: &str,
+    problem_id: &str,
+    url: &str,
+) -> reqwest::Result<String> {
     let client = reqwest::Client::new();
-    let mut builder = client.get(&url);
+    let mut builder = client.get(url);
     if let Ok(mut f) = File::open(".accesscode").or_else(|_| File::open("../.accesscode")) {
         let mut revel_session = String::new();
         f.read_to_string(&mut revel_session).unwrap();
