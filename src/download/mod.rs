@@ -28,7 +28,7 @@ pub fn main(args: Vec<String>) -> Result<()> {
     };
 
     match contest_site {
-        "atcoder" => atcoder::main(contest_id),
+        "atcoder" | "at" => atcoder::main(contest_id),
         _ => Err(Error::new(
             "processing contest-size",
             format!("the contest-site {} is not available.", contest_site),

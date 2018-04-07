@@ -12,7 +12,7 @@ pub fn main(args: Vec<String>) -> Result<()> {
     }
 
     match args[0].as_str() {
-        "atcoder" => atcoder::main(),
+        "atcoder" | "at" => atcoder::main(),
         _ => Err(Error::new(
             "parsing argument",
             format!("the specified contest-site {} is unknown.", args[0]),
