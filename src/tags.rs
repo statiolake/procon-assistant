@@ -1,7 +1,7 @@
 use colored_print::color::ConsoleColor;
 use colored_print::color::ConsoleColor::*;
 
-pub const TAGS_COLOR: ConsoleColor = Green;
+pub const TAGS_COLOR: ConsoleColor = LightGreen;
 pub const TAGS_ERROR_COLOR: ConsoleColor = Red;
 pub const TAGS_INFO_COLOR: ConsoleColor = LightBlue;
 

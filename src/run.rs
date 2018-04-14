@@ -27,22 +27,22 @@ enum JudgeResult {
 }
 
 impl JudgeResult {
-    fn to_long_name(&self) -> (ConsoleColor, &'static str) {
+    fn to_long_name(&self) -> (ConsoleColor, &'static str, &'static str) {
         use self::JudgeResult::*;
         match *self {
-            Passed => (Green, "Sample Case Passed"),
-            WrongAnswer(_) => (Yellow, "Wrong Answer"),
-            PresentationError => (Yellow, "Presentation Error"),
-            TimeLimitExceeded => (Yellow, "Time Limit Exceeded"),
-            RuntimeError(_) => (Red, "Runtime Error"),
-            CompilationError => (Yellow, "Compilation Error"),
+            Passed => (LightGreen, "", "Passed all sample case(s)"),
+            WrongAnswer(_) => (Yellow, "was ", "Wrong Answer"),
+            PresentationError => (Yellow, "was ", "Presentation Error"),
+            TimeLimitExceeded => (Yellow, "was ", "Time Limit Exceeded"),
+            RuntimeError(_) => (Red, "was ", "Runtime Error"),
+            CompilationError => (Yellow, "was ", "Compilation Error"),
         }
     }
 
     fn to_short_name(&self) -> (ConsoleColor, &'static str) {
         use self::JudgeResult::*;
         match *self {
-            Passed => (Green, "PS "),
+            Passed => (LightGreen, "PS "),
             WrongAnswer(_) => (Yellow, "WA "),
             PresentationError => (Yellow, "PE "),
             TimeLimitExceeded => (Yellow, "TLE"),
@@ -362,11 +362,11 @@ pub fn main(args: Vec<String>) -> Result<()> {
             })?,
     };
 
-    let (result_color, result_long_name) = result.to_long_name();
+    let (result_color, result_long_verb, result_long_name) = result.to_long_name();
     println!("");
     colored_println!{
         common::colorize();
-        Reset, "    Your solution was ";
+        Reset, "    Your solution {}", result_long_verb;
         result_color, "{}", result_long_name;
         Reset, ".";
     };
@@ -379,7 +379,12 @@ pub fn main(args: Vec<String>) -> Result<()> {
             .unwrap();
 
         // copy content into clipboard
-        let resultchild = Command::new("xsel").arg("-b").stdin(Stdio::piped()).spawn();
+        let resultchild = Command::new("xsel")
+            .arg("-b")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn();
         if let Ok(mut child) = resultchild {
             child
                 .stdin
