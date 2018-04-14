@@ -48,11 +48,14 @@ pub fn main(contest_id: &str) -> Result<()> {
     env::set_current_dir(&Path::new(contest_id)).unwrap();
     let mut problem_id = String::from(contest_id);
     for problem in 0..numof_problems {
-        let curr = (beginning_char as u8 + problem) as char;
-        env::set_current_dir(Path::new(&curr.to_string())).unwrap();
-        problem_id.push(curr);
+        let curr_actual = (beginning_char as u8 + problem) as char;
+        env::set_current_dir(Path::new(&curr_actual.to_string())).unwrap();
+
+        let curr_url = ('a' as u8 + problem) as char;
+        problem_id.push(curr_url);
         atcoder::main(&problem_id)?;
         problem_id.pop();
+
         env::set_current_dir(Path::new("..")).unwrap();
     }
 
