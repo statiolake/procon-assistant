@@ -23,8 +23,8 @@ pub fn main(problem_id: &str) -> Result<()> {
     let document = Html::parse_document(&text);
     let sel_pre = Selector::parse("pre").unwrap();
 
-    let pres: Vec<_> = document.select(&sel_pre).collect();
-    if pres.len() <= 1 || (pres.len() - 1) % 2 != 0 {
+    let mut pres: Vec<_> = document.select(&sel_pre).collect();
+    if pres.len() <= 1 {
         return Err(Error::new(
             "parsing problem html",
             format!(
@@ -34,11 +34,15 @@ pub fn main(problem_id: &str) -> Result<()> {
         ));
     }
 
+    if (pres.len() - 1) % 2 == 1 {
+        pres = pres.into_iter().skip(1).collect();
+    }
+
     for i in 0..(pres.len() / 2) {
         print_msg::in_generating_sample_case(CONTEST, problem_id, i + 1);
         let (infile_name, outfile_name) = common::make_next_iofile_name()?;
-        addcase::ensure_create(&infile_name, &pres[i * 2 + 1].inner_html())?;
-        addcase::ensure_create(&outfile_name, &pres[i * 2 + 2].inner_html())?;
+        addcase::ensure_create(&infile_name, &pres[i * 2].inner_html())?;
+        addcase::ensure_create(&outfile_name, &pres[i * 2 + 1].inner_html())?;
     }
 
     print_msg::in_generating_sample_case_finished(CONTEST, problem_id, pres.len() / 2);
