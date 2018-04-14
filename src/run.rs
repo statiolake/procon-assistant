@@ -13,7 +13,7 @@ use common;
 use Error;
 use Result;
 
-const TIMEOUT_MILLISECOND: i64 = 1000;
+const TIMEOUT_MILLISECOND: i64 = 3000;
 const OUTPUT_COLOR: ConsoleColor = LightMagenta;
 
 #[derive(PartialEq, Eq, Clone, Debug)]
