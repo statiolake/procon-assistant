@@ -2,6 +2,8 @@ use reqwest;
 use scraper::{Html, Selector};
 
 use std::env;
+use std::fs::File;
+use std::io::Read;
 use std::path::Path;
 
 use super::print_msg;
@@ -62,8 +64,7 @@ fn get_range_of_problems(long_contest_name: &str, contest_id: &str) -> Result<(c
     // fetch the tasks
     let url = format!("https://beta.atcoder.jp/contests/{}/tasks", contest_id);
     print_msg::in_fetching_tasks(long_contest_name);
-    let text = reqwest::get(&url)
-        .and_then(|mut g| g.text())
+    let text = download_text_by_url(&url)
         .map_err(|e| Error::with_cause("downloading html", "failed to get text", box e))?;
 
     let document = Html::parse_document(&text);
@@ -93,4 +94,23 @@ fn get_range_of_problems(long_contest_name: &str, contest_id: &str) -> Result<(c
         beginning_char_uppercase.to_lowercase().next().unwrap(),
         numof_problems,
     ))
+}
+
+fn download_text_by_url(url: &str) -> reqwest::Result<String> {
+    let client = reqwest::Client::new();
+    let mut builder = client.get(url);
+    if let Ok(mut f) = File::open(".accesscode")
+        .or_else(|_| File::open("../.accesscode"))
+        .or_else(|_| File::open("../../.accesscode"))
+    {
+        let mut revel_session = String::new();
+        f.read_to_string(&mut revel_session).unwrap();
+        let mut cookie = reqwest::header::Cookie::new();
+        cookie.append("REVEL_SESSION", revel_session.trim().to_string());
+        builder.header(cookie);
+    }
+
+    let mut res = builder.send()?;
+    ::login::atcoder::store_cookie(&mut res);
+    res.text()
 }
