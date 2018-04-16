@@ -73,6 +73,7 @@ fn compile() -> result::Result<bool, String> {
         .arg("-std=c++14")
         .arg("-Wall")
         .arg("-Wextra")
+        .arg("-DPA_DEBUG")
         .arg("-omain")
         .arg("main.cpp")
         .output()
