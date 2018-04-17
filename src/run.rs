@@ -67,27 +67,77 @@ fn print_compiler_output(kind: &str, output: &Vec<u8>) {
     }
 }
 
-fn compile() -> result::Result<bool, String> {
-    print_compiling!("main.cpp");
-    let result = Command::new("g++")
-        .arg("-std=c++14")
-        .arg("-Wall")
-        .arg("-Wextra")
-        .arg("-DPA_DEBUG")
-        .arg("-omain")
-        .arg("main.cpp")
-        .output()
-        .map_err(|x| {
+enum SrcFileTy {
+    Cpp(Command),
+    Rust(Command),
+}
+
+struct SrcFile {
+    file_name: String,
+    file_type: SrcFileTy,
+}
+
+impl SrcFile {
+    pub fn new(file_name: String, file_type: SrcFileTy) -> SrcFile {
+        SrcFile {
+            file_name,
+            file_type,
+        }
+    }
+}
+
+fn get_source_file() -> Result<SrcFile> {
+    let (file_name, file_type);
+    if Path::new("main.cpp").exists() {
+        let mut cmd = Command::new("g++");
+        cmd.arg("-std=c++14")
+            .arg("-Wall")
+            .arg("-Wextra")
+            .arg("-DPA_DEBUG")
+            .arg("-omain")
+            .arg("main.cpp");
+        file_name = "main.cpp".into();
+        file_type = SrcFileTy::Cpp(cmd);
+    } else if Path::new("main.rs").exists() {
+        let mut cmd = Command::new("rustc");
+        cmd.arg("main.rs");
+        file_name = "main.rs".into();
+        file_type = SrcFileTy::Rust(cmd);
+    } else {
+        return Err(Error::new(
+            "searching source file",
+            "supported source file not found.",
+        ));
+    }
+
+    Ok(SrcFile::new(file_name, file_type))
+}
+
+fn compile() -> Result<result::Result<bool, String>> {
+    let SrcFile {
+        file_name,
+        file_type,
+    } = get_source_file()?;
+
+    print_compiling!("{}", file_name);
+    let mut cmd = match file_type {
+        SrcFileTy::Cpp(cmd) => cmd,
+        SrcFileTy::Rust(cmd) => cmd,
+    };
+    let result = cmd.output().map_err(|x| {
+        Error::new(
+            "compiling source",
             format!(
                 "failed to spawn g++: {}. check you instlaled g++ correctly.",
                 x
-            )
-        })?;
+            ),
+        )
+    })?;
 
     print_compiler_output("standard output", &result.stdout);
     print_compiler_output("standard error", &result.stderr);
 
-    Ok(result.status.success())
+    Ok(Ok(result.status.success()))
 }
 
 type Filenames = Vec<(String, String)>;
@@ -353,7 +403,7 @@ fn run(filenames: Filenames) -> result::Result<JudgeResult, String> {
 }
 
 pub fn main(args: Vec<String>) -> Result<()> {
-    let result = match compile() {
+    let result = match compile()? {
         Err(msg) => return Err(Error::new("compiling", msg)),
         Ok(b) if !b => JudgeResult::CompilationError,
         _ => enumerate_filenames(&args)
@@ -373,10 +423,11 @@ pub fn main(args: Vec<String>) -> Result<()> {
     };
 
     if let JudgeResult::Passed = result {
-        let mut main_cpp_content = String::new();
-        File::open("main.cpp")
+        let SrcFile { file_name, .. } = get_source_file()?;
+        let mut src_content = String::new();
+        File::open(&file_name)
             .unwrap()
-            .read_to_string(&mut main_cpp_content)
+            .read_to_string(&mut src_content)
             .unwrap();
 
         // copy content into clipboard
@@ -391,7 +442,7 @@ pub fn main(args: Vec<String>) -> Result<()> {
                 .stdin
                 .take()
                 .unwrap()
-                .write_all(main_cpp_content.as_bytes())
+                .write_all(src_content.as_bytes())
                 .unwrap();
             child.wait().unwrap();
         }
