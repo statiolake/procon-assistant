@@ -34,7 +34,7 @@ pub fn main(problem_id: &str) -> Result<()> {
         ));
     }
 
-    if (pres.len() - 1) % 2 == 1 {
+    if pres.len() % 2 == 1 {
         pres = pres.into_iter().skip(1).collect();
     }
 
