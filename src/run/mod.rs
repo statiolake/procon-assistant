@@ -1,3 +1,5 @@
+mod judge_result;
+
 use colored_print::color::ConsoleColor;
 use colored_print::color::ConsoleColor::*;
 use std::fs::File;
@@ -8,50 +10,17 @@ use std::thread;
 
 use std::result;
 
+use self::judge_result::{JudgeResult, OutputDifference};
 use clip;
 use common;
+use imp::srcfile;
+use imp::srcfile::SrcFile;
 
 use Error;
 use Result;
 
 const TIMEOUT_MILLISECOND: i64 = 3000;
 const OUTPUT_COLOR: ConsoleColor = LightMagenta;
-
-#[derive(PartialEq, Eq, Clone, Debug)]
-enum JudgeResult {
-    Passed,
-    WrongAnswer(Option<(Vec<String>, Vec<String>, Vec<String>, OutputDifference)>), // in, expected, actual, different lines
-    PresentationError,
-    TimeLimitExceeded,
-    RuntimeError(String), // reason
-    CompilationError,
-}
-
-impl JudgeResult {
-    fn to_long_name(&self) -> (ConsoleColor, &'static str, &'static str) {
-        use self::JudgeResult::*;
-        match *self {
-            Passed => (LightGreen, "", "Passed all sample case(s)"),
-            WrongAnswer(_) => (Yellow, "was ", "Wrong Answer"),
-            PresentationError => (Yellow, "was ", "Presentation Error"),
-            TimeLimitExceeded => (Yellow, "was ", "Time Limit Exceeded"),
-            RuntimeError(_) => (Red, "was ", "Runtime Error"),
-            CompilationError => (Yellow, "was ", "Compilation Error"),
-        }
-    }
-
-    fn to_short_name(&self) -> (ConsoleColor, &'static str) {
-        use self::JudgeResult::*;
-        match *self {
-            Passed => (LightGreen, "PS "),
-            WrongAnswer(_) => (Yellow, "WA "),
-            PresentationError => (Yellow, "PE "),
-            TimeLimitExceeded => (Yellow, "TLE"),
-            RuntimeError(_) => (Red, "RE "),
-            CompilationError => (Yellow, "CE "),
-        }
-    }
-}
 
 fn print_compiler_output(kind: &str, output: &Vec<u8>) {
     if !output.is_empty() {
@@ -68,66 +37,14 @@ fn print_compiler_output(kind: &str, output: &Vec<u8>) {
     }
 }
 
-enum SrcFileTy {
-    Cpp(Command),
-    Rust(Command),
-}
-
-pub struct SrcFile {
-    pub file_name: String,
-    file_type: SrcFileTy,
-}
-
-impl SrcFile {
-    fn new(file_name: String, file_type: SrcFileTy) -> SrcFile {
-        SrcFile {
-            file_name,
-            file_type,
-        }
-    }
-}
-
-pub fn get_source_file() -> Result<SrcFile> {
-    let (file_name, file_type);
-    if Path::new("main.cpp").exists() {
-        let mut cmd = Command::new("g++");
-        cmd.arg("-std=c++14")
-            .arg("-Wall")
-            .arg("-Wextra")
-            .arg("-Wno-old-style-cast")
-            .arg(format!("-I{}", common::get_procon_lib_dir()?))
-            .arg("-DPA_DEBUG")
-            .arg("-omain")
-            .arg("main.cpp");
-        file_name = "main.cpp".into();
-        file_type = SrcFileTy::Cpp(cmd);
-    } else if Path::new("main.rs").exists() {
-        let mut cmd = Command::new("rustc");
-        cmd.arg("main.rs");
-        file_name = "main.rs".into();
-        file_type = SrcFileTy::Rust(cmd);
-    } else {
-        return Err(Error::new(
-            "searching source file",
-            "supported source file not found.",
-        ));
-    }
-
-    Ok(SrcFile::new(file_name, file_type))
-}
-
 fn compile() -> Result<result::Result<bool, String>> {
     let SrcFile {
         file_name,
-        file_type,
-    } = get_source_file()?;
+        mut compile_cmd,
+    } = srcfile::get_source_file()?;
 
     print_compiling!("{}", file_name);
-    let mut cmd = match file_type {
-        SrcFileTy::Cpp(cmd) => cmd,
-        SrcFileTy::Rust(cmd) => cmd,
-    };
-    let result = cmd.output().map_err(|x| {
+    let result = compile_cmd.output().map_err(|x| {
         Error::new(
             "compiling source",
             format!(
@@ -265,19 +182,30 @@ fn run_for_one_file(infile_name: &str, outfile_name: &str) -> result::Result<Jud
     // when they don't match:
     if childstdout != outfile_content {
         // wrong answer or presentation error
-        let infile = String::from_utf8_lossy(&infile_content);
-        let infile = infile.trim().split('\n').map(|x| x.to_string()).collect();
-        let expected = String::from_utf8_lossy(&outfile_content);
-        let expected = expected.trim().split('\n').map(|x| x.to_string()).collect();
-        let actual = String::from_utf8_lossy(&childstdout);
-        let actual = actual.trim().split('\n').map(|x| x.to_string()).collect();
-        let difference = enumerate_different_lines(&expected, &actual);
+        let input = String::from_utf8_lossy(&infile_content);
+        let input = input.trim().split('\n').map(|x| x.to_string()).collect();
+        let expected_output = String::from_utf8_lossy(&outfile_content);
+        let expected_output = expected_output
+            .trim()
+            .split('\n')
+            .map(|x| x.to_string())
+            .collect();
+        let actual_output = String::from_utf8_lossy(&childstdout);
+        let actual_output = actual_output
+            .trim()
+            .split('\n')
+            .map(|x| x.to_string())
+            .collect();
+        let difference = judge_result::enumerate_different_lines(&expected_output, &actual_output);
         return if difference == OutputDifference::NotDifferent {
             Ok(JudgeResult::PresentationError)
         } else {
-            Ok(JudgeResult::WrongAnswer(Some((
-                infile, expected, actual, difference,
-            ))))
+            Ok(JudgeResult::WrongAnswer(Some(judge_result::WrongAnswer {
+                input,
+                expected_output,
+                actual_output,
+                difference,
+            })))
         };
     }
 
@@ -292,50 +220,6 @@ fn print_solution_output(kind: &str, result: &Vec<String>) {
             common::colorize();
             OUTPUT_COLOR, "        {}", line;
         }
-    }
-}
-
-#[derive(PartialEq, Eq, Clone, Debug)]
-enum OutputDifference {
-    SizeDiffers,
-    Different(Vec<usize>),
-    NotDifferent,
-}
-
-impl OutputDifference {
-    fn message(&self) -> String {
-        match *self {
-            OutputDifference::SizeDiffers => format!("the number of output lines is different."),
-            OutputDifference::NotDifferent => unreachable!(), // this should be treated as Presentation Error.
-            OutputDifference::Different(ref different_lines) => {
-                let message = different_lines
-                    .into_iter()
-                    .map(|x| x.to_string())
-                    .collect::<Vec<_>>()
-                    .join(&", ".to_string());
-                format!("line {} differs.", message)
-            }
-        }
-    }
-}
-
-fn enumerate_different_lines(expected: &Vec<String>, actual: &Vec<String>) -> OutputDifference {
-    if expected.len() != actual.len() {
-        return OutputDifference::SizeDiffers;
-    }
-
-    let mut different_lines = vec![];
-    for i in 0..expected.len() {
-        if expected[i] != actual[i] {
-            different_lines.push(i + 1);
-        }
-    }
-
-    if different_lines.is_empty() {
-        // this is not wrong answer, but maybe presentation error;
-        OutputDifference::NotDifferent
-    } else {
-        OutputDifference::Different(different_lines)
     }
 }
 
@@ -368,7 +252,7 @@ fn run(filenames: Filenames) -> result::Result<JudgeResult, String> {
         let result = result?;
 
         // get color and short result string
-        let (color, short_name) = result.to_short_name();
+        let (color, short_name) = result.short_name();
         colored_println! {
             common::colorize();
             Reset, "    ";
@@ -377,15 +261,15 @@ fn run(filenames: Filenames) -> result::Result<JudgeResult, String> {
         }
 
         match result {
-            JudgeResult::WrongAnswer(Some((
-                ref infile,
-                ref expected,
-                ref actual,
+            JudgeResult::WrongAnswer(Some(judge_result::WrongAnswer {
+                ref input,
+                ref expected_output,
+                ref actual_output,
                 ref difference,
-            ))) => {
-                print_solution_output("sample case input", &infile);
-                print_solution_output("expected output", &expected);
-                print_solution_output("actual output", &actual);
+            })) => {
+                print_solution_output("sample case input", &input);
+                print_solution_output("expected output", &expected_output);
+                print_solution_output("actual output", &actual_output);
                 print_info!("{}", difference.message());
             }
             JudgeResult::RuntimeError(ref reason) => {
@@ -413,7 +297,7 @@ pub fn main(args: Vec<String>) -> Result<()> {
             })?,
     };
 
-    let (result_color, result_long_verb, result_long_name) = result.to_long_name();
+    let (result_color, result_long_verb, result_long_name) = result.long_name();
     println!("");
     colored_println!{
         common::colorize();
@@ -424,7 +308,7 @@ pub fn main(args: Vec<String>) -> Result<()> {
 
     // copy the answer to the clipboard
     if let JudgeResult::Passed = result {
-        let SrcFile { file_name, .. } = get_source_file()?;
+        let SrcFile { file_name, .. } = srcfile::get_source_file()?;
         println!("");
         clip::copy_to_clipboard(file_name.as_ref())?;
     }

@@ -12,8 +12,10 @@ extern crate time;
 #[macro_use]
 mod tags;
 mod addcase;
+mod imp;
 mod clip;
 mod common;
+mod config;
 mod download;
 mod fetch;
 mod init;

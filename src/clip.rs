@@ -7,14 +7,14 @@ use std::process::{Command, Stdio};
 use regex::Regex;
 
 use common;
-use run;
-use run::SrcFile;
+use imp::srcfile;
+use imp::srcfile::SrcFile;
 
 use Error;
 use Result;
 
 pub fn main() -> Result<()> {
-    let SrcFile { file_name, .. } = run::get_source_file()?;
+    let SrcFile { file_name, .. } = srcfile::get_source_file()?;
     copy_to_clipboard(file_name.as_ref())
 }
 
