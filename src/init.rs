@@ -36,6 +36,7 @@ fn generate_main_cpp(p: &Path) -> io::Result<()> {
 fn generate_clang_complete(p: &Path) -> io::Result<()> {
     let mut f = File::create(p)?;
     writeln!(f, "-I{}", common::get_procon_lib_dir().unwrap())?;
+    writeln!(f, "-Wno-old-style-cast")?;
     Ok(())
 }
 
