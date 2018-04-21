@@ -1,3 +1,5 @@
+pub const TIMEOUT_MILLISECOND: i64 = 3000;
+
 pub mod src_support {
     use std::process::Command;
     use Result;

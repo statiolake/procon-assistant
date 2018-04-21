@@ -11,15 +11,14 @@ use std::thread;
 use std::result;
 
 use self::judge_result::{JudgeResult, OutputDifference};
-use clip;
 use common;
+use config;
+use imp::clip;
 use imp::srcfile;
 use imp::srcfile::SrcFile;
-
 use Error;
 use Result;
 
-const TIMEOUT_MILLISECOND: i64 = 3000;
 const OUTPUT_COLOR: ConsoleColor = LightMagenta;
 
 fn print_compiler_output(kind: &str, output: &Vec<u8>) {
@@ -135,7 +134,7 @@ fn run_for_one_file(infile_name: &str, outfile_name: &str) -> result::Result<Jud
         .unwrap();
 
     // checking loop: during current time become timeout_time, pooling the child aliving status.
-    let timeout_time = ::time::now() + ::time::Duration::milliseconds(TIMEOUT_MILLISECOND);
+    let timeout_time = ::time::now() + ::time::Duration::milliseconds(config::TIMEOUT_MILLISECOND);
     loop {
         let try_wait_result = child.try_wait();
         if let Ok(Some(status)) = try_wait_result {
@@ -227,7 +226,7 @@ fn run(filenames: Filenames) -> result::Result<JudgeResult, String> {
     print_running!(
         "{} testcases (current timeout is {} millisecs)",
         filenames.len(),
-        TIMEOUT_MILLISECOND
+        config::TIMEOUT_MILLISECOND
     );
     let handles: Vec<_> = filenames
         .into_iter()
