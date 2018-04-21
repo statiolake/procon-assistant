@@ -68,18 +68,18 @@ fn print_compiler_output(kind: &str, output: &Vec<u8>) {
     }
 }
 
-pub enum SrcFileTy {
+enum SrcFileTy {
     Cpp(Command),
     Rust(Command),
 }
 
 pub struct SrcFile {
     pub file_name: String,
-    pub file_type: SrcFileTy,
+    file_type: SrcFileTy,
 }
 
 impl SrcFile {
-    pub fn new(file_name: String, file_type: SrcFileTy) -> SrcFile {
+    fn new(file_name: String, file_type: SrcFileTy) -> SrcFile {
         SrcFile {
             file_name,
             file_type,
