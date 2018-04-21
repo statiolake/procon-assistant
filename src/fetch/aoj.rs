@@ -1,13 +1,10 @@
 use reqwest;
 use scraper::{Html, Selector};
 
-use addcase;
-use common;
-
 use super::print_msg;
+use imp::test_case::TestCaseFile;
 
-use Error;
-use Result;
+use {Error, Result};
 
 const CONTEST: &str = "Aizu Online Judge";
 
@@ -40,9 +37,8 @@ pub fn main(problem_id: &str) -> Result<()> {
 
     for i in 0..(pres.len() / 2) {
         print_msg::in_generating_sample_case(CONTEST, problem_id, i + 1);
-        let (infile_name, outfile_name) = common::make_next_iofile_name()?;
-        addcase::ensure_create(&infile_name, &pres[i * 2].inner_html())?;
-        addcase::ensure_create(&outfile_name, &pres[i * 2 + 1].inner_html())?;
+        let tsf = TestCaseFile::new_with_next_unused_name()?;
+        tsf.create_with_contents(pres[i * 2 + 1].inner_html(), pres[i * 2 + 2].inner_html())?;
     }
 
     print_msg::in_generating_sample_case_finished(CONTEST, problem_id, pres.len() / 2);

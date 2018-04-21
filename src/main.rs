@@ -1,4 +1,4 @@
-#![feature(box_syntax)]
+#![feature(box_syntax, dyn_trait)]
 #[macro_use]
 extern crate colored_print;
 extern crate isatty;
@@ -12,12 +12,12 @@ extern crate time;
 #[macro_use]
 mod tags;
 mod addcase;
-mod imp;
 mod clip;
 mod common;
 mod config;
 mod download;
 mod fetch;
+mod imp;
 mod init;
 mod initdirs;
 mod login;
@@ -31,7 +31,7 @@ use std::process;
 pub struct Error {
     when: String,
     description: String,
-    cause: Option<Box<std::error::Error>>,
+    cause: Option<Box<dyn std::error::Error + Send>>,
 }
 
 impl Error {
@@ -47,7 +47,11 @@ impl Error {
         }
     }
 
-    pub fn with_cause<S, T>(when: S, description: T, cause: Box<std::error::Error>) -> Error
+    pub fn with_cause<S, T>(
+        when: S,
+        description: T,
+        cause: Box<dyn std::error::Error + Send>,
+    ) -> Error
     where
         S: Into<String>,
         T: Into<String>,
@@ -78,8 +82,8 @@ impl std::error::Error for Error {
         &self.description
     }
 
-    fn cause(&self) -> Option<&std::error::Error> {
-        self.cause.as_ref().map(|x| &**x)
+    fn cause(&self) -> Option<&dyn std::error::Error> {
+        self.cause.as_ref().map(|x| &**x as &dyn std::error::Error)
     }
 }
 

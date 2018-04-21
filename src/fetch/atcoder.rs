@@ -4,13 +4,10 @@ use scraper::{Html, Selector};
 use std::fs::File;
 use std::io::Read;
 
-use addcase::ensure_create;
-use common;
-
 use super::print_msg;
+use imp::test_case::TestCaseFile;
 
-use Error;
-use Result;
+use {Error, Result};
 
 fn get_long_contest_name(contest_name: &str) -> Result<&str> {
     let conversion_error = Error::new(
@@ -83,10 +80,8 @@ pub fn main(problem_id: &str) -> Result<()> {
 
     for i in 0..(pres.len() / 2) {
         print_msg::in_generating_sample_case(long_contest_name, problem_id, i + 1);
-        let (infile_name, outfile_name) = common::make_next_iofile_name()?;
-
-        ensure_create(&infile_name, &pres[i * 2 + 1].inner_html())?;
-        ensure_create(&outfile_name, &pres[i * 2 + 2].inner_html())?;
+        let tsf = TestCaseFile::new_with_next_unused_name()?;
+        tsf.create_with_contents(pres[i * 2 + 1].inner_html(), pres[i * 2 + 2].inner_html())?;
     }
 
     print_msg::in_generating_sample_case_finished(long_contest_name, problem_id, pres.len() / 2);
