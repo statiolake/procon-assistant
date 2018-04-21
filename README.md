@@ -17,16 +17,27 @@ creates contest directory tree like following:
    +- e   --+
 ```
 
-problem-beginning-char is`a` by default. you can specify it manualy (for
-example, AtCoder Regular Contest begins from Problem C. if you want to make
-directory with uppercase, then you should specify `A`) .
+problem-beginning-char is `a` by default. you can specify it manualy (to use
+with AtCoder Regular Contest that begins from Problem C. if you want to make
+directory with uppercase, you can specify like `A`) .
 
 ### `init`
 
 alias: `i`
 
 creates `main.cpp` in the **current directory** with a simple template
-(hard-coded) and automatically open it.
+(hard-coded) and automatically open it. it also creates `.clang_complete` file
+which contians the include path for your own library (hard-coded, default:
+`~/procon-lib`).
+
+### `clip`
+
+alias: `c`
+
+copies the whole contents of `main.cpp` into clipboard. it expands double
+quote version of #include directive (`#include "..."`) with your library at
+`~/procon-lib`. you don't have to copy-and-paste your library into your code
+before submission anymore.
 
 ### `fetch {contest-site}:{problem-id}`
 
@@ -43,15 +54,19 @@ or
 
 ```
 % procon-assistant fetch atcoder:agc022a # AtCoder Grand Contest 022 problem A
+% procon-assistant fetch at:agc022a      # same, you can use `at` instead of `atcoder`
 ```
+
+for AtCoder, there is also support for problems on non-regular contests: use
+the problem's URL directly instead of {problem-id}.
 
 ### `download {contest-site}:{contest-id}`
 
 alias: `d`, `dl`
 
-downloads the contest webpage, parses its html and determine the number of
-problems. then initializes directory tree (`initdirs`) and fetch sample cases
-for each problem.
+(experimental) downloads the contest webpage, parses its html and determine
+the number of problems, initializes directory tree (`initdirs`) and fetch
+sample cases for each problem.
 
 ```
 % procon-assistant download atcoder:agc022 # AtCder Grand Contest 022
@@ -109,6 +124,15 @@ your program's output is judged and result will be as follows.
     Your program's output is all collect when checks line by line, but
     is different when checks whole output. Maybe you forget newline after
     the last output line.
+
+### `login {contest-site}`
+
+alias: `l`
+
+(experimental) logs in to the contest-site. currently only AtCoder is
+supported. you can use it for joining to running contest. its problem is only
+visible for participants, so you need to log in. note that for now it can't
+detect logging in failure (always show as if logging in was successful).
 
 ### Note for auto open feature
 
