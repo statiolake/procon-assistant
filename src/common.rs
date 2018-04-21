@@ -1,10 +1,13 @@
 use isatty;
 
-use std::path::Path;
+use std::env;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use Error;
 use Result;
+
+const PROCON_LIB_DIR_NAME: &str = "procon-lib";
 
 pub fn colorize() -> bool {
     isatty::stdout_isatty()
@@ -22,6 +25,18 @@ pub fn open(name: &str) -> Result<()> {
                 box e,
             )
         })
+}
+
+pub fn get_home_path() -> Result<PathBuf> {
+    env::home_dir().ok_or(Error::new(
+        "generating compile option",
+        "can't get home directory's path.",
+    ))
+}
+
+pub fn get_procon_lib_dir() -> Result<String> {
+    let home_dir = get_home_path()?;
+    Ok(format!("{}/{}", home_dir.display(), PROCON_LIB_DIR_NAME))
 }
 
 pub fn make_next_iofile_name() -> Result<(String, String)> {

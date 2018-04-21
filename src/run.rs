@@ -8,6 +8,7 @@ use std::thread;
 
 use std::result;
 
+use clip;
 use common;
 
 use Error;
@@ -67,14 +68,14 @@ fn print_compiler_output(kind: &str, output: &Vec<u8>) {
     }
 }
 
-enum SrcFileTy {
+pub enum SrcFileTy {
     Cpp(Command),
     Rust(Command),
 }
 
-struct SrcFile {
-    file_name: String,
-    file_type: SrcFileTy,
+pub struct SrcFile {
+    pub file_name: String,
+    pub file_type: SrcFileTy,
 }
 
 impl SrcFile {
@@ -86,13 +87,15 @@ impl SrcFile {
     }
 }
 
-fn get_source_file() -> Result<SrcFile> {
+pub fn get_source_file() -> Result<SrcFile> {
     let (file_name, file_type);
     if Path::new("main.cpp").exists() {
         let mut cmd = Command::new("g++");
         cmd.arg("-std=c++14")
             .arg("-Wall")
             .arg("-Wextra")
+            .arg("-Wno-old-style-cast")
+            .arg(format!("-I{}", common::get_procon_lib_dir()?))
             .arg("-DPA_DEBUG")
             .arg("-omain")
             .arg("main.cpp");
@@ -273,10 +276,7 @@ fn run_for_one_file(infile_name: &str, outfile_name: &str) -> result::Result<Jud
             Ok(JudgeResult::PresentationError)
         } else {
             Ok(JudgeResult::WrongAnswer(Some((
-                infile,
-                expected,
-                actual,
-                difference,
+                infile, expected, actual, difference,
             ))))
         };
     }
@@ -422,30 +422,11 @@ pub fn main(args: Vec<String>) -> Result<()> {
         Reset, ".";
     };
 
+    // copy the answer to the clipboard
     if let JudgeResult::Passed = result {
         let SrcFile { file_name, .. } = get_source_file()?;
-        let mut src_content = String::new();
-        File::open(&file_name)
-            .unwrap()
-            .read_to_string(&mut src_content)
-            .unwrap();
-
-        // copy content into clipboard
-        let resultchild = Command::new("xsel")
-            .arg("-b")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn();
-        if let Ok(mut child) = resultchild {
-            child
-                .stdin
-                .take()
-                .unwrap()
-                .write_all(src_content.as_bytes())
-                .unwrap();
-            child.wait().unwrap();
-        }
+        println!("");
+        clip::copy_to_clipboard(file_name.as_ref())?;
     }
 
     Ok(())

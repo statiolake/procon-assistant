@@ -3,6 +3,7 @@
 extern crate colored_print;
 extern crate isatty;
 extern crate percent_encoding;
+extern crate regex;
 extern crate reqwest;
 extern crate rpassword;
 extern crate scraper;
@@ -11,6 +12,7 @@ extern crate time;
 #[macro_use]
 mod tags;
 mod addcase;
+mod clip;
 mod common;
 mod download;
 mod fetch;
@@ -90,6 +92,8 @@ fn help() {
     println!("        initializes directories tree (name/{{a,...,a+num}})");
     println!("    init");
     println!("        initializes files in directory");
+    println!("    clip");
+    println!("        copy source file to clipboard (with library expanded)");
     println!("    fetch {{contest-site}}:{{problem-id}}");
     println!("        fetches sample cases of given problem-id in given contest-site.");
     println!("        examples:");
@@ -122,6 +126,7 @@ fn main() {
         "initdirs" | "id" => initdirs::main(args),
         "init" | "i" => init::main(),
         "addcase" | "a" | "ac" => addcase::main(),
+        "clip" | "c" => clip::main(),
         "fetch" | "f" => fetch::main(args),
         "download" | "d" | "dl" => download::main(args),
         "run" | "r" => run::main(args),

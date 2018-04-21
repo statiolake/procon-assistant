@@ -3,7 +3,7 @@ use std::io;
 use std::io::prelude::*;
 use std::path::Path;
 
-use common::open;
+use common;
 
 use Error;
 use Result;
@@ -33,13 +33,24 @@ fn generate_main_cpp(p: &Path) -> io::Result<()> {
     Ok(())
 }
 
+fn generate_clang_complete(p: &Path) -> io::Result<()> {
+    let mut f = File::create(p)?;
+    writeln!(f, "-I{}", common::get_procon_lib_dir().unwrap())?;
+    Ok(())
+}
+
 pub fn main() -> Result<()> {
+    let p = ensure_not_exists(".clang_complete")?;
+    generate_clang_complete(p)
+        .map_err(|e| Error::with_cause("generating .clang_complete", "failed to write.", box e))?;
+    print_generated!(".clang_complete");
+
     let p = ensure_not_exists("main.cpp")?;
     generate_main_cpp(p)
         .map_err(|e| Error::with_cause("generating main.cpp", "failed to write.", box e))?;
     print_generated!("main.cpp");
 
-    open("main.cpp")?;
+    common::open("main.cpp")?;
 
     Ok(())
 }
