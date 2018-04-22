@@ -39,6 +39,7 @@ pub fn store_revel_session(code: &str, must_create: bool) -> Result<()> {
 pub fn try_login(username: String, password: String) -> Result<String> {
     let (cookie, csrf_token) = get_cookie_and_csrf_token()?;
     let cookie = login_get_cookie(cookie, username, password, csrf_token)?;
+
     find_revel_session(cookie)
 }
 
@@ -112,42 +113,67 @@ fn login_get_cookie(
     csrf_token: String,
 ) -> Result<Vec<(String, String)>> {
     print_logging_in!("to AtCoder");
-    let params = [
+    let client = make_client().map_err(|e| {
+        Error::with_cause("logging in to AtCoder", "failed to create client.", box e)
+    })?;
+    let params: [(&str, &str); 3] = [
         ("username", &username),
         ("password", &password),
         ("csrf_token", &csrf_token),
     ];
-    let mut postcookie = reqwest::header::Cookie::new();
-    for c in cookie.iter() {
-        postcookie.append(c.0.clone(), c.1.clone());
+    let post_cookie = make_post_cookie(cookie);
+    let res = post(client, &params, post_cookie).map_err(|e| {
+        Error::with_cause(
+            "logging in to AtCoder",
+            "failed to post username and password",
+            box e,
+        )
+    })?;
+
+    result_check(&res)?;
+
+    if !is_login_succeeded(&res) {
+        return Err(Error::new(
+            "logging in to AtCoder",
+            "login failed. check your username and password.",
+        ));
     }
 
-    let client = reqwest::ClientBuilder::new()
-        .redirect(reqwest::RedirectPolicy::none())
-        .build()
-        .map_err(|e| {
-            Error::with_cause("logging in to AtCoder", "failed to create client.", box e)
-        })?;
-
-    let res = client
-        .post("https://beta.atcoder.jp/login")
-        .form(&params)
-        .header(postcookie)
-        .send()
-        .map_err(|e| {
-            Error::with_cause(
-                "logging in to AtCoder",
-                "failed to post username and password",
-                box e,
-            )
-        })?;
-
-    print_info!("{:?}", res);
-    result_check(&res)?;
     let setcookie: &reqwest::header::SetCookie = res.headers().get().unwrap();
     let cookie = extract_setcookie(setcookie);
 
     Ok(cookie)
+}
+
+fn make_client() -> reqwest::Result<reqwest::Client> {
+    reqwest::ClientBuilder::new()
+        .redirect(reqwest::RedirectPolicy::none())
+        .build()
+}
+
+fn make_post_cookie(cookie: Vec<(String, String)>) -> reqwest::header::Cookie {
+    let mut post_cookie = reqwest::header::Cookie::new();
+    for (head, value) in cookie.iter() {
+        post_cookie.append(head.clone(), value.clone());
+    }
+    post_cookie
+}
+
+fn post(
+    client: reqwest::Client,
+    params: &[(&str, &str)],
+    post_cookie: reqwest::header::Cookie,
+) -> reqwest::Result<reqwest::Response> {
+    client
+        .post("https://beta.atcoder.jp/login")
+        .form(params)
+        .header(post_cookie)
+        .send()
+}
+
+fn is_login_succeeded(res: &reqwest::Response) -> bool {
+    let loc: &reqwest::header::Location = res.headers().get().unwrap();
+    &**loc == "/"
 }
 
 fn extract_setcookie(setcookie: &reqwest::header::SetCookie) -> Vec<(String, String)> {
