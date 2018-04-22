@@ -38,7 +38,7 @@ pub fn main(problem_id: &str) -> Result<()> {
     for i in 0..(pres.len() / 2) {
         print_msg::in_generating_sample_case(CONTEST, problem_id, i + 1);
         let tsf = TestCaseFile::new_with_next_unused_name()?;
-        tsf.create_with_contents(pres[i * 2 + 1].inner_html(), pres[i * 2 + 2].inner_html())?;
+        tsf.create_with_contents(pres[i * 2].inner_html(), pres[i * 2 + 1].inner_html())?;
     }
 
     print_msg::in_generating_sample_case_finished(CONTEST, problem_id, pres.len() / 2);
