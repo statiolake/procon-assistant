@@ -1,10 +1,8 @@
 use reqwest;
 use scraper::{Html, Selector};
 
-use std::fs::File;
-use std::io::Read;
-
 use super::print_msg;
+use imp::auth::atcoder;
 use imp::test_case::TestCaseFile;
 
 use {Error, Result};
@@ -108,21 +106,8 @@ fn download_text_by_url(
     problem_id: &str,
     url: &str,
 ) -> reqwest::Result<String> {
-    let client = reqwest::Client::new();
-    let mut builder = client.get(url);
-    if let Ok(mut f) = File::open(".accesscode")
-        .or_else(|_| File::open("../.accesscode"))
-        .or_else(|_| File::open("../../.accesscode"))
-    {
-        let mut revel_session = String::new();
-        f.read_to_string(&mut revel_session).unwrap();
-        let mut cookie = reqwest::header::Cookie::new();
-        cookie.append("REVEL_SESSION", revel_session.trim().to_string());
-        builder.header(cookie);
-    }
-
     print_msg::in_fetching_problem(long_contest_name, problem_id, &url);
-    let mut res = builder.send()?;
-    ::login::atcoder::store_cookie(&mut res);
+    let mut res = atcoder::get_with_auth(url)?;
+    atcoder::store_revel_session_from_response(&mut res, false).ok();
     res.text()
 }

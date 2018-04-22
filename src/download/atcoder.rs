@@ -2,12 +2,11 @@ use reqwest;
 use scraper::{Html, Selector};
 
 use std::env;
-use std::fs::File;
-use std::io::Read;
 use std::path::Path;
 
 use super::print_msg;
-use fetch::atcoder;
+use fetch;
+use imp::auth;
 use initdirs;
 
 use Error;
@@ -53,7 +52,7 @@ pub fn main(contest_id: &str) -> Result<()> {
 
         let curr_url = ('a' as u8 + problem) as char;
         problem_id.push(curr_url);
-        atcoder::main(&problem_id)?;
+        fetch::atcoder::main(&problem_id)?;
         problem_id.pop();
 
         env::set_current_dir(Path::new("..")).unwrap();
@@ -100,20 +99,7 @@ fn get_range_of_problems(long_contest_name: &str, contest_id: &str) -> Result<(c
 }
 
 fn download_text_by_url(url: &str) -> reqwest::Result<String> {
-    let client = reqwest::Client::new();
-    let mut builder = client.get(url);
-    if let Ok(mut f) = File::open(".accesscode")
-        .or_else(|_| File::open("../.accesscode"))
-        .or_else(|_| File::open("../../.accesscode"))
-    {
-        let mut revel_session = String::new();
-        f.read_to_string(&mut revel_session).unwrap();
-        let mut cookie = reqwest::header::Cookie::new();
-        cookie.append("REVEL_SESSION", revel_session.trim().to_string());
-        builder.header(cookie);
-    }
-
-    let mut res = builder.send()?;
-    ::login::atcoder::store_cookie(&mut res);
+    let mut res = auth::atcoder::get_with_auth(url)?;
+    auth::atcoder::store_revel_session_from_response(&mut res, false).ok();
     res.text()
 }
