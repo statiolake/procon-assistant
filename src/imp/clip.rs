@@ -7,12 +7,12 @@ use std::process::{Command, Stdio};
 use regex::Regex;
 
 use common;
+use config;
 use {Error, Result};
 
 pub fn copy_to_clipboard(file_path: &Path) -> Result<()> {
     print_copying!("{} to clipboard", file_path.display());
     let main_src = read_source_file(file_path)?;
-    let modified = parse_include(main_src)?;
 
     let resultchild = Command::new("xsel")
         .arg("-b")
@@ -25,7 +25,7 @@ pub fn copy_to_clipboard(file_path: &Path) -> Result<()> {
             .stdin
             .take()
             .unwrap()
-            .write_all(modified.as_bytes())
+            .write_all(main_src.as_bytes())
             .unwrap();
         child.wait().unwrap();
     }
@@ -51,19 +51,26 @@ fn read_source_file(file_path: &Path) -> Result<String> {
                 box e,
             )
         })?;
-    parse_include(src_content)
+    parse_include(file_path, src_content)
 }
 
-fn parse_include(content: String) -> Result<String> {
+fn parse_include(curr_file_path: &Path, content: String) -> Result<String> {
     let re_inc = Regex::new(r#" *# *include *" *([^>]*) *""#).unwrap();
-    let lib_dir = common::get_procon_lib_dir()?;
+    let lib_dir = if config::HEADER_FILE_EXTENSIONS.contains(&curr_file_path
+        .extension()
+        .unwrap()
+        .to_str()
+        .unwrap())
+    {
+        curr_file_path.parent().unwrap().to_path_buf()
+    } else {
+        common::get_procon_lib_dir()?
+    };
     let mut modified_content: Vec<String> = content.split('\n').map(|x| x.to_string()).collect();
-    let mut modified = false;
     for line in modified_content.iter_mut() {
         for cap in re_inc.captures_iter(&line.clone()) {
-            modified = true;
             let inc_file = &cap[1];
-            let inc_path = format!("{}/{}", lib_dir, inc_file);
+            let inc_path = format!("{}/{}", lib_dir.display(), inc_file);
             print_including!("{}", inc_path);
             let inc_src = read_source_file(inc_path.as_ref())?;
             let replaced = re_inc.replace(line, &*inc_src).to_string();
@@ -72,9 +79,5 @@ fn parse_include(content: String) -> Result<String> {
     }
     let modified_content = modified_content.join("\n");
 
-    if modified {
-        parse_include(modified_content)
-    } else {
-        Ok(modified_content)
-    }
+    Ok(modified_content)
 }

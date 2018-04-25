@@ -1,4 +1,5 @@
 pub const TIMEOUT_MILLISECOND: i64 = 3000;
+pub const HEADER_FILE_EXTENSIONS: &[&str] = &["h", "hpp"];
 
 pub mod src_support {
     use std::process::Command;
@@ -38,7 +39,7 @@ pub mod src_support {
 
         pub const PROCON_LIB_DIR: &str = "procon-lib";
         pub fn cmd_pre_modifier(cmd: &mut Command) -> Result<()> {
-            cmd.arg(format!("-I{}", common::get_procon_lib_dir()?));
+            cmd.arg(format!("-I{}", common::get_procon_lib_dir()?.display()));
             Ok(())
         }
     }

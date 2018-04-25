@@ -47,11 +47,11 @@ pub fn get_home_path() -> Result<PathBuf> {
     ))
 }
 
-pub fn get_procon_lib_dir() -> Result<String> {
+pub fn get_procon_lib_dir() -> Result<PathBuf> {
     let home_dir = get_home_path()?;
-    Ok(format!(
+    Ok(PathBuf::from(format!(
         "{}/{}",
         home_dir.display(),
         config::src_support::cpp::PROCON_LIB_DIR
-    ))
+    )))
 }
