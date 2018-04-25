@@ -12,8 +12,8 @@ fn ensure_not_exists(p: &str) -> Result<&Path> {
     let p = Path::new(p);
     if p.exists() {
         Err(Error::new(
-            "creating main.cpp",
-            "file main.cpp already exists.",
+            format!("creating {}", p.display()),
+            format!("file {} already exists.", p.display()),
         ))
     } else {
         Ok(p)
@@ -24,6 +24,7 @@ fn generate_main_cpp(p: &Path) -> io::Result<()> {
     let mut f = File::create(p)?;
 
     writeln!(f, "#include <bits/stdc++.h>")?;
+    writeln!(f, "#include \"prelude.hpp\"")?;
     writeln!(f, "using namespace std;")?;
     writeln!(f, "using ll = long long;")?;
     writeln!(f, "int main() {{")?;
