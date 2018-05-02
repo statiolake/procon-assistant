@@ -27,13 +27,11 @@ fn get_long_contest_name(contest_name: &str) -> Result<&str> {
 }
 
 pub fn main(contest_id: &str) -> Result<()> {
-    let contest_id_error = Error::new(
-        "parsing contest_id",
-        "format is invalid; the example format for AtCoder Grand Contest 022: agc022",
-    );
-
     if contest_id.len() != 6 {
-        return Err(contest_id_error);
+        return Err(Error::new(
+            "parsing contest_id",
+            "format is invalid; the example format for AtCoder Grand Contest 022: agc022",
+        ));
     }
 
     let contest_name = &contest_id[0..3];

@@ -1,4 +1,4 @@
-#![feature(box_syntax, dyn_trait)]
+#![feature(box_syntax)]
 #[macro_use]
 extern crate colored_print;
 extern crate isatty;
