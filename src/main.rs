@@ -8,6 +8,7 @@ extern crate reqwest;
 extern crate rpassword;
 extern crate scraper;
 extern crate time;
+extern crate clipboard;
 
 #[macro_use]
 mod tags;
