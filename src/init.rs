@@ -108,6 +108,7 @@ pub fn main() -> Result<()> {
             box e,
         )
     })?;
+    print_generated!(".vscode/c_cpp_properties.json");
 
     common::open("main.cpp")?;
 
