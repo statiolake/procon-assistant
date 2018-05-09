@@ -35,13 +35,23 @@ fn generate_main_cpp(p: &Path) -> io::Result<()> {
 }
 
 fn generate_clang_complete(p: &Path) -> io::Result<()> {
+    let libdir_escaped = common::get_procon_lib_dir()
+        .unwrap()
+        .display()
+        .to_string()
+        .escape_default();
     let mut f = File::create(p)?;
-    writeln!(f, "-I{}", common::get_procon_lib_dir().unwrap().display())?;
+    writeln!(f, "-I{}", libdir_escaped)?;
     writeln!(f, "-Wno-old-style-cast")?;
     Ok(())
 }
 
 fn generate_vscode_c_cpp_properties(p: &Path) -> io::Result<()> {
+    let libdir_escaped = common::get_procon_lib_dir()
+        .unwrap()
+        .display()
+        .to_string()
+        .escape_default();
     let mut f = File::create(p)?;
     writeln!(f, r#"{{"#)?;
     writeln!(f, r#"    "configurations": ["#)?;
@@ -51,11 +61,14 @@ fn generate_vscode_c_cpp_properties(p: &Path) -> io::Result<()> {
     writeln!(f, r#"                "path": ["#)?;
     writeln!(f, r#"                    "${{workspaceFolder}}""#)?;
     writeln!(f, r#"                ],"#)?;
-    writeln!(f, r#"                "limitSymbolsToIncludedHeaders": true"#)?;
+    writeln!(
+        f,
+        r#"                "limitSymbolsToIncludedHeaders": true"#
+    )?;
     writeln!(f, r#"            }},"#)?;
     writeln!(f, r#"            "includePath": ["#)?;
     writeln!(f, r#"                "${{workspaceFolder}}","#)?;
-    writeln!(f, r#"                "~/procon-lib""#)?;
+    writeln!(f, r#"                "{}""#, libdir_escaped)?;
     writeln!(f, r#"            ],"#)?;
     writeln!(f, r#"            "defines": ["#)?;
     writeln!(f, r#"                "PA_DEBUG","#)?;
@@ -70,7 +83,7 @@ fn generate_vscode_c_cpp_properties(p: &Path) -> io::Result<()> {
     writeln!(f, r#"    ],"#)?;
     writeln!(f, r#"    "version": 4"#)?;
     writeln!(f, r#"}}"#)?;
-    
+
     Ok(())
 }
 

@@ -1,4 +1,4 @@
-#![feature(box_syntax)]
+#![feature(box_syntax, str_escape)]
 #[macro_use]
 extern crate colored_print;
 extern crate isatty;

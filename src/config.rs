@@ -39,7 +39,7 @@ pub mod src_support {
 
         pub const PROCON_LIB_DIR: &str = "procon-lib";
         pub fn cmd_pre_modifier(cmd: &mut Command) -> Result<()> {
-            cmd.arg(format!("-I{}", common::get_procon_lib_dir()?.display()));
+            cmd.arg(format!("-I{}", common::get_procon_lib_dir()?.display()).escape_default());
             Ok(())
         }
     }
