@@ -1,3 +1,4 @@
+use std::fs;
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
@@ -40,6 +41,39 @@ fn generate_clang_complete(p: &Path) -> io::Result<()> {
     Ok(())
 }
 
+fn generate_vscode_c_cpp_properties(p: &Path) -> io::Result<()> {
+    let mut f = File::create(p)?;
+    writeln!(f, r#"{{"#)?;
+    writeln!(f, r#"    "configurations": ["#)?;
+    writeln!(f, r#"        {{"#)?;
+    writeln!(f, r#"            "name": "Win32","#)?;
+    writeln!(f, r#"            "browse": {{"#)?;
+    writeln!(f, r#"                "path": ["#)?;
+    writeln!(f, r#"                    "${{workspaceFolder}}""#)?;
+    writeln!(f, r#"                ],"#)?;
+    writeln!(f, r#"                "limitSymbolsToIncludedHeaders": true"#)?;
+    writeln!(f, r#"            }},"#)?;
+    writeln!(f, r#"            "includePath": ["#)?;
+    writeln!(f, r#"                "${{workspaceFolder}}","#)?;
+    writeln!(f, r#"                "~/procon-lib""#)?;
+    writeln!(f, r#"            ],"#)?;
+    writeln!(f, r#"            "defines": ["#)?;
+    writeln!(f, r#"                "PA_DEBUG","#)?;
+    writeln!(f, r#"                "_DEBUG","#)?;
+    writeln!(f, r#"                "UNICODE","#)?;
+    writeln!(f, r#"                "_UNICODE""#)?;
+    writeln!(f, r#"            ],"#)?;
+    writeln!(f, r#"            "cStandard": "c11","#)?;
+    writeln!(f, r#"            "cppStandard": "c++17","#)?;
+    writeln!(f, r#"            "intelliSenseMode": "msvc-x64""#)?;
+    writeln!(f, r#"        }}"#)?;
+    writeln!(f, r#"    ],"#)?;
+    writeln!(f, r#"    "version": 4"#)?;
+    writeln!(f, r#"}}"#)?;
+    
+    Ok(())
+}
+
 pub fn main() -> Result<()> {
     let p = ensure_not_exists(".clang_complete")?;
     generate_clang_complete(p)
@@ -50,6 +84,17 @@ pub fn main() -> Result<()> {
     generate_main_cpp(p)
         .map_err(|e| Error::with_cause("generating main.cpp", "failed to write.", box e))?;
     print_generated!("main.cpp");
+
+    fs::create_dir_all(".vscode")
+        .map_err(|e| Error::with_cause("generating .vscode", "failed to create directory", box e))?;
+    let p = ensure_not_exists(".vscode/c_cpp_properties.json")?;
+    generate_vscode_c_cpp_properties(p).map_err(|e| {
+        Error::with_cause(
+            "generating .vscode/c_cpp_properties.json",
+            "failed to write",
+            box e,
+        )
+    })?;
 
     common::open("main.cpp")?;
 
