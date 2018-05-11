@@ -91,9 +91,7 @@ impl TestCaseFile {
     pub fn display(&self) -> &str {
         &self.input_file_name
     }
-}
 
-impl TestCaseFile {
     pub fn judge(&self) -> Result<JudgeResult> {
         let if_contents = load_file(&self.input_file_name);
         let mut child = spawn_main()?;
@@ -102,8 +100,12 @@ impl TestCaseFile {
             return Ok(judge);
         }
 
-        let of_contents = load_file(&self.output_file_name);
-        let childstdout = read_child_stdout(&mut child);
+        fn remove_cr(v: Vec<u8>) -> Vec<u8> {
+            v.into_iter().filter(|x| *x != '\r' as u8).collect()
+        }
+
+        let of_contents = remove_cr(load_file(&self.output_file_name));
+        let childstdout = remove_cr(read_child_stdout(&mut child));
 
         if of_contents != childstdout {
             Ok(compare_content_in_detail(
