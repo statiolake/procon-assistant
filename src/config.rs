@@ -26,6 +26,7 @@ pub mod src_support {
             src_file_name: "main.cpp",
             compiler: "g++",
             flags: &[
+                "-g",
                 "-std=c++14",
                 "-Wall",
                 "-Wextra",
