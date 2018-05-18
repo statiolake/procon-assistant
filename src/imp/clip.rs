@@ -14,14 +14,34 @@ use {Error, Result};
 pub fn copy_to_clipboard(file_path: &Path) -> Result<()> {
     print_copying!("{} to clipboard", file_path.display());
     let main_src = read_source_file(file_path, false)?;
-    let mut provider: ClipboardContext = ClipboardProvider::new()
-        .map_err(|_| Error::new("copying to clipboard", "cannot get clipboard provider"))?;
-    provider.set_contents(main_src).map_err(|_| {
-        Error::new(
-            "copying to clipboard",
-            "failed to set contents to clipboard.",
-        )
-    })?;
+    if cfg!(windows) {
+        let mut provider: ClipboardContext = ClipboardProvider::new()
+            .map_err(|_| Error::new("copying to clipboard", "cannot get clipboard provider"))?;
+        provider.set_contents(main_src).map_err(|_| {
+            Error::new(
+                "copying to clipboard",
+                "failed to set contents to clipboard.",
+            )
+        })?;
+    } else {
+        use std::process::{Command, Stdio};
+        let mut child = Command::new("xsel")
+            .arg("-b")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|e| Error::with_cause("copying to clipboard", "cannot run xsel", box e))?;
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(main_src.as_bytes())
+            .unwrap();
+        child
+            .wait()
+            .map_err(|e| Error::with_cause("copying to clipboard", "cannot wait xsel", box e))?;
+    }
     print_finished!("copying");
     Ok(())
 }
