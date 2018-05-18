@@ -13,7 +13,7 @@ use {Error, Result};
 
 pub fn copy_to_clipboard(file_path: &Path) -> Result<()> {
     print_copying!("{} to clipboard", file_path.display());
-    let main_src = read_source_file(file_path)?;
+    let main_src = read_source_file(file_path, false)?;
     let mut provider: ClipboardContext = ClipboardProvider::new()
         .map_err(|_| Error::new("copying to clipboard", "cannot get clipboard provider"))?;
     provider.set_contents(main_src).map_err(|_| {
@@ -26,7 +26,7 @@ pub fn copy_to_clipboard(file_path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn read_source_file(file_path: &Path) -> Result<String> {
+pub fn read_source_file(file_path: &Path, silent: bool) -> Result<String> {
     let mut src_content = String::new();
     File::open(file_path)
         .map_err(|e| {
@@ -44,10 +44,10 @@ pub fn read_source_file(file_path: &Path) -> Result<String> {
                 box e,
             )
         })?;
-    parse_include(file_path, src_content)
+    parse_include(file_path, src_content, silent)
 }
 
-fn parse_include(curr_file_path: &Path, content: String) -> Result<String> {
+fn parse_include(curr_file_path: &Path, content: String, silent: bool) -> Result<String> {
     let re_inc = Regex::new(r#" *# *include *" *([^>]*) *""#).unwrap();
     let lib_dir = if config::HEADER_FILE_EXTENSIONS.contains(&curr_file_path
         .extension()
@@ -64,8 +64,10 @@ fn parse_include(curr_file_path: &Path, content: String) -> Result<String> {
         for cap in re_inc.captures_iter(&line.clone()) {
             let inc_file = &cap[1];
             let inc_path = format!("{}/{}", lib_dir.display(), inc_file);
-            print_including!("{}", inc_path);
-            let inc_src = read_source_file(inc_path.as_ref())?;
+            if !silent {
+                print_including!("{}", inc_path);
+            }
+            let inc_src = read_source_file(inc_path.as_ref(), silent)?;
             let replaced = re_inc.replace(line, &*inc_src).to_string();
             mem::replace(line, replaced);
         }
