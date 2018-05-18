@@ -19,6 +19,7 @@ mod tags;
 mod addcase;
 mod clip;
 mod common;
+mod compile;
 mod config;
 mod download;
 mod fetch;
@@ -143,6 +144,7 @@ fn main() {
         "fetch" | "f" => fetch::main(args),
         "download" | "d" | "dl" => download::main(args),
         "run" | "r" => run::main(args),
+        "compile" | "co" => compile::main(),
         "login" | "l" => login::main(args),
         "--help" | "-h" => {
             help();

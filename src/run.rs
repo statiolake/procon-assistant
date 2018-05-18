@@ -44,7 +44,7 @@ pub fn main(args: Vec<String>) -> Result<()> {
     Ok(())
 }
 
-fn compile() -> Result<result::Result<bool, String>> {
+pub fn compile() -> Result<result::Result<bool, String>> {
     let SrcFile {
         file_name,
         mut compile_cmd,
