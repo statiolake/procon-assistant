@@ -1,6 +1,7 @@
 #![feature(box_syntax, str_escape)]
 #[macro_use]
 extern crate colored_print;
+extern crate clipboard;
 extern crate isatty;
 extern crate percent_encoding;
 extern crate regex;
@@ -8,7 +9,6 @@ extern crate reqwest;
 extern crate rpassword;
 extern crate scraper;
 extern crate time;
-extern crate clipboard;
 
 #[macro_use]
 mod tags;
@@ -23,6 +23,7 @@ mod init;
 mod initdirs;
 mod login;
 mod run;
+mod solve_include;
 
 use std::env;
 use std::fmt;
@@ -133,6 +134,7 @@ fn main() {
         "initdirs" | "id" => initdirs::main(args),
         "init" | "i" => init::main(),
         "addcase" | "a" | "ac" => addcase::main(),
+        "solveinclude" | "si" => solve_include::main(),
         "clip" | "c" => clip::main(),
         "fetch" | "f" => fetch::main(args),
         "download" | "d" | "dl" => download::main(args),

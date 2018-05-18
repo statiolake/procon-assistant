@@ -26,7 +26,7 @@ pub fn copy_to_clipboard(file_path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn read_source_file(file_path: &Path) -> Result<String> {
+pub fn read_source_file(file_path: &Path) -> Result<String> {
     let mut src_content = String::new();
     File::open(file_path)
         .map_err(|e| {
