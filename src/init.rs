@@ -53,6 +53,7 @@ fn generate_vscode_c_cpp_properties(p: &Path) -> io::Result<()> {
         .to_string()
         .escape_default();
     let mut f = File::create(p)?;
+
     writeln!(f, r#"{{"#)?;
     writeln!(f, r#"    "configurations": ["#)?;
     writeln!(f, r#"        {{"#)?;
@@ -79,6 +80,32 @@ fn generate_vscode_c_cpp_properties(p: &Path) -> io::Result<()> {
     writeln!(f, r#"            "cStandard": "c11","#)?;
     writeln!(f, r#"            "cppStandard": "c++17","#)?;
     writeln!(f, r#"            "intelliSenseMode": "msvc-x64""#)?;
+    writeln!(f, r#"        }},"#)?;
+    writeln!(f, r#"        {{"#)?;
+    writeln!(f, r#"            "name": "Linux","#)?;
+    writeln!(f, r#"            "browse": {{"#)?;
+    writeln!(f, r#"                "path": ["#)?;
+    writeln!(f, r#"                    "${{workspaceFolder}}""#)?;
+    writeln!(f, r#"                ],"#)?;
+    writeln!(
+        f,
+        r#"                "limitSymbolsToIncludedHeaders": true"#
+    )?;
+    writeln!(f, r#"            }},"#)?;
+    writeln!(f, r#"            "includePath": ["#)?;
+    writeln!(f, r#"                "${{workspaceFolder}}","#)?;
+    writeln!(f, r#"                "{}""#, libdir_escaped)?;
+    writeln!(f, r#"            ],"#)?;
+    writeln!(f, r#"            "defines": ["#)?;
+    writeln!(f, r#"                "PA_DEBUG","#)?;
+    writeln!(f, r#"                "_DEBUG","#)?;
+    writeln!(f, r#"                "UNICODE","#)?;
+    writeln!(f, r#"                "_UNICODE""#)?;
+    writeln!(f, r#"            ],"#)?;
+    writeln!(f, r#"            "cStandard": "c11","#)?;
+    writeln!(f, r#"            "cppStandard": "c++17","#)?;
+    writeln!(f, r#"            "intelliSenseMode": "clang-x64","#)?;
+    writeln!(f, r#"            "compilerPath": "/usr/bin/clang""#)?;
     writeln!(f, r#"        }}"#)?;
     writeln!(f, r#"    ],"#)?;
     writeln!(f, r#"    "version": 4"#)?;
