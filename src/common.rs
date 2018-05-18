@@ -14,8 +14,8 @@ pub fn colorize() -> bool {
     isatty::stdout_isatty()
 }
 
-pub fn open(name: &str) -> Result<()> {
-    Command::new("open")
+pub fn open(editor: &str, name: &str) -> Result<()> {
+    Command::new(editor)
         .arg(name)
         .spawn()
         .map(|_| ())
