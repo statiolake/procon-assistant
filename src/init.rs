@@ -114,7 +114,8 @@ fn generate_vscode_c_cpp_properties(p: &Path) -> io::Result<()> {
     Ok(())
 }
 
-pub fn main() -> Result<()> {
+pub fn main(args: Vec<String>) -> Result<()> {
+    let option = parse_args(args)?;
     let p = ensure_not_exists(".clang_complete")?;
     generate_clang_complete(p)
         .map_err(|e| Error::with_cause("generating .clang_complete", "failed to write.", box e))?;
@@ -137,7 +138,38 @@ pub fn main() -> Result<()> {
     })?;
     print_generated!(".vscode/c_cpp_properties.json");
 
-    common::open("main.cpp")?;
+    if option.auto_open {
+        match option.open_directory {
+            true => common::open("main.cpp")?,
+            false => common::open(".")?,
+        }
+    }
 
     Ok(())
+}
+
+struct InitOption {
+    auto_open: bool,
+    open_directory: bool,
+}
+
+impl InitOption {
+    pub fn new() -> InitOption {
+        InitOption {
+            auto_open: true,
+            open_directory: true,
+        }
+    }
+}
+
+fn parse_args(args: Vec<String>) -> Result<InitOption> {
+    let mut option = InitOption::new();
+    for arg in args {
+        match &*arg {
+            "--disable-auto-open" => option.auto_open = false,
+            "--auto-open-file" => option.open_directory = false,
+            _ => {}
+        }
+    }
+    Ok(option)
 }

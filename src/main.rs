@@ -132,7 +132,7 @@ fn main() {
     let args: Vec<_> = args.into_iter().skip(2).collect();
     let result = match cmd.as_str() {
         "initdirs" | "id" => initdirs::main(args),
-        "init" | "i" => init::main(),
+        "init" | "i" => init::main(args),
         "addcase" | "a" | "ac" => addcase::main(),
         "solveinclude" | "si" => solve_include::main(),
         "clip" | "c" => clip::main(),
