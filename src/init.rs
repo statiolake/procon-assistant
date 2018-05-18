@@ -115,6 +115,82 @@ fn generate_vscode_c_cpp_properties(p: &Path) -> io::Result<()> {
     Ok(())
 }
 
+fn generate_vscode_tasks_json(p: &Path) -> io::Result<()> {
+    let mut f = File::create(p)?;
+
+    writeln!(f, r#"{{"#)?;
+    writeln!(
+        f,
+        r#"    // See https://go.microsoft.com/fwlink/?LinkId=733558"#
+    )?;
+    writeln!(
+        f,
+        r#"    // for the documentation about the tasks.json format"#
+    )?;
+    writeln!(f, r#"    "version": "2.0.0","#)?;
+    writeln!(f, r#"    "tasks": ["#)?;
+    writeln!(f, r#"        {{"#)?;
+    writeln!(f, r#"            "label": "procon-assistant compile","#)?;
+    writeln!(f, r#"            "type": "shell","#)?;
+    writeln!(f, r#"            "command": "procon-assistant","#)?;
+    writeln!(f, r#"            "args": ["#)?;
+    writeln!(f, r#"                "compile""#)?;
+    writeln!(f, r#"            ]"#)?;
+    writeln!(f, r#"        }}"#)?;
+    writeln!(f, r#"    ]"#)?;
+    writeln!(f, r#"}}"#)?;
+    Ok(())
+}
+
+fn generate_vscode_launch_json(p: &Path) -> io::Result<()> {
+    let mut f = File::create(p)?;
+
+    writeln!(f, r#"{{"#)?;
+    writeln!(
+        f,
+        r#"    // IntelliSense を使用して利用可能な属性を学べます。"#
+    )?;
+    writeln!(
+        f,
+        r#"    // 既存の属性の説明をホバーして表示します。"#
+    )?;
+    writeln!(f, r#"    // 詳細情報は次を確認してください: https://go.microsoft.com/fwlink/?linkid=830387"#)?;
+    writeln!(f, r#"    "version": "0.2.0","#)?;
+    writeln!(f, r#"    "configurations": ["#)?;
+    writeln!(f, r#"        {{"#)?;
+    writeln!(f, r#"            "name": "(gdb) Launch","#)?;
+    writeln!(f, r#"            "type": "cppdbg","#)?;
+    writeln!(f, r#"            "request": "launch","#)?;
+    writeln!(f, r#"            "program": "${{workspaceFolder}}/main","#)?;
+    writeln!(f, r#"            "args": [],"#)?;
+    writeln!(f, r#"            "stopAtEntry": false,"#)?;
+    writeln!(f, r#"            "cwd": "${{workspaceFolder}}","#)?;
+    writeln!(f, r#"            "environment": [],"#)?;
+    writeln!(f, r#"            "externalConsole": true,"#)?;
+    writeln!(f, r#"            "MIMode": "gdb","#)?;
+    writeln!(
+        f,
+        r#"            "preLaunchTask": "procon-assistant compile","#
+    )?;
+    writeln!(f, r#"            "setupCommands": ["#)?;
+    writeln!(f, r#"                {{"#)?;
+    writeln!(
+        f,
+        r#"                    "description": "Enable pretty-printing for gdb","#
+    )?;
+    writeln!(
+        f,
+        r#"                    "text": "-enable-pretty-printing","#
+    )?;
+    writeln!(f, r#"                    "ignoreFailures": true"#)?;
+    writeln!(f, r#"                }}"#)?;
+    writeln!(f, r#"            ]"#)?;
+    writeln!(f, r#"        }}"#)?;
+    writeln!(f, r#"    ]"#)?;
+    writeln!(f, r#"}}"#)?;
+    Ok(())
+}
+
 pub fn main() -> Result<()> {
     let config: ConfigFile = ConfigFile::get_config()?;
     let p = ensure_not_exists(".clang_complete")?;
@@ -138,6 +214,17 @@ pub fn main() -> Result<()> {
         )
     })?;
     print_generated!(".vscode/c_cpp_properties.json");
+
+    let p = ensure_not_exists(".vscode/tasks.json")?;
+    generate_vscode_tasks_json(p)
+        .map_err(|e| Error::with_cause("generating .vscode/tasks.json", "failed to write", box e))?;
+    print_generated!(".vscode/tasks.json");
+
+    let p = ensure_not_exists(".vscode/launch.json")?;
+    generate_vscode_launch_json(p).map_err(|e| {
+        Error::with_cause("generating .vscode/launch.json", "failed to write", box e)
+    })?;
+    print_generated!(".vscode/launch.json");
 
     if config.auto_open {
         match config.open_directory_instead_of_specific_file {
