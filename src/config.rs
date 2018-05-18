@@ -1,5 +1,39 @@
+use serde_json;
+
+use std::env;
+use std::fs::File;
+
+use {Error, Result};
+
 pub const TIMEOUT_MILLISECOND: i64 = 3000;
 pub const HEADER_FILE_EXTENSIONS: &[&str] = &["h", "hpp"];
+
+#[derive(Deserialize)]
+pub struct ConfigFile {
+    pub editor: String,
+    pub auto_open: bool,
+    pub open_directory_instead_of_specific_file: bool,
+}
+
+impl ConfigFile {
+    pub fn get_config() -> Result<ConfigFile> {
+        let config_path = env::current_exe()
+            .map_err(|e| {
+                Error::with_cause(
+                    "getting config",
+                    "failed to get directory of executable.",
+                    box e,
+                )
+            })?
+            .with_file_name("config.json");
+        let f = File::open(&config_path).map_err(|e| {
+            Error::with_cause("getting config", "failed to open `config.json`", box e)
+        })?;
+        serde_json::from_reader(f).map_err(|e| {
+            Error::with_cause("getting config", "failed to parse `config.json`", box e)
+        })
+    }
+}
 
 pub mod src_support {
     use std::process::Command;

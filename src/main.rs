@@ -8,6 +8,10 @@ extern crate regex;
 extern crate reqwest;
 extern crate rpassword;
 extern crate scraper;
+extern crate serde;
+extern crate serde_json;
+#[macro_use]
+extern crate serde_derive;
 extern crate time;
 
 #[macro_use]
