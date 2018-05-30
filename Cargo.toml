@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [dependencies]
 clipboard = "0.4.6"
+encoding = "0.2.33"
 isatty = "0.1.6"
 percent-encoding = "1.0.1"
 regex = "0.2.10"

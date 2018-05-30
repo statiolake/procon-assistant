@@ -69,7 +69,17 @@ pub fn compile() -> Result<result::Result<bool, String>> {
 }
 
 fn print_compiler_output(kind: &str, output: &Vec<u8>) {
-    let output = String::from_utf8_lossy(output);
+    let output = if cfg!(windows) {
+        // for windows, decode output as cp932 (a.k.a. windows 31j)
+        use encoding::all::WINDOWS_31J;
+        use encoding::{DecoderTrap, Encoding};
+        WINDOWS_31J
+            .decode(output, DecoderTrap::Strict)
+            .unwrap_or("(failed to decode output)".into())
+    } else {
+        // otherwise, decode output as utf-8 as usual.
+        String::from_utf8_lossy(output).to_string()
+    };
     let output = output.trim();
     let output = output.split('\n');
     print_info!("compiler {}:", kind);

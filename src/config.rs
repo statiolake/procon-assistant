@@ -55,6 +55,7 @@ pub mod src_support {
         use std::process::Command;
         use Result;
 
+        #[cfg(unix)]
         pub const LANG: Lang = Lang {
             file_type: "cpp",
             src_file_name: "main.cpp",
@@ -71,10 +72,35 @@ pub mod src_support {
             ],
             cmd_pre_modifier: Some(cmd_pre_modifier),
         };
+        #[cfg(windows)]
+        pub const LANG: Lang = Lang {
+            file_type: "cpp",
+            src_file_name: "main.cpp",
+            compiler: "cmd",
+            flags: &[],
+            cmd_pre_modifier: Some(cmd_pre_modifier),
+        };
 
         pub const PROCON_LIB_DIR: &str = "procon-lib";
+        #[cfg(unix)]
         pub fn cmd_pre_modifier(cmd: &mut Command) -> Result<()> {
             cmd.arg(format!("-I{}", common::get_procon_lib_dir()?.display()).escape_default());
+            Ok(())
+        }
+
+        #[cfg(windows)]
+        pub fn cmd_pre_modifier(cmd: &mut Command) -> Result<()> {
+            cmd.args(&[
+                "/c",
+                "vsprompt.bat",
+                "cl",
+                "/EHsc",
+                "/Zi",
+                "/source-charset:utf-8",
+                "/DPA_DEBUG",
+            ]);
+            cmd.arg(format!("/I{}", common::get_procon_lib_dir()?.display()).escape_default());
+            cmd.arg("main.cpp");
             Ok(())
         }
     }

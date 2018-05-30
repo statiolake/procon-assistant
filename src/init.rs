@@ -158,6 +158,24 @@ fn generate_vscode_launch_json(p: &Path) -> io::Result<()> {
     writeln!(f, r#"    "version": "0.2.0","#)?;
     writeln!(f, r#"    "configurations": ["#)?;
     writeln!(f, r#"        {{"#)?;
+    writeln!(f, r#"            "name": "(Windows) Launch","#)?;
+    writeln!(f, r#"            "type": "cppvsdbg","#)?;
+    writeln!(f, r#"            "request": "launch","#)?;
+    writeln!(
+        f,
+        r#"            "program": "${{workspaceFolder}}/main.exe","#
+    )?;
+    writeln!(f, r#"            "args": [],"#)?;
+    writeln!(f, r#"            "stopAtEntry": false,"#)?;
+    writeln!(f, r#"            "cwd": "${{workspaceFolder}}","#)?;
+    writeln!(
+        f,
+        r#"            "preLaunchTask": "procon-assistant compile","#
+    )?;
+    writeln!(f, r#"            "environment": [],"#)?;
+    writeln!(f, r#"            "externalConsole": true"#)?;
+    writeln!(f, r#"        }},"#)?;
+    writeln!(f, r#"        {{"#)?;
     writeln!(f, r#"            "name": "(gdb) Launch","#)?;
     writeln!(f, r#"            "type": "cppdbg","#)?;
     writeln!(f, r#"            "request": "launch","#)?;
