@@ -2,11 +2,11 @@ use colored_print::color::ConsoleColor;
 use colored_print::color::ConsoleColor::*;
 use std::thread;
 
-use std::result;
-
 use common;
 use config;
 use imp::clip;
+use imp::compile;
+use imp::compile::CompilerOutput;
 use imp::srcfile;
 use imp::srcfile::SrcFile;
 use imp::test_case;
@@ -18,11 +18,17 @@ use Result;
 const OUTPUT_COLOR: ConsoleColor = LightMagenta;
 
 pub fn main(args: Vec<String>) -> Result<()> {
-    let compile_result = compile()?;
-    let result = match compile_result {
-        Err(msg) => return Err(Error::new("compiling", msg)),
-        Ok(b) if !b => JudgeResult::CompilationError,
-        _ => run_tests(&args)?,
+    let CompilerOutput {
+        success,
+        stdout,
+        stderr,
+    } = compile::compile()?;
+
+    compile::print_compiler_output("standard output", stdout);
+    compile::print_compiler_output("standard error", stderr);
+    let result = match success {
+        true => run_tests(&args)?,
+        false => JudgeResult::CompilationError,
     };
 
     let (result_color, result_long_verb, result_long_name) = result.long_name();
@@ -42,53 +48,6 @@ pub fn main(args: Vec<String>) -> Result<()> {
     }
 
     Ok(())
-}
-
-pub fn compile() -> Result<result::Result<bool, String>> {
-    let SrcFile {
-        file_name,
-        mut compile_cmd,
-    } = srcfile::get_source_file()?;
-
-    print_compiling!("{}", file_name);
-    let result = compile_cmd.output().map_err(|x| {
-        Error::new(
-            "compiling source",
-            format!("failed to spawn compiler: {}. check your installation", x),
-        )
-    })?;
-
-    if !result.stdout.is_empty() {
-        print_compiler_output("standard output", &result.stdout);
-    }
-    if !result.stderr.is_empty() {
-        print_compiler_output("standard error", &result.stderr);
-    }
-
-    Ok(Ok(result.status.success()))
-}
-
-fn print_compiler_output(kind: &str, output: &Vec<u8>) {
-    let output = if cfg!(windows) {
-        // for windows, decode output as cp932 (a.k.a. windows 31j)
-        use encoding::all::WINDOWS_31J;
-        use encoding::{DecoderTrap, Encoding};
-        WINDOWS_31J
-            .decode(output, DecoderTrap::Strict)
-            .unwrap_or("(failed to decode output)".into())
-    } else {
-        // otherwise, decode output as utf-8 as usual.
-        String::from_utf8_lossy(output).to_string()
-    };
-    let output = output.trim();
-    let output = output.split('\n');
-    print_info!("compiler {}:", kind);
-    for line in output {
-        colored_println! {
-            common::colorize();
-            OUTPUT_COLOR, "        {}", line;
-        }
-    }
 }
 
 fn run_tests(args: &Vec<String>) -> Result<JudgeResult> {
