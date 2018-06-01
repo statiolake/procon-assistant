@@ -24,9 +24,9 @@ fn ensure_not_exists(p: &str) -> Result<&Path> {
 
 fn generate_main_cpp(p: &Path) -> io::Result<()> {
     let mut f = File::create(p)?;
-
-    writeln!(f, "#include <bits/stdc++.h>")?;
     writeln!(f, "#include \"prelude.hpp\"")?;
+    writeln!(f, "")?;
+    writeln!(f, "#include <bits/stdc++.h>")?;
     writeln!(f, "using namespace std;")?;
     writeln!(f, "int main() {{")?;
     writeln!(f, "")?;
