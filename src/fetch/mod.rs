@@ -3,18 +3,16 @@ mod print_msg;
 pub mod aoj;
 pub mod atcoder;
 
+use std::env;
 use Error;
 use Result;
 
 pub fn main(args: Vec<String>) -> Result<()> {
-    if args.is_empty() {
-        return Err(Error::new(
-            "parsing argument",
-            "contest-site and problem-id are not specified.",
-        ));
-    }
-
-    let arg = args.into_iter().next().unwrap();
+    let arg = if args.is_empty() {
+        handle_empty_arg()?
+    } else {
+        args.into_iter().next().unwrap()
+    };
 
     let (contest_site, problem_id) = {
         let sp: Vec<_> = arg.splitn(2, ':').collect();
@@ -37,4 +35,26 @@ pub fn main(args: Vec<String>) -> Result<()> {
             format!("the contest-site {} is not available.", contest_site),
         )),
     }
+}
+
+fn handle_empty_arg() -> Result<String> {
+    if let Ok(current_dir) = env::current_dir() {
+        if let Some(dir) = current_dir
+            .file_name()
+            .and_then(|x| x.to_str())
+            .map(|x| x.to_string())
+        {
+            let path = format!("{}", current_dir.display());
+            if path.find("aoj").is_some() {
+                return Ok(format!("aoj:{}", dir));
+            } else if path.find("atcoder").is_some() {
+                return Ok(format!("atcoder:{}", dir));
+            }
+        }
+    }
+
+    Err(Error::new(
+        "parsing argument",
+        "contest-site and problem-id are not specified.",
+    ))
 }
