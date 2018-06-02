@@ -40,6 +40,13 @@ pub fn main(contest_id: &str) -> Result<()> {
 
     let (beginning_char, numof_problems) = get_range_of_problems(long_contest_name, contest_id)?;
 
+    let current_dir = env::current_dir().unwrap();
+    let file_name = current_dir.file_name();
+    let executed_inside_proper_dir = file_name.is_some() && file_name.unwrap() == contest_id;
+    if executed_inside_proper_dir {
+        env::set_current_dir("..").unwrap();
+    }
+
     initdirs::create_directories(contest_id, beginning_char, numof_problems);
 
     env::set_current_dir(&Path::new(contest_id)).unwrap();

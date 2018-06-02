@@ -14,10 +14,14 @@ use fetch;
 use initdirs;
 
 pub fn main(args: Vec<String>) -> Result<()> {
-    if args.is_empty() {
-        return handle_empty_arg();
-    }
-    let arg = args.into_iter().next().unwrap();
+    let arg = if args.is_empty() {
+        match handle_empty_arg() {
+            Some(arg) => arg,
+            None => return load_local_contest(),
+        }
+    } else {
+        args.into_iter().next().unwrap()
+    };
 
     let (contest_site, contest_id) = {
         let sp: Vec<_> = arg.split(':').collect();
@@ -41,7 +45,27 @@ pub fn main(args: Vec<String>) -> Result<()> {
     }
 }
 
-fn handle_empty_arg() -> Result<()> {
+fn handle_empty_arg() -> Option<String> {
+    env::current_dir()
+        .ok()
+        .and_then(|current_dir| {
+            current_dir
+                .file_name()
+                .and_then(|x| x.to_str())
+                .map(|x| x.to_string())
+        })
+        .and_then(|file_name| {
+            if file_name.starts_with("abc") || file_name.starts_with("arc")
+                || file_name.starts_with("agc")
+            {
+                Some(format!("at:{}", file_name))
+            } else {
+                None
+            }
+        })
+}
+
+fn load_local_contest() -> Result<()> {
     let problems = load_problem_list()?;
     initdirs::create_directories(".", 'a', problems.len() as u8);
     for (i, p) in problems.into_iter().enumerate() {
