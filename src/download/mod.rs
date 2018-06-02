@@ -92,6 +92,7 @@ fn load_problem_list() -> Result<Vec<String>> {
         .map_err(|e| Error::with_cause("reading problems.txt", "could not read it", box e))?;
     let res: Vec<_> = content
         .split('\n')
+        .map(|x| x.trim())
         .filter(|&x| !x.starts_with("#"))
         .filter(|&x| x != "")
         .map(|x| x.into())
