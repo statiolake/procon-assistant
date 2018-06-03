@@ -15,9 +15,76 @@ extern crate serde_derive;
 extern crate encoding;
 extern crate time;
 
+macro_rules! define_error {
+    () => {
+        pub type Result<T> = ::std::result::Result<T, Error>;
+
+        #[derive(Debug)]
+        pub struct Error {
+            pub kind: ErrorKind,
+            pub cause: Option<Box<::std::error::Error + Send + Sync>>,
+        }
+
+        pub trait ChainableToError<T> {
+            fn chain(self, kind: ErrorKind) -> Result<T>;
+        }
+
+        impl Error {
+            #[allow(dead_code)]
+            pub fn new(kind: ErrorKind) -> Error {
+                Error { kind, cause: None }
+            }
+
+            #[allow(dead_code)]
+            pub fn with_cause(
+                kind: ErrorKind,
+                cause: Box<::std::error::Error + Send + Sync>,
+            ) -> Error {
+                Error {
+                    kind,
+                    cause: Some(cause),
+                }
+            }
+        }
+
+        impl ::std::error::Error for Error {
+            fn cause(&self) -> Option<&::std::error::Error> {
+                self.cause.as_ref().map(|e| &**e as &::std::error::Error)
+            }
+        }
+
+        impl<T, E: 'static + ::std::error::Error + Send + Sync> ChainableToError<T>
+            for ::std::result::Result<T, E>
+        {
+            fn chain(self, kind: ErrorKind) -> Result<T> {
+                self.map_err(|e| Error::with_cause(kind, box e))
+            }
+        }
+    };
+}
+
+macro_rules! define_error_kind {
+    ($([$id:ident; ($($cap:ident : $ty:ty),*); $ex:expr];)*) => {
+        #[derive(Debug)]
+        pub enum ErrorKind {
+            $($id($($ty),*)),*
+        }
+
+        impl ::std::fmt::Display for Error {
+            fn fmt(&self, b: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                let message = match self.kind {
+                    $(ErrorKind::$id($(ref $cap),*) => $ex),*
+                };
+                write!(b, "{}", message)
+            }
+        }
+    };
+}
+
 #[macro_use]
 mod tags;
 mod addcase;
+
 mod clip;
 mod common;
 mod compile;
@@ -32,70 +99,8 @@ mod run;
 mod solve_include;
 
 use std::env;
-use std::fmt;
+use std::error;
 use std::process;
-
-#[derive(Debug)]
-pub struct Error {
-    when: String,
-    description: String,
-    cause: Option<Box<dyn std::error::Error + Send>>,
-}
-
-impl Error {
-    pub fn new<S, T>(when: S, description: T) -> Error
-    where
-        S: Into<String>,
-        T: Into<String>,
-    {
-        Error {
-            when: when.into(),
-            description: description.into(),
-            cause: None,
-        }
-    }
-
-    pub fn with_cause<S, T>(
-        when: S,
-        description: T,
-        cause: Box<dyn std::error::Error + Send>,
-    ) -> Error
-    where
-        S: Into<String>,
-        T: Into<String>,
-    {
-        Error {
-            when: when.into(),
-            description: description.into(),
-            cause: Some(cause),
-        }
-    }
-
-    pub fn display(&self) {
-        print_error!("while {}: {}", self.when, self.description);
-        if let Some(ref cause) = self.cause {
-            print_info!("due to {:?}", cause);
-        }
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Error while {}: {}", self.when, self.description)
-    }
-}
-
-impl std::error::Error for Error {
-    fn description(&self) -> &str {
-        &self.description
-    }
-
-    fn cause(&self) -> Option<&dyn std::error::Error> {
-        self.cause.as_ref().map(|x| &**x as &dyn std::error::Error)
-    }
-}
-
-type Result<T> = std::result::Result<T, Error>;
 
 fn help() {
     println!("Procon Assistant");
@@ -137,16 +142,16 @@ fn main() {
     let cmd = args[1].clone();
     let args: Vec<_> = args.into_iter().skip(2).collect();
     let result = match cmd.as_str() {
-        "initdirs" | "id" => initdirs::main(args),
-        "init" | "i" => init::main(),
-        "addcase" | "a" | "ac" => addcase::main(),
-        "solveinclude" | "si" => solve_include::main(),
-        "clip" | "c" => clip::main(),
-        "fetch" | "f" => fetch::main(args),
-        "download" | "d" | "dl" => download::main(args),
-        "run" | "r" => run::main(args),
-        "compile" | "co" => compile::main(),
-        "login" | "l" => login::main(args),
+        "initdirs" | "id" => initdirs::main(args).map_err(box_err),
+        "init" | "i" => init::main().map_err(box_err),
+        "addcase" | "a" | "ac" => addcase::main().map_err(box_err),
+        "solveinclude" | "si" => solve_include::main().map_err(box_err),
+        "clip" | "c" => clip::main().map_err(box_err),
+        "fetch" | "f" => fetch::main(args).map_err(box_err),
+        "download" | "d" | "dl" => download::main(args).map_err(box_err),
+        "run" | "r" => run::main(args).map_err(box_err),
+        "compile" | "co" => compile::main().map_err(box_err),
+        "login" | "l" => login::main(args).map_err(box_err),
         "--help" | "-h" => {
             help();
             return;
@@ -155,13 +160,22 @@ fn main() {
             help();
             process::exit(1)
         }
-    }.map_err(|e| Box::<dyn std::error::Error>::from(box e));
+    };
 
     if let Err(e) = result {
-        print_error!("{}", e.description());
-        if let Some(ref cause) = e.cause() {
-            print_info!("due to {:?}", cause);
-        }
+        print_error!("{}", e);
+        print_causes(&*e);
         process::exit(1);
     }
+}
+
+fn print_causes(e: &dyn error::Error) {
+    if let Some(cause) = e.cause() {
+        print_info!("due to: {}", cause);
+        print_causes(cause);
+    }
+}
+
+fn box_err<'a, E: error::Error + 'a>(e: E) -> Box<dyn error::Error + 'a> {
+    box e as Box<dyn error::Error>
 }

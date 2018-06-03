@@ -5,8 +5,7 @@ use std::io::Write;
 
 use rpassword;
 
-use {Error, Result};
-pub fn ask_account_info(service_name: &str) -> Result<(String, String)> {
+pub fn ask_account_info(service_name: &str) -> (String, String) {
     print!("  {} Username: ", service_name);
     io::stdout().flush().unwrap();
     let mut username = String::new();
@@ -14,13 +13,8 @@ pub fn ask_account_info(service_name: &str) -> Result<(String, String)> {
 
     print!("  {} Password: ", service_name);
     io::stdout().flush().unwrap();
-    let password = rpassword::read_password().map_err(|e| {
-        Error::with_cause(
-            "fetching login page",
-            "failed to read your password input.",
-            box e,
-        )
-    })?;
+    let password =
+        rpassword::read_password().expect("critical error: failed to read your password input.");
 
-    Ok((username.trim().into(), password.trim().into()))
+    (username.trim().into(), password.trim().into())
 }

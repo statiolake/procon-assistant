@@ -7,11 +7,16 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use config;
-use Error;
-use Result;
 
 pub fn colorize() -> bool {
     isatty::stdout_isatty()
+}
+
+define_error!();
+define_error_kind! {
+    [SpawningCommandFailed; (command_name: String); format!("failed to spawn command `{}'", command_name)];
+    [CreatingFailed; (file_name: String); format!("failed to create file `{}'", file_name)];
+    [WritingFailed; (file_name: String); format!("failed to write to file `{}'", file_name)];
 }
 
 pub fn open(editor: &str, name: &str) -> Result<()> {
@@ -19,36 +24,26 @@ pub fn open(editor: &str, name: &str) -> Result<()> {
         .arg(name)
         .spawn()
         .map(|_| ())
-        .map_err(|e| {
-            Error::with_cause(
-                format!("opening {}", name),
-                "failed to spawn open command.",
-                box e,
-            )
-        })
+        .chain(ErrorKind::SpawningCommandFailed(editor.to_string()))
 }
 
 pub fn ensure_to_create_file(name: &str, text: &str) -> Result<()> {
-    let mut f = File::create(name)
-        .map_err(|e| Error::with_cause(format!("creating {}", name), "failed", box e))?;
+    let mut f = File::create(name).chain(ErrorKind::CreatingFailed(name.to_string()))?;
 
     if text != "" {
         f.write_all(text.as_bytes())
-            .map_err(|e| Error::with_cause(format!("writing into {}", name), "failed", box e))?;
+            .chain(ErrorKind::WritingFailed(name.to_string()))?;
     }
 
     Ok(())
 }
 
-pub fn get_home_path() -> Result<PathBuf> {
-    env::home_dir().ok_or(Error::new(
-        "generating compile option",
-        "can't get home directory's path.",
-    ))
+pub fn get_home_path() -> PathBuf {
+    env::home_dir().expect("critical error: failed to get home_dir")
 }
 
-pub fn get_procon_lib_dir() -> Result<PathBuf> {
-    let mut home_dir = get_home_path()?;
+pub fn get_procon_lib_dir() -> PathBuf {
+    let mut home_dir = get_home_path();
     home_dir.push(config::src_support::cpp::PROCON_LIB_DIR);
-    Ok(home_dir)
+    home_dir
 }

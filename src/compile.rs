@@ -1,17 +1,22 @@
 use imp::compile;
 use imp::compile::CompilerOutput;
-use {Error, Result};
+
+define_error!();
+define_error_kind! {
+    [BuildingFailed; (); "build was not successful."];
+    [ChildError; (); "during processing"];
+}
 
 pub fn main() -> Result<()> {
     let CompilerOutput {
         success,
         stdout,
         stderr,
-    } = compile::compile()?;
+    } = compile::compile().chain(ErrorKind::ChildError())?;
     compile::print_compiler_output("standard output", stdout);
     compile::print_compiler_output("standard error", stderr);
     match success {
         true => Ok(()),
-        false => Err(Error::new("compiling", "build was not successful.")),
+        false => Err(Error::new(ErrorKind::BuildingFailed())),
     }
 }

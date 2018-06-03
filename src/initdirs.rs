@@ -1,32 +1,38 @@
 use std::fs;
-use std::num;
 use std::path::PathBuf;
 
-use Error;
-use Result;
+define_error!();
+define_error_kind! {
+    [InvalidNumberOfArgument; (n: usize, info: &'static str); format!(
+        "invalid number of arguments for initdir command: {}\n{}", n, info
+    )];
+    [ParsingNumberOfProblemsFailed; (); format!(
+        "failed to parse the number of problems."
+    )];
+}
 
 pub fn main(args: Vec<String>) -> Result<()> {
     let beginning_char = match args.len() {
-        0 => Err(Error::new(
-            "parsing argument",
+        0 => Err(Error::new(ErrorKind::InvalidNumberOfArgument(
+            0,
             "please specify contest-name and the number of problems.",
-        )),
-        1 => Err(Error::new(
-            "parsing argument",
+        ))),
+        1 => Err(Error::new(ErrorKind::InvalidNumberOfArgument(
+            1,
             "please specify the number of problems.",
-        )),
+        ))),
         2 => Ok('a'),
         3 if args[2].len() > 0 => Ok(args[2].chars().next().unwrap()),
-        _ => Err(Error::new(
-            "parsing argument",
-            "too many arguments for initdirs command.",
-        )),
+        n => Err(Error::new(ErrorKind::InvalidNumberOfArgument(
+            n,
+            "too many arguments",
+        ))),
     }?;
 
     let contest_name = args[0].as_str();
-    let numof_problems: u8 = args[1].parse().map_err(|e: num::ParseIntError| {
-        Error::with_cause("parsing the number of problems", "parse failed", box e)
-    })?;
+    let numof_problems: u8 = args[1]
+        .parse()
+        .chain(ErrorKind::ParsingNumberOfProblemsFailed())?;
 
     create_directories(contest_name, beginning_char, numof_problems);
 

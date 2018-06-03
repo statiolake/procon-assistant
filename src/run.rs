@@ -12,22 +12,31 @@ use imp::srcfile::SrcFile;
 use imp::test_case;
 use imp::test_case::judge_result::{JudgeResult, WrongAnswer};
 use imp::test_case::{TestCase, TestCaseFile};
-use Error;
-use Result;
 
 const OUTPUT_COLOR: ConsoleColor = LightMagenta;
+
+define_error!();
+define_error_kind! {
+    [CompilationFailed; (); format!("failed to compile.")];
+    [RunningTestsFailed; (); format!("test running failed.")];
+    [GettingSourceFileFailed; (); format!("failed to get source file.")];
+    [CopyingToClipboardFailed; (); format!("failed to copy to clipboard.")];
+    [InvalidArgument; (); format!("failed to parse the passed argument.")];
+    [InexistingTestCase; (n: i32); format!("testcase {} doesn't exist.", n)];
+    [JudgingFailed; (); format!("failed to judge.")];
+}
 
 pub fn main(args: Vec<String>) -> Result<()> {
     let CompilerOutput {
         success,
         stdout,
         stderr,
-    } = compile::compile()?;
+    } = compile::compile().chain(ErrorKind::CompilationFailed())?;
 
     compile::print_compiler_output("standard output", stdout);
     compile::print_compiler_output("standard error", stderr);
     let result = match success {
-        true => run_tests(&args)?,
+        true => run_tests(&args).chain(ErrorKind::RunningTestsFailed())?,
         false => JudgeResult::CompilationError,
     };
 
@@ -42,9 +51,10 @@ pub fn main(args: Vec<String>) -> Result<()> {
 
     // copy the answer to the clipboard
     if let JudgeResult::Passed = result {
-        let SrcFile { file_name, .. } = srcfile::get_source_file()?;
+        let SrcFile { file_name, .. } =
+            srcfile::get_source_file().chain(ErrorKind::GettingSourceFileFailed())?;
         println!("");
-        clip::copy_to_clipboard(file_name.as_ref())?;
+        clip::copy_to_clipboard(file_name.as_ref()).chain(ErrorKind::CopyingToClipboardFailed())?;
     }
 
     Ok(())
@@ -57,18 +67,10 @@ fn run_tests(args: &Vec<String>) -> Result<JudgeResult> {
 fn parse_argument_cases(args: &Vec<String>) -> Result<Vec<TestCase>> {
     let mut result = vec![];
     for arg in args.iter() {
-        let n: i32 = arg.parse().map_err(|x| {
-            Error::new(
-                "parsing testcases passed by argument",
-                format!("failed to parse argument: {}", x),
-            )
-        })?;
+        let n: i32 = arg.parse().chain(ErrorKind::InvalidArgument())?;
         let tcf = TestCaseFile::new_with_index(n);
         if !tcf.exists() {
-            return Err(Error::new(
-                "parsing testcases passed by argument",
-                format!("testcase of number {} doesn't exist.", n),
-            ));
+            return Err(Error::new(ErrorKind::InexistingTestCase(n)));
         }
         result.push(TestCase::from(tcf));
     }
@@ -116,7 +118,7 @@ fn run(tcs: Vec<TestCase>) -> Result<JudgeResult> {
     println!("");
     let mut whole_result = JudgeResult::Passed;
     for (display, result) in judge_results.into_iter() {
-        let result = result?;
+        let result = result.chain(ErrorKind::JudgingFailed())?;
         print_result(&result, display);
         // update whole result
         if result != JudgeResult::Passed && whole_result == JudgeResult::Passed {

@@ -3,8 +3,14 @@ use colored_print::color::ConsoleColor::LightMagenta;
 use common;
 use imp::srcfile;
 use imp::srcfile::SrcFile;
-use {Error, Result};
+
 const OUTPUT_COLOR: ConsoleColor = LightMagenta;
+
+define_error!();
+define_error_kind! {
+    [GettingSourceFileFailed; (); "failed to get source file."];
+    [SpawningCompilerFailed; (); "failed to spawn compiler; check your installation."];
+}
 
 pub struct CompilerOutput {
     pub success: bool,
@@ -26,15 +32,12 @@ pub fn compile() -> Result<CompilerOutput> {
     let SrcFile {
         file_name,
         mut compile_cmd,
-    } = srcfile::get_source_file()?;
+    } = srcfile::get_source_file().chain(ErrorKind::GettingSourceFileFailed())?;
 
     print_compiling!("{}", file_name);
-    let result = compile_cmd.output().map_err(|e| {
-        Error::new(
-            "compiling source",
-            format!("failed to spawn compiler: {}. check your installation", e),
-        )
-    })?;
+    let result = compile_cmd
+        .output()
+        .chain(ErrorKind::SpawningCompilerFailed())?;
 
     let stdout = wrap_output_to_option(&result.stdout).map(output_to_string);
     let stderr = wrap_output_to_option(&result.stderr).map(output_to_string);

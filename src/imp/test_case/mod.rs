@@ -9,7 +9,20 @@ use time;
 use self::judge_result::{JudgeResult, OutputDifference};
 use common;
 use config;
-use {Error, Result};
+
+define_error!();
+define_error_kind! {
+    [MismatchingTestCaseFiles; (existing_outfile: String, inexisting_infile: String); format!(
+        "output file `{}' exists while input file `{}' does not exist.",
+        existing_outfile, inexisting_infile
+    )];
+    [FileCreationFailed; (name: String); format!(
+        "failed to create `{}'", name
+    )];
+    [ExecutionOfMainBinaryFailed; (); format!(
+        "failed to execute compiled binary main."
+    )];
+}
 
 #[derive(Debug)]
 pub enum TestCase {
@@ -32,42 +45,39 @@ impl From<TestCaseFile> for TestCase {
 
 #[derive(Debug)]
 pub struct TestCaseFile {
-    pub input_file_name: String,
-    pub output_file_name: String,
+    pub infile_name: String,
+    pub outfile_name: String,
 }
 
 impl TestCaseFile {
-    pub fn new(input_file_name: String, output_file_name: String) -> TestCaseFile {
+    pub fn new(infile_name: String, outfile_name: String) -> TestCaseFile {
         TestCaseFile {
-            input_file_name,
-            output_file_name,
+            infile_name,
+            outfile_name,
         }
     }
 
     pub fn new_with_index(idx: i32) -> TestCaseFile {
-        TestCaseFile::new(make_input_file_name(idx), make_output_file_name(idx))
+        TestCaseFile::new(make_infile_name(idx), make_outfile_name(idx))
     }
 
     pub fn new_with_next_unused_name() -> Result<TestCaseFile> {
         let mut i = 1;
-        while Path::new(&make_input_file_name(i)).exists() {
+        while Path::new(&make_infile_name(i)).exists() {
             i += 1;
         }
 
-        let input_file_name = make_input_file_name(i);
-        let output_file_name = make_output_file_name(i);
+        let infile_name = make_infile_name(i);
+        let outfile_name = make_outfile_name(i);
 
-        if Path::new(&output_file_name).exists() {
-            return Err(Error::new(
-                "generating next sample case file name",
-                format!(
-                    "{} exists while {} doesn't exist.",
-                    output_file_name, input_file_name
-                ),
-            ));
+        if Path::new(&outfile_name).exists() {
+            return Err(Error::new(ErrorKind::MismatchingTestCaseFiles(
+                outfile_name.into(),
+                infile_name.into(),
+            )));
         }
 
-        Ok(TestCaseFile::new(input_file_name, output_file_name))
+        Ok(TestCaseFile::new(infile_name, outfile_name))
     }
 
     pub fn create(&self) -> Result<()> {
@@ -79,21 +89,23 @@ impl TestCaseFile {
         S: AsRef<str>,
         T: AsRef<str>,
     {
-        common::ensure_to_create_file(&self.input_file_name, if_contents.as_ref())?;
-        common::ensure_to_create_file(&self.output_file_name, of_contents.as_ref())?;
+        common::ensure_to_create_file(&self.infile_name, if_contents.as_ref())
+            .chain(ErrorKind::FileCreationFailed(self.infile_name.clone()))?;
+        common::ensure_to_create_file(&self.outfile_name, of_contents.as_ref())
+            .chain(ErrorKind::FileCreationFailed(self.outfile_name.clone()))?;
         Ok(())
     }
 
     pub fn exists(&self) -> bool {
-        Path::new(&self.input_file_name).exists() && Path::new(&self.output_file_name).exists()
+        Path::new(&self.infile_name).exists() && Path::new(&self.outfile_name).exists()
     }
 
     pub fn display(&self) -> &str {
-        &self.input_file_name
+        &self.infile_name
     }
 
     pub fn judge(&self) -> Result<JudgeResult> {
-        let if_contents = load_file(&self.input_file_name);
+        let if_contents = load_file(&self.infile_name);
         let mut child = spawn_main()?;
         input_to_child(&mut child, &if_contents);
         if let Some(judge) = wait_or_timeout(&mut child)? {
@@ -104,7 +116,7 @@ impl TestCaseFile {
             v.into_iter().filter(|x| *x != '\r' as u8).collect()
         }
 
-        let of_contents = remove_cr(load_file(&self.output_file_name));
+        let of_contents = remove_cr(load_file(&self.outfile_name));
         let childstdout = remove_cr(read_child_stdout(&mut child));
 
         if of_contents != childstdout {
@@ -122,24 +134,21 @@ impl TestCaseFile {
 pub fn enumerate_test_cases() -> Vec<TestCase> {
     let mut result = vec![];
     let mut i = 1;
-    while Path::new(&make_input_file_name(i)).exists() {
-        let input_file_name = make_input_file_name(i);
-        let output_file_name = make_output_file_name(i);
-        result.push(TestCase::File(TestCaseFile::new(
-            input_file_name,
-            output_file_name,
-        )));
+    while Path::new(&make_infile_name(i)).exists() {
+        let infile_name = make_infile_name(i);
+        let outfile_name = make_outfile_name(i);
+        result.push(TestCase::File(TestCaseFile::new(infile_name, outfile_name)));
         i += 1;
     }
 
     result
 }
 
-fn make_input_file_name(num: i32) -> String {
+fn make_infile_name(num: i32) -> String {
     format!("in{}.txt", num)
 }
 
-fn make_output_file_name(num: i32) -> String {
+fn make_outfile_name(num: i32) -> String {
     format!("out{}.txt", num)
 }
 
@@ -157,7 +166,7 @@ fn spawn_main() -> Result<Child> {
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
-        .map_err(|e| Error::with_cause("executing main", "failed to spawn main", box e))
+        .chain(ErrorKind::ExecutionOfMainBinaryFailed())
 }
 
 fn input_to_child(child: &mut Child, if_contents: &Vec<u8>) {

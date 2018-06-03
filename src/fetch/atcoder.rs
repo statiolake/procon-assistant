@@ -5,19 +5,26 @@ use super::print_msg;
 use imp::auth::atcoder;
 use imp::test_case::TestCaseFile;
 
-use {Error, Result};
+define_error!();
+define_error_kind! {
+    [UnknownContestName; (contest_name: String); format!("unknown contest-name: `{}'", contest_name)];
+    [FetchingProblemFailed; (long_contest_name: String, problem: String); format!(
+        "failed to fetch the problem: {} problem {}", long_contest_name, problem
+    )];
+    [FindingTagFailed; (selector: String); format!("missing tag: failed to find `{}'\nmaybe failed to login?", selector)];
+    [UnexpectedNumberOfPreTag; (detected: usize); format!("unexpected number of <pre>: {}", detected)];
+    [CouldNotDetermineTestCaseFileName; (); format!("failed to determine testcase file name.")];
+    [TestCaseCreationFailed; (); format!("failed to create testcase.")];
+}
 
 fn get_long_contest_name(contest_name: &str) -> Result<&str> {
-    let conversion_error = Error::new(
-        "converting short name to long name",
-        format!("unknown contest name {}", contest_name),
-    );
-
     match contest_name {
         "abc" => Ok("AtCoder Beginner Contest"),
         "arc" => Ok("AtCoder Regular Contest"),
         "agc" => Ok("AtCoder Grand Contest"),
-        _ => Err(conversion_error),
+        _ => Err(Error::new(ErrorKind::UnknownContestName(
+            contest_name.to_string(),
+        ))),
     }
 }
 
@@ -34,52 +41,40 @@ pub fn main(problem_id: &str) -> Result<()> {
         long_contest_name = get_long_contest_name(contest_name)?;
         problem = &problem_id[6..7];
         download_text(long_contest_name, problem_id, contest_id, problem)
-    }.map_err(|e| {
-        Error::with_cause(
-            "downloading html",
-            format!(
-                "failed to fetch the problem {} problem {}",
-                long_contest_name, problem
-            ),
-            box e,
-        )
-    })?;
+    }.chain(ErrorKind::FetchingProblemFailed(
+        long_contest_name.into(),
+        problem.into(),
+    ))?;
 
     let document = Html::parse_document(&text);
     let sel_div_task_statement = Selector::parse("div#task-statement").unwrap();
     let sel_span_ja = Selector::parse("span.lang-ja").unwrap();
     let sel_pre = Selector::parse("pre").unwrap();
 
-    let div_task_statement_not_found =
-        Error::new("parsing problem html", "failed to get div#task-statement");
-
-    let span_lang_ja_not_found =
-        Error::new("parsing problem html", "failed to get div#span.lang-ja");
-
     let pres: Vec<_> = document
         .select(&sel_div_task_statement)
         .next()
-        .ok_or(div_task_statement_not_found)?
+        .ok_or(Error::new(ErrorKind::FindingTagFailed(
+            "div#task-statement".into(),
+        )))?
         .select(&sel_span_ja)
         .next()
-        .ok_or(span_lang_ja_not_found)?
+        .ok_or(Error::new(ErrorKind::FindingTagFailed(
+            "div#span.lang-ja".into(),
+        )))?
         .select(&sel_pre)
         .collect();
 
     if pres.len() <= 1 || (pres.len() - 1) % 2 != 0 {
-        return Err(Error::new(
-            "parsing problem html",
-            format!(
-                "the number of <pre> elements is unexpected: detect {}",
-                pres.len()
-            ),
-        ));
+        return Err(Error::new(ErrorKind::UnexpectedNumberOfPreTag(pres.len())));
     }
 
     for i in 0..(pres.len() / 2) {
         print_msg::in_generating_sample_case(long_contest_name, problem_id, i + 1);
-        let tsf = TestCaseFile::new_with_next_unused_name()?;
-        tsf.create_with_contents(pres[i * 2 + 1].inner_html(), pres[i * 2 + 2].inner_html())?;
+        let tsf = TestCaseFile::new_with_next_unused_name()
+            .chain(ErrorKind::CouldNotDetermineTestCaseFileName())?;
+        tsf.create_with_contents(pres[i * 2 + 1].inner_html(), pres[i * 2 + 2].inner_html())
+            .chain(ErrorKind::TestCaseCreationFailed())?;
     }
 
     print_msg::in_generating_sample_case_finished(long_contest_name, problem_id, pres.len() / 2);

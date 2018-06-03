@@ -10,31 +10,33 @@ use regex::Regex;
 
 use common;
 use config;
-use {Error, Result};
+
+define_error!();
+define_error_kind! {
+    [FileNotFound; (file_name: String); format!("failed to load `{}'; file not found.", file_name)];
+    [PreProcessorIfNotMatch; (); format!("failed to find endif matching with ifdef.")];
+}
 
 pub fn copy_to_clipboard(file_path: &Path) -> Result<()> {
     print_copying!("{} to clipboard", file_path.display());
     let main_src = read_source_file(file_path, false)?;
     let main_src = preprocess(main_src)?;
-    set_clipboard(main_src)?;
+    set_clipboard(main_src);
     print_finished!("copying");
     Ok(())
 }
 
 #[cfg(not(unix))]
-fn set_clipboard(content: String) -> Result<()> {
-    let mut provider: ClipboardContext = ClipboardProvider::new()
-        .map_err(|_| Error::new("copying to clipboard", "cannot get clipboard provider"))?;
-    provider.set_contents(content).map_err(|_| {
-        Error::new(
-            "copying to clipboard",
-            "failed to set contents to clipboard.",
-        )
-    })
+fn set_clipboard(content: String) {
+    let mut provider: ClipboardContext =
+        ClipboardProvider::new().expect("critical error: cannot get clipboard provider.");
+    provider
+        .set_contents(content)
+        .expect("critical error: cannot set contents to clipboard.");
 }
 
 #[cfg(unix)]
-fn set_clipboard(content: String) -> Result<()> {
+fn set_clipboard(content: String) {
     use std::process::{Command, Stdio};
     let mut child = Command::new("xsel")
         .arg("-b")
@@ -42,52 +44,43 @@ fn set_clipboard(content: String) -> Result<()> {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|e| Error::with_cause("copying to clipboard", "cannot run xsel", box e))?;
+        .expect("critical error: failed to run xsel");
     child
         .stdin
         .take()
         .unwrap()
         .write_all(content.as_bytes())
         .unwrap();
-    child
-        .wait()
-        .map_err(|e| Error::with_cause("copying to clipboard", "cannot wait xsel", box e))?;
-    Ok(())
+    child.wait().expect("critical error: failed to wait xsel");
 }
 
 pub fn read_source_file(file_path: &Path, silent: bool) -> Result<String> {
     let mut src_content = String::new();
     File::open(file_path)
-        .map_err(|e| {
-            Error::with_cause(
-                format!("loading {}", file_path.display()),
-                "failed to open the specified file.",
-                box e,
-            )
-        })?
+        .chain(ErrorKind::FileNotFound(file_path.display().to_string()))?
         .read_to_string(&mut src_content)
-        .map_err(|e| {
-            Error::with_cause(
-                format!("loading {}", file_path.display()),
-                "failed to read the entire content of the file.",
-                box e,
-            )
-        })?;
+        .expect(&format!(
+            "critical error: failed to read `{}' from disk.",
+            file_path.display()
+        ));
     parse_include(file_path, src_content, silent)
 }
 
 fn parse_include(curr_file_path: &Path, content: String, silent: bool) -> Result<String> {
     let re_inc = Regex::new(r#" *# *include *" *([^>]*) *""#).unwrap();
-    let lib_dir = if config::HEADER_FILE_EXTENSIONS.contains(&curr_file_path
+    let curr_extension = curr_file_path
         .extension()
         .unwrap()
         .to_str()
-        .unwrap())
-    {
+        .expect("critical error: failed to get file extension.");
+    let is_header = config::HEADER_FILE_EXTENSIONS.contains(&curr_extension);
+
+    let lib_dir = if is_header {
         curr_file_path.parent().unwrap().to_path_buf()
     } else {
-        common::get_procon_lib_dir()?
+        common::get_procon_lib_dir()
     };
+
     let mut modified_content: Vec<String> = content.split('\n').map(|x| x.to_string()).collect();
     for line in modified_content.iter_mut() {
         for cap in re_inc.captures_iter(&line.clone()) {
@@ -112,7 +105,7 @@ fn preprocess(content: String) -> Result<String> {
     let removed = Some(lines)
         .map(remove_line_comments)
         .map(remove_include_guard)
-        .unwrap()?;
+        .expect("logical error: this must be Some because nothing change it None.")?;
     Ok(minify(removed))
 }
 
@@ -149,10 +142,7 @@ fn remove_include_guard(mut lines: Vec<String>) -> Result<Vec<String>> {
                 let mut if_nest = 1;
                 while if_nest > 0 {
                     if curr >= lines.len() {
-                        return Err(Error::new(
-                            "removing include guard",
-                            "failed to find endif matching with ifdef.",
-                        ));
+                        return Err(Error::new(ErrorKind::PreProcessorIfNotMatch()));
                     }
 
                     if re_if.is_match(&lines[curr]) {
