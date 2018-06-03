@@ -1,0 +1,2 @@
+-I$LIB_DIR
+-Wno-old-style-cast
