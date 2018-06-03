@@ -155,10 +155,13 @@ fn main() {
             help();
             process::exit(1)
         }
-    };
+    }.map_err(|e| Box::<dyn std::error::Error>::from(box e));
 
     if let Err(e) = result {
-        e.display();
+        print_error!("{}", e.description());
+        if let Some(ref cause) = e.cause() {
+            print_info!("due to {:?}", cause);
+        }
         process::exit(1);
     }
 }
