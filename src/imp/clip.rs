@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::fs::File;
 use std::io::prelude::*;
 use std::mem;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use regex::Regex;
 
@@ -85,11 +85,11 @@ fn parse_include(curr_file_path: &Path, content: String, silent: bool) -> Result
     for line in modified_content.iter_mut() {
         for cap in re_inc.captures_iter(&line.clone()) {
             let inc_file = &cap[1];
-            let inc_path = format!("{}/{}", lib_dir.display(), inc_file);
+            let inc_path = lib_dir.join(Path::new(inc_file).components().collect::<PathBuf>());
             if !silent {
-                print_including!("{}", inc_path);
+                print_including!("{}", inc_path.display());
             }
-            let inc_src = read_source_file(inc_path.as_ref(), silent)?;
+            let inc_src = read_source_file(&inc_path, silent)?;
             let replaced = re_inc.replace(line, &*inc_src).to_string();
             mem::replace(line, replaced);
         }
