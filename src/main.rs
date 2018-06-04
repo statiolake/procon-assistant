@@ -171,7 +171,7 @@ fn main() {
 
 fn print_causes(e: &dyn error::Error) {
     if let Some(cause) = e.cause() {
-        print_info!("due to: {}", cause);
+        print_info!(true, "due to: {}", cause);
         print_causes(cause);
     }
 }

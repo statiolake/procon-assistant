@@ -48,7 +48,7 @@ pub fn compile() -> Result<CompilerOutput> {
 pub fn print_compiler_output(kind: &str, output: Option<String>) {
     if let Some(output) = output {
         let output = output.trim().split('\n');
-        print_info!("compiler {}:", kind);
+        print_info!(true, "compiler {}:", kind);
         for line in output {
             colored_println! {
                 common::colorize();

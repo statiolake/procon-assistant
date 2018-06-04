@@ -98,9 +98,11 @@ macro_rules! print_logging_in {
 }
 
 macro_rules! print_info {
-    ($($args:expr),*) => (
-        print_with_tag! {
-            $crate::tags::TAGS_INFO_COLOR, $crate::tags::INFO, $($args),*
+    ($enabled:expr, $($args:expr),*) => (
+        if $enabled {
+            print_with_tag! {
+                $crate::tags::TAGS_INFO_COLOR, $crate::tags::INFO, $($args),*
+            }
         }
     )
 }

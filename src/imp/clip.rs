@@ -87,9 +87,7 @@ fn parse_include(curr_file_path: &Path, content: String, silent: bool) -> Result
         for cap in re_inc.captures_iter(&line.clone()) {
             let inc_file = &cap[1];
             let inc_path = lib_dir.join(Path::new(inc_file).components().collect::<PathBuf>());
-            if !silent {
-                print_info!("including {}", inc_path.display());
-            }
+            print_info!(!silent, "including {}", inc_path.display());
             let inc_src = read_source_file(&inc_path, silent)?;
             let replaced = re_inc.replace(line, &*inc_src).to_string();
             mem::replace(line, replaced);

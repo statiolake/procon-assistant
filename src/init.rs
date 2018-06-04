@@ -31,7 +31,7 @@ pub fn main() -> Result<()> {
     for file in FILES {
         let path = Path::new(file);
         if path.exists() {
-            print_info!("file {} already exists, skipping.", file);
+            print_info!(true, "file {} already exists, skipping.", file);
             continue;
         }
 
@@ -59,7 +59,7 @@ fn generate(path: &Path) -> Result<()> {
         .join(&path.components().collect::<PathBuf>());
 
     let template_path_string = template_path.display().to_string();
-    print_info!("loading template from `{}'", template_path_string);
+    print_info!(true, "loading template from `{}'", template_path_string);
     let mut template_file = File::open(template_path)
         .chain(ErrorKind::OpenTemplateFailed(template_path_string.clone()))?;
 

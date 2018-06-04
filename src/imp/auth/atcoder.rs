@@ -60,7 +60,7 @@ pub fn get_with_auth(url: &str) -> reqwest::Result<reqwest::Response> {
         .or_else(|_| File::open(format!("../{}", ACCESSCODE_FILE)))
         .or_else(|_| File::open(format!("../../{}", ACCESSCODE_FILE)))
     {
-        print_info!("found accesscode file, try to use it.");
+        print_info!(true, "found accesscode file, try to use it.");
         let mut revel_session = String::new();
         f.read_to_string(&mut revel_session).unwrap();
         let mut cookie = reqwest::header::Cookie::new();
