@@ -3,10 +3,9 @@ use colored_print::color::ConsoleColor::*;
 use std::thread;
 
 use clip;
+use compile;
 use config;
 use imp::common;
-use imp::compile;
-use imp::compile::CompilerOutput;
 use imp::srcfile;
 use imp::srcfile::SrcFile;
 use imp::test_case;
@@ -27,14 +26,7 @@ define_error_kind! {
 }
 
 pub fn main(args: Vec<String>) -> Result<()> {
-    let CompilerOutput {
-        success,
-        stdout,
-        stderr,
-    } = compile::compile().chain(ErrorKind::CompilationFailed())?;
-
-    compile::print_compiler_output("standard output", stdout);
-    compile::print_compiler_output("standard error", stderr);
+    let success = compile::compile().chain(ErrorKind::CompilationFailed())?;
     let result = match success {
         true => run_tests(&args).chain(ErrorKind::RunningTestsFailed())?,
         false => JudgeResult::CompilationError,

@@ -1,14 +1,7 @@
-use colored_print::color::ConsoleColor;
-use colored_print::color::ConsoleColor::LightMagenta;
-use imp::common;
-use imp::srcfile;
 use imp::srcfile::SrcFile;
-
-const OUTPUT_COLOR: ConsoleColor = LightMagenta;
 
 define_error!();
 define_error_kind! {
-    [GettingSourceFileFailed; (); "failed to get source file."];
     [SpawningCompilerFailed; (); "failed to spawn compiler; check your installation."];
 }
 
@@ -28,14 +21,8 @@ impl CompilerOutput {
     }
 }
 
-pub fn compile() -> Result<CompilerOutput> {
-    let SrcFile {
-        file_name,
-        mut compile_cmd,
-    } = srcfile::get_source_file().chain(ErrorKind::GettingSourceFileFailed())?;
-
-    print_compiling!("{}", file_name);
-    let result = compile_cmd
+pub fn compile(mut src: SrcFile) -> Result<CompilerOutput> {
+    let result = src.compile_cmd
         .output()
         .chain(ErrorKind::SpawningCompilerFailed())?;
 
@@ -43,19 +30,6 @@ pub fn compile() -> Result<CompilerOutput> {
     let stderr = wrap_output_to_option(&result.stderr).map(output_to_string);
 
     Ok(CompilerOutput::new(result.status.success(), stdout, stderr))
-}
-
-pub fn print_compiler_output(kind: &str, output: Option<String>) {
-    if let Some(output) = output {
-        let output = output.trim().split('\n');
-        print_info!(true, "compiler {}:", kind);
-        for line in output {
-            colored_println! {
-                common::colorize();
-                OUTPUT_COLOR, "        {}", line;
-            }
-        }
-    }
 }
 
 fn wrap_output_to_option(output: &[u8]) -> Option<(&[u8])> {
