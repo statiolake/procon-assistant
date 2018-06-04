@@ -7,8 +7,8 @@ use std::process::{Child, Command, ExitStatus, Stdio};
 use time;
 
 use self::judge_result::{JudgeResult, OutputDifference};
-use common;
 use config;
+use imp::common;
 
 define_error!();
 define_error_kind! {

@@ -86,7 +86,6 @@ mod tags;
 mod addcase;
 
 mod clip;
-mod common;
 mod compile;
 mod config;
 mod download;

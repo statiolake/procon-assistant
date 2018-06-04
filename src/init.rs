@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
-use common;
+use imp::common;
 
 const FILES: &[&str] = &[
     ".clang_complete",

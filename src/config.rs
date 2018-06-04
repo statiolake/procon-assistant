@@ -53,7 +53,7 @@ pub mod src_support {
 
         use super::Lang;
         use super::Result;
-        use common;
+        use imp::common;
 
         #[cfg(unix)]
         pub const LANG: Lang = Lang {

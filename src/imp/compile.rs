@@ -1,6 +1,6 @@
 use colored_print::color::ConsoleColor;
 use colored_print::color::ConsoleColor::LightMagenta;
-use common;
+use imp::common;
 use imp::srcfile;
 use imp::srcfile::SrcFile;
 

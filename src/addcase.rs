@@ -1,4 +1,4 @@
-use common::open;
+use imp::common::open;
 use imp::test_case::TestCaseFile;
 
 use config::ConfigFile;

@@ -110,7 +110,7 @@ macro_rules! print_info {
 macro_rules! print_with_tag {
     ($color:expr, $tag:expr, $fmt:expr $(,$args:expr)*) => (
         colored_println! {
-            $crate::common::colorize();
+            $crate::imp::common::colorize();
             $color, "{}", $tag;
             $crate::colored_print::color::ConsoleColor::Reset, " ";
             $crate::colored_print::color::ConsoleColor::Reset, $fmt $(,$args)*;
