@@ -4,8 +4,8 @@ use std::thread;
 
 use clip;
 use compile;
-use config;
 use imp::common;
+use imp::config;
 use imp::srcfile;
 use imp::srcfile::SrcFile;
 use imp::test_case;

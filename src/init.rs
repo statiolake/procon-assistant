@@ -1,4 +1,4 @@
-use config::ConfigFile;
+use imp::config::ConfigFile;
 use std::env;
 use std::fs;
 use std::fs::File;

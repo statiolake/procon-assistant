@@ -8,8 +8,8 @@ use std::path::{Path, PathBuf};
 
 use regex::Regex;
 
-use config;
 use imp::common;
+use imp::config;
 
 define_error!();
 define_error_kind! {

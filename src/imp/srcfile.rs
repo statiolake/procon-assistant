@@ -22,7 +22,7 @@ impl SrcFile {
 }
 
 pub fn get_source_file() -> Result<SrcFile> {
-    use config::src_support;
+    use imp::config::src_support;
     for lang in src_support::LANGS {
         if Path::new(lang.src_file_name).exists() {
             let mut cmd = Command::new(lang.compiler);

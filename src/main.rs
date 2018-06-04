@@ -87,7 +87,6 @@ mod addcase;
 
 mod clip;
 mod compile;
-mod config;
 mod download;
 mod fetch;
 mod imp;

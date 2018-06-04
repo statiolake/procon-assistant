@@ -6,7 +6,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 
-use config;
+use imp::config;
 
 pub fn colorize() -> bool {
     isatty::stdout_isatty()

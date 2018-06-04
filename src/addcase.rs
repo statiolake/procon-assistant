@@ -1,7 +1,7 @@
 use imp::common::open;
 use imp::test_case::TestCaseFile;
 
-use config::ConfigFile;
+use imp::config::ConfigFile;
 
 define_error!();
 define_error_kind! {
