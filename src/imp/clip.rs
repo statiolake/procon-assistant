@@ -17,17 +17,8 @@ define_error_kind! {
     [PreProcessorIfNotMatch; (); format!("failed to find endif matching with ifdef.")];
 }
 
-pub fn copy_to_clipboard(file_path: &Path) -> Result<()> {
-    print_copying!("{} to clipboard", file_path.display());
-    let main_src = read_source_file(file_path, false)?;
-    let main_src = preprocess(main_src)?;
-    set_clipboard(main_src);
-    print_finished!("copying");
-    Ok(())
-}
-
 #[cfg(not(unix))]
-fn set_clipboard(content: String) {
+pub fn set_clipboard(content: String) {
     let mut provider: ClipboardContext =
         ClipboardProvider::new().expect("critical error: cannot get clipboard provider.");
     provider
@@ -36,7 +27,7 @@ fn set_clipboard(content: String) {
 }
 
 #[cfg(unix)]
-fn set_clipboard(content: String) {
+pub fn set_clipboard(content: String) {
     use std::process::{Command, Stdio};
     let mut child = Command::new("xsel")
         .arg("-b")
@@ -66,6 +57,16 @@ pub fn read_source_file(file_path: &Path, silent: bool) -> Result<String> {
     parse_include(file_path, src_content, silent)
 }
 
+pub fn preprocess(content: String) -> Result<String> {
+    let content = remove_block_comments(content);
+    let lines: Vec<String> = content.split('\n').map(|x| x.into()).collect();
+    let removed = Some(lines)
+        .map(remove_line_comments)
+        .map(remove_include_guard)
+        .expect("logical error: this must be Some because nothing change it None.")?;
+    Ok(minify(removed))
+}
+
 fn parse_include(curr_file_path: &Path, content: String, silent: bool) -> Result<String> {
     let re_inc = Regex::new(r#" *# *include *" *([^>]*) *""#).unwrap();
     let curr_extension = curr_file_path
@@ -87,7 +88,7 @@ fn parse_include(curr_file_path: &Path, content: String, silent: bool) -> Result
             let inc_file = &cap[1];
             let inc_path = lib_dir.join(Path::new(inc_file).components().collect::<PathBuf>());
             if !silent {
-                print_including!("{}", inc_path.display());
+                print_info!("including {}", inc_path.display());
             }
             let inc_src = read_source_file(&inc_path, silent)?;
             let replaced = re_inc.replace(line, &*inc_src).to_string();
@@ -97,16 +98,6 @@ fn parse_include(curr_file_path: &Path, content: String, silent: bool) -> Result
     let modified_content = modified_content.join("\n");
 
     Ok(modified_content)
-}
-
-fn preprocess(content: String) -> Result<String> {
-    let content = remove_block_comments(content);
-    let lines: Vec<String> = content.split('\n').map(|x| x.into()).collect();
-    let removed = Some(lines)
-        .map(remove_line_comments)
-        .map(remove_include_guard)
-        .expect("logical error: this must be Some because nothing change it None.")?;
-    Ok(minify(removed))
 }
 
 fn remove_block_comments(content: String) -> String {

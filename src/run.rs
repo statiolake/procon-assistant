@@ -2,9 +2,9 @@ use colored_print::color::ConsoleColor;
 use colored_print::color::ConsoleColor::*;
 use std::thread;
 
+use clip;
 use common;
 use config;
-use imp::clip;
 use imp::compile;
 use imp::compile::CompilerOutput;
 use imp::srcfile;

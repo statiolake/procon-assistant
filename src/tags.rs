@@ -9,7 +9,6 @@ pub const COMPILING: &str = "  Compiling";
 pub const CREATED: &str = "    Created";
 pub const RUNNING: &str = "    Running";
 pub const COPYING: &str = "    Copying";
-pub const INCLUDING: &str = "  Including";
 pub const GENERATING: &str = " Generating";
 pub const GENERATED: &str = "  Generated";
 pub const FINISHED: &str = "   Finished";
@@ -54,14 +53,6 @@ macro_rules! print_copying {
     ($($args:expr),*) => (
         print_with_tag! {
             $crate::tags::TAGS_COLOR, $crate::tags::COPYING, $($args),*
-        }
-    )
-}
-
-macro_rules! print_including {
-    ($($args:expr),*) => (
-        print_with_tag! {
-            $crate::tags::TAGS_COLOR, $crate::tags::INCLUDING, $($args),*
         }
     )
 }
