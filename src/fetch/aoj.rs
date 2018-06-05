@@ -8,8 +8,8 @@ define_error!();
 define_error_kind!{
     [FetchingProblemFailed; (problem_id: String); format!("failed to fetch the problem `{}'", problem_id)];
     [UnexpectedNumberOfPreTag; (detected: usize); format!("unexpected number of <pre>: {}", detected)];
-    [CouldNotDetermineTestCaseFileName; (); format!("failed to determine testcase file name.")];
-    [TestCaseCreationFailed; (); format!("failed to create testcase.")];
+    [CouldNotDetermineTestCaseFileName; (); format!("failed to determine test case file name.")];
+    [TestCaseCreationFailed; (); format!("failed to create test case.")];
 }
 
 const CONTEST: &str = "Aizu Online Judge";
@@ -32,10 +32,11 @@ pub fn main(problem_id: &str) -> Result<()> {
 
     for i in 0..(pres.len() / 2) {
         print_msg::in_generating_sample_case(CONTEST, problem_id, i + 1);
-        let tsf = TestCaseFile::new_with_next_unused_name()
-            .chain(ErrorKind::CouldNotDetermineTestCaseFileName())?;
-        tsf.create_with_contents(pres[i * 2].inner_html(), pres[i * 2 + 1].inner_html())
-            .chain(ErrorKind::TestCaseCreationFailed())?;
+        let tsf = TestCaseFile::new_with_next_unused_name(
+            pres[i * 2].inner_html().as_bytes().into(),
+            pres[i * 2 + 1].inner_html().as_bytes().into(),
+        ).chain(ErrorKind::CouldNotDetermineTestCaseFileName())?;
+        tsf.write().chain(ErrorKind::TestCaseCreationFailed())?;
     }
 
     print_msg::in_generating_sample_case_finished(CONTEST, problem_id, pres.len() / 2);

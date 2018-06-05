@@ -1,6 +1,8 @@
 pub mod judge_result;
 
+use std::fmt;
 use std::fs::File;
+use std::io;
 use std::io::prelude::*;
 use std::path::Path;
 use std::process::{Child, Command, ExitStatus, Stdio};
@@ -16,12 +18,8 @@ define_error_kind! {
         "output file `{}' exists while input file `{}' does not exist.",
         existing_outfile, inexisting_infile
     )];
-    [FileCreationFailed; (name: String); format!(
-        "failed to create `{}'", name
-    )];
-    [ExecutionOfMainBinaryFailed; (); format!(
-        "failed to execute compiled binary main."
-    )];
+    [FileCreationFailed; (name: String); format!("failed to create `{}'", name)];
+    [ExecutionOfMainBinaryFailed; (); format!("failed to execute compiled binary main.")];
 }
 
 #[derive(Debug)]
@@ -30,9 +28,9 @@ pub enum TestCase {
 }
 
 impl TestCase {
-    pub fn judge(&self) -> (String, Result<JudgeResult>) {
-        match *self {
-            TestCase::File(ref tcf) => (tcf.display().into(), tcf.judge()),
+    pub fn judge(self) -> (String, Result<JudgeResult>) {
+        match self {
+            TestCase::File(tcf) => (tcf.to_string(), tcf.judge()),
         }
     }
 }
@@ -45,78 +43,90 @@ impl From<TestCaseFile> for TestCase {
 
 #[derive(Debug)]
 pub struct TestCaseFile {
-    pub infile_name: String,
-    pub outfile_name: String,
+    pub if_name: String,
+    pub if_contents: Vec<u8>,
+    pub of_name: String,
+    pub of_contents: Vec<u8>,
 }
 
 impl TestCaseFile {
-    pub fn new(infile_name: String, outfile_name: String) -> TestCaseFile {
+    pub fn new(
+        if_name: String,
+        if_contents: Vec<u8>,
+        of_name: String,
+        of_contents: Vec<u8>,
+    ) -> TestCaseFile {
         TestCaseFile {
-            infile_name,
-            outfile_name,
+            if_name,
+            if_contents,
+            of_name,
+            of_contents,
         }
     }
 
-    pub fn new_with_index(idx: i32) -> TestCaseFile {
-        TestCaseFile::new(make_infile_name(idx), make_outfile_name(idx))
-    }
-
-    pub fn new_with_next_unused_name() -> Result<TestCaseFile> {
+    pub fn new_with_next_unused_name(
+        if_contents: Vec<u8>,
+        of_contents: Vec<u8>,
+    ) -> Result<TestCaseFile> {
         let mut i = 1;
-        while Path::new(&make_infile_name(i)).exists() {
+        while Path::new(&make_if_name(i)).exists() {
             i += 1;
         }
 
-        let infile_name = make_infile_name(i);
-        let outfile_name = make_outfile_name(i);
+        let if_name = make_if_name(i);
+        let of_name = make_of_name(i);
 
-        if Path::new(&outfile_name).exists() {
+        if Path::new(&of_name).exists() {
             return Err(Error::new(ErrorKind::MismatchingTestCaseFiles(
-                outfile_name.into(),
-                infile_name.into(),
+                of_name.into(),
+                if_name.into(),
             )));
         }
 
-        Ok(TestCaseFile::new(infile_name, outfile_name))
+        Ok(TestCaseFile::new(
+            if_name,
+            if_contents,
+            of_name,
+            of_contents,
+        ))
     }
 
-    pub fn create(&self) -> Result<()> {
-        self.create_with_contents("", "")
+    pub fn load_from(if_name: String, of_name: String) -> io::Result<TestCaseFile> {
+        let mut if_contents = Vec::new();
+        let mut of_contents = Vec::new();
+        File::open(&if_name)?.read_to_end(&mut if_contents)?;
+        File::open(&of_name)?.read_to_end(&mut of_contents)?;
+        Ok(TestCaseFile::new(
+            if_name,
+            if_contents,
+            of_name,
+            of_contents,
+        ))
     }
 
-    pub fn create_with_contents<S, T>(&self, if_contents: S, of_contents: T) -> Result<()>
-    where
-        S: AsRef<str>,
-        T: AsRef<str>,
-    {
-        common::ensure_to_create_file(&self.infile_name, if_contents.as_ref())
-            .chain(ErrorKind::FileCreationFailed(self.infile_name.clone()))?;
-        common::ensure_to_create_file(&self.outfile_name, of_contents.as_ref())
-            .chain(ErrorKind::FileCreationFailed(self.outfile_name.clone()))?;
+    pub fn load_from_index_of(idx: i32) -> io::Result<TestCaseFile> {
+        let if_name = make_if_name(idx);
+        let of_name = make_of_name(idx);
+        TestCaseFile::load_from(if_name, of_name)
+    }
+
+    pub fn write(&self) -> Result<()> {
+        common::ensure_to_create_file(&self.if_name, &self.if_contents)
+            .chain(ErrorKind::FileCreationFailed(self.if_name.clone()))?;
+        common::ensure_to_create_file(&self.of_name, &self.of_contents)
+            .chain(ErrorKind::FileCreationFailed(self.of_name.clone()))?;
         Ok(())
     }
 
-    pub fn exists(&self) -> bool {
-        Path::new(&self.infile_name).exists() && Path::new(&self.outfile_name).exists()
-    }
-
-    pub fn display(&self) -> &str {
-        &self.infile_name
-    }
-
-    pub fn judge(&self) -> Result<JudgeResult> {
-        let if_contents = load_file(&self.infile_name);
+    pub fn judge(self) -> Result<JudgeResult> {
+        let if_contents = remove_cr(self.if_contents);
         let mut child = spawn_main()?;
         input_to_child(&mut child, &if_contents);
         if let Some(judge) = wait_or_timeout(&mut child)? {
             return Ok(judge);
         }
 
-        fn remove_cr(v: Vec<u8>) -> Vec<u8> {
-            v.into_iter().filter(|x| *x != '\r' as u8).collect()
-        }
-
-        let of_contents = remove_cr(load_file(&self.outfile_name));
+        let of_contents = remove_cr(self.of_contents);
         let childstdout = remove_cr(read_child_stdout(&mut child));
 
         if of_contents != childstdout {
@@ -131,34 +141,29 @@ impl TestCaseFile {
     }
 }
 
-pub fn enumerate_test_cases() -> Vec<TestCase> {
+impl fmt::Display for TestCaseFile {
+    fn fmt(&self, b: &mut fmt::Formatter) -> fmt::Result {
+        write!(b, "{}", self.if_name)
+    }
+}
+
+pub fn enumerate_test_cases() -> io::Result<Vec<TestCase>> {
     let mut result = vec![];
     let mut i = 1;
-    while Path::new(&make_infile_name(i)).exists() {
-        let infile_name = make_infile_name(i);
-        let outfile_name = make_outfile_name(i);
-        result.push(TestCase::File(TestCaseFile::new(infile_name, outfile_name)));
+    while Path::new(&make_if_name(i)).exists() {
+        result.push(TestCase::from(TestCaseFile::load_from_index_of(i)?));
         i += 1;
     }
 
-    result
+    Ok(result)
 }
 
-fn make_infile_name(num: i32) -> String {
+fn make_if_name(num: i32) -> String {
     format!("in{}.txt", num)
 }
 
-fn make_outfile_name(num: i32) -> String {
+fn make_of_name(num: i32) -> String {
     format!("out{}.txt", num)
-}
-
-fn load_file(file_name: &str) -> Vec<u8> {
-    let mut contents = Vec::new();
-    File::open(file_name)
-        .unwrap()
-        .read_to_end(&mut contents)
-        .unwrap();
-    contents
 }
 
 fn spawn_main() -> Result<Child> {
@@ -259,4 +264,8 @@ fn compare_content_in_detail(
 
 fn split_lines_to_vec(s: String) -> Vec<String> {
     s.trim().split('\n').map(|x| x.to_string()).collect()
+}
+
+fn remove_cr(v: Vec<u8>) -> Vec<u8> {
+    v.into_iter().filter(|&x| x != '\r' as u8).collect()
 }

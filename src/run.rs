@@ -21,7 +21,7 @@ define_error_kind! {
     [GettingSourceFileFailed; (); format!("failed to get source file.")];
     [CopyingToClipboardFailed; (); format!("failed to copy to clipboard.")];
     [InvalidArgument; (); format!("failed to parse the passed argument.")];
-    [InexistingTestCase; (n: i32); format!("testcase {} doesn't exist.", n)];
+    [LoadingTestCaseFailed; (); format!("failed to load some test case.")];
     [JudgingFailed; (); format!("failed to judge.")];
 }
 
@@ -60,10 +60,7 @@ fn parse_argument_cases(args: &Vec<String>) -> Result<Vec<TestCase>> {
     let mut result = vec![];
     for arg in args.iter() {
         let n: i32 = arg.parse().chain(ErrorKind::InvalidArgument())?;
-        let tcf = TestCaseFile::new_with_index(n);
-        if !tcf.exists() {
-            return Err(Error::new(ErrorKind::InexistingTestCase(n)));
-        }
+        let tcf = TestCaseFile::load_from_index_of(n).chain(ErrorKind::LoadingTestCaseFailed())?;
         result.push(TestCase::from(tcf));
     }
 
@@ -72,10 +69,10 @@ fn parse_argument_cases(args: &Vec<String>) -> Result<Vec<TestCase>> {
 
 fn enumerate_test_cases(args: &Vec<String>) -> Result<Vec<TestCase>> {
     let test_cases = if args.is_empty() {
-        test_case::enumerate_test_cases()
+        test_case::enumerate_test_cases().chain(ErrorKind::LoadingTestCaseFailed())
     } else {
-        parse_argument_cases(args)?
-    };
+        parse_argument_cases(args)
+    }?;
 
     Ok(test_cases)
 }
@@ -92,7 +89,7 @@ fn print_solution_output(kind: &str, result: &Vec<String>) {
 
 fn run(tcs: Vec<TestCase>) -> Result<JudgeResult> {
     print_running!(
-        "{} testcases (current timeout is {} millisecs)",
+        "{} test cases (current timeout is {} millisecs)",
         tcs.len(),
         config::TIMEOUT_MILLISECOND
     );

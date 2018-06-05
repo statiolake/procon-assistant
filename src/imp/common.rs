@@ -27,11 +27,11 @@ pub fn open(editor: &str, name: &str) -> Result<()> {
         .chain(ErrorKind::SpawningCommandFailed(editor.to_string()))
 }
 
-pub fn ensure_to_create_file(name: &str, text: &str) -> Result<()> {
+pub fn ensure_to_create_file(name: &str, text: &[u8]) -> Result<()> {
     let mut f = File::create(name).chain(ErrorKind::CreatingFailed(name.to_string()))?;
 
-    if text != "" {
-        f.write_all(text.as_bytes())
+    if !text.is_empty() {
+        f.write_all(text)
             .chain(ErrorKind::WritingFailed(name.to_string()))?;
     }
 

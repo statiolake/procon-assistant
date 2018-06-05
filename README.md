@@ -89,7 +89,7 @@ compiler error message and exit. Otherwise, checks that program's output
 is the same with `outX.txt` when given `inX.txt` as the standard input.
 the test case is existing all cases by default but you can specify using
 cases as a parameter. for example, `procon-assistant run 1 3 5` runs
-testcase 1, 3, 5. Of course sample case files needs to exist.
+test case 1, 3, 5. Of course sample case files needs to exist.
 
 your program's output is judged and result will be as follows.
 

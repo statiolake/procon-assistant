@@ -123,7 +123,7 @@ fn help() {
     println!("    addcase");
     println!("        adds new sample case.");
     println!("        creates inX.txt, outX.txt in current directory.");
-    println!("    run [testcase]");
+    println!("    run [test_case]");
     println!("        runs and tests current solution (main.cpp) with input inX.txt.");
     println!("    login {{contest-site}}");
     println!("        log in to the contest-site.");

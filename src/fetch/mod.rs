@@ -4,6 +4,7 @@ pub mod aoj;
 pub mod atcoder;
 
 use std::env;
+use std::ffi::OsStr;
 
 define_error!();
 define_error_kind! {
@@ -23,45 +24,75 @@ define_error_kind! {
     [ChildError; (); format!("during processing")];
 }
 
-pub fn main(args: Vec<String>) -> Result<()> {
-    let arg = if args.is_empty() {
-        handle_empty_arg()?
-    } else {
-        args.into_iter().next().unwrap()
-    };
+// atcoder:abc092a
+// ^^^^^^^ contest-site
+//         ^^^^^^^ problem-id
+//         ^^^ contest-name
+//         ^^^^^^ contest-id
+//               ^ problem
 
-    let (contest_site, problem_id) = {
-        let sp: Vec<_> = arg.splitn(2, ':').collect();
+pub struct ContestSpecifier {
+    contest_site: String,
+    problem_id: String,
+}
 
-        if sp.len() != 2 {
-            return Err(Error::new(ErrorKind::ArgumentFormatError(arg.clone())));
+impl ContestSpecifier {
+    pub fn new(contest_site: String, problem_id: String) -> ContestSpecifier {
+        ContestSpecifier {
+            contest_site,
+            problem_id,
         }
+    }
 
-        (sp[0], sp[1])
-    };
+    pub fn parse(specifier: String) -> Result<ContestSpecifier> {
+        let (contest_site, problem_id) = {
+            let sp: Vec<_> = specifier.splitn(2, ':').collect();
 
-    match contest_site {
-        "aoj" => aoj::main(problem_id).chain(ErrorKind::ChildError()),
-        "atcoder" | "at" => atcoder::main(problem_id).chain(ErrorKind::ChildError()),
+            if sp.len() != 2 {
+                return Err(Error::new(ErrorKind::ArgumentFormatError(
+                    specifier.clone(),
+                )));
+            }
+
+            (sp[0].to_string(), sp[1].to_string())
+        };
+        Ok(ContestSpecifier::new(contest_site, problem_id))
+    }
+}
+
+pub fn main(args: Vec<String>) -> Result<()> {
+    let specifier = match args.into_iter().next() {
+        Some(arg) => ContestSpecifier::parse(arg),
+        None => handle_empty_arg(),
+    }?;
+
+    match &*specifier.contest_site {
+        "aoj" => aoj::main(&specifier.problem_id).chain(ErrorKind::ChildError()),
+        "atcoder" | "at" => atcoder::main(&specifier.problem_id).chain(ErrorKind::ChildError()),
         _ => Err(Error::new(ErrorKind::UnknownContestSite(
-            contest_site.into(),
+            specifier.contest_site,
         ))),
     }
 }
 
-fn handle_empty_arg() -> Result<String> {
+fn handle_empty_arg() -> Result<ContestSpecifier> {
     let current_dir = env::current_dir().expect("critical error: failed to get current directory.");
-    let maybe_dir_name = current_dir
-        .file_name()
-        .and_then(|x| x.to_str())
-        .map(|x| x.to_string());
 
-    if let Some(dir) = maybe_dir_name {
-        let path = format!("{}", current_dir.display());
-        if path.find("aoj").is_some() {
-            return Ok(format!("aoj:{}", dir));
-        } else if path.find("atcoder").is_some() {
-            return Ok(format!("atcoder:{}", dir));
+    // sometimes current directory has no name (for exampple: root directory)
+    let maybe_current_dir_name = current_dir
+        .file_name()
+        .and_then(OsStr::to_str)
+        .map(ToString::to_string);
+
+    if let Some(current_dir_name) = maybe_current_dir_name {
+        for component in current_dir.components() {
+            return Ok(match component.as_os_str().to_str() {
+                Some("aoj") => ContestSpecifier::new("aoj".to_string(), current_dir_name),
+                Some("atcoder") | Some("at") => {
+                    ContestSpecifier::new("atcoder".to_string(), current_dir_name)
+                }
+                _ => continue,
+            });
         }
     }
 
