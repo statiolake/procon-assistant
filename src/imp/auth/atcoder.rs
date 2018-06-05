@@ -72,7 +72,7 @@ pub fn get_with_auth(url: &str) -> reqwest::Result<reqwest::Response> {
 }
 
 fn get_cookie_and_csrf_token() -> Result<(Vec<(String, String)>, String)> {
-    print_fetching!("login page");
+    print_info!(true, "fetching login page");
     let client = reqwest::Client::new();
     let mut res = client
         .get("https://beta.atcoder.jp/login")
@@ -115,7 +115,6 @@ fn login_get_cookie(
     password: String,
     csrf_token: String,
 ) -> Result<Vec<(String, String)>> {
-    print_logging_in!("to AtCoder");
     let client = make_client().expect("critical error: creating client failed.");
     let params: [(&str, &str); 3] = [
         ("username", &username),

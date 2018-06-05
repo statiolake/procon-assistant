@@ -9,6 +9,7 @@ define_error_kind! {
 
 pub fn main() -> Result<()> {
     let (username, password) = auth::ask_account_info("AtCoder");
+    print_logging_in!("to AtCoder");
     let code = atcoder::try_login(username, password).chain(ErrorKind::LoginFailed())?;
     atcoder::store_revel_session(&code, true).chain(ErrorKind::StoreRevelSessionFailed())?;
     print_finished!("fetching code; successfully saved.");
