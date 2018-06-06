@@ -1,4 +1,4 @@
-#![feature(box_syntax, str_escape)]
+#![feature(box_syntax, str_escape, specialization)]
 #[macro_use]
 extern crate colored_print;
 extern crate clipboard;
@@ -22,7 +22,7 @@ macro_rules! define_error {
         #[derive(Debug)]
         pub struct Error {
             pub kind: ErrorKind,
-            pub cause: Option<Box<::std::error::Error + Send + Sync>>,
+            pub cause: Option<Box<::std::error::Error + Send>>,
         }
 
         pub trait ChainableToError<T> {
@@ -36,10 +36,7 @@ macro_rules! define_error {
             }
 
             #[allow(dead_code)]
-            pub fn with_cause(
-                kind: ErrorKind,
-                cause: Box<::std::error::Error + Send + Sync>,
-            ) -> Error {
+            pub fn with_cause(kind: ErrorKind, cause: Box<::std::error::Error + Send>) -> Error {
                 Error {
                     kind,
                     cause: Some(cause),
@@ -53,7 +50,7 @@ macro_rules! define_error {
             }
         }
 
-        impl<T, E: 'static + ::std::error::Error + Send + Sync> ChainableToError<T>
+        impl<T, E: 'static + ::std::error::Error + Send> ChainableToError<T>
             for ::std::result::Result<T, E>
         {
             fn chain(self, kind: ErrorKind) -> Result<T> {

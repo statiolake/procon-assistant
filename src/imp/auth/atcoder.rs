@@ -1,14 +1,12 @@
-use std::fs::File;
-use std::io::{Read, Write};
-
 use reqwest;
 use scraper::{Html, Selector};
 
-pub const ACCESSCODE_FILE: &str = ".accesscode";
+const SERVICE_NAME: &str = "atcoder";
 
 define_error!();
 define_error_kind! {
-    [OpeningAccesscodeFileFailed; (); format!("failed to open `{}'.", ACCESSCODE_FILE)];
+    [InvalidUtf8SessionInfo; (); format!("session info has invalid utf-8.")];
+    [RequestingError; (); format!("failed to send your request.")];
     [FetchingLoginPageFailed; (); format!("failed to fetch login page.")];
     [ParsingHtmlFailed; (); format!("failed to parse received HTML.")];
     [GettingCsrfTokenFailed; (); format!("getting csrf token failed.")];
@@ -16,59 +14,59 @@ define_error_kind! {
     [PostingAccountInfoFailed; (); format!("failed to post username and password")];
     [LoginUnsuccessful; (); format!("logging in failed; check your username and password.")];
     [MissingRevelSession; (); format!("failed to find REVEL_SESSION")];
+    [StoringRevelSessionFailed; (); format!("failed to store REVEL_SESSION.")];
     [HTTPStatusNotOk; (status: reqwest::StatusCode); format!("HTTP status not OK: {:?}", status)];
 }
 
-pub fn store_revel_session_from_response(
-    res: &mut reqwest::Response,
-    must_create: bool,
-) -> Result<()> {
-    let setcookie: &reqwest::header::SetCookie = res.headers().get().unwrap();
-    let cookie = extract_setcookie(setcookie);
-    if let Ok(code) = find_revel_session(cookie) {
-        store_revel_session(&code, must_create)?;
-    }
-    Ok(())
-}
-
-pub fn store_revel_session(code: &str, must_create: bool) -> Result<()> {
-    match File::create(ACCESSCODE_FILE) {
-        Ok(mut f) => writeln!(f, "{}", code).unwrap(),
-        Err(e) => {
-            if must_create {
-                return Err(Error::with_cause(
-                    ErrorKind::OpeningAccesscodeFileFailed(),
-                    box e,
-                ));
-            }
-        }
-    }
-    Ok(())
-}
-
-pub fn try_login(username: String, password: String) -> Result<String> {
+pub fn login(username: String, password: String) -> Result<()> {
     let (cookie, csrf_token) = get_cookie_and_csrf_token()?;
     let cookie = login_get_cookie(cookie, username, password, csrf_token)?;
+    let revel_session = find_revel_session(cookie)?;
+    super::store_session_info(SERVICE_NAME, revel_session.as_bytes())
+        .chain(ErrorKind::StoringRevelSessionFailed())?;
 
-    find_revel_session(cookie)
+    Ok(())
 }
 
-pub fn get_with_auth(url: &str) -> reqwest::Result<reqwest::Response> {
+pub fn authenticated_get(url: &str) -> Result<reqwest::Response> {
     let client = reqwest::Client::new();
     let mut builder = client.get(url);
-    if let Ok(mut f) = File::open(ACCESSCODE_FILE)
-        .or_else(|_| File::open(format!("../{}", ACCESSCODE_FILE)))
-        .or_else(|_| File::open(format!("../../{}", ACCESSCODE_FILE)))
-    {
-        print_info!(true, "found accesscode file, try to use it.");
-        let mut revel_session = String::new();
-        f.read_to_string(&mut revel_session).unwrap();
+    add_auth_info_to_builder_if_possible(&mut builder)?;
+    let mut res = builder.send().chain(ErrorKind::RequestingError())?;
+    store_revel_session_from_response(&mut res)?;
+    Ok(res)
+}
+
+fn add_auth_info_to_builder_if_possible(builder: &mut reqwest::RequestBuilder) -> Result<()> {
+    fn handle_invalid_utf_8(e: Error) -> Error {
+        super::clear_session_info(SERVICE_NAME)
+            .expect("critical error: failed to clean session info.");
+        print_info!(true, "cleared session info to avoid continuous error.");
+        e
+    }
+
+    if let Ok(revel_session) = super::load_session_info(SERVICE_NAME) {
+        print_info!(true, "found sesion info, try to use it.");
+        let revel_session = String::from_utf8(revel_session)
+            .chain(ErrorKind::InvalidUtf8SessionInfo())
+            .map_err(handle_invalid_utf_8)?
+            .trim()
+            .to_string();
+
         let mut cookie = reqwest::header::Cookie::new();
-        cookie.append("REVEL_SESSION", revel_session.trim().to_string());
+        cookie.append("REVEL_SESSION", revel_session);
         builder.header(cookie);
     }
 
-    builder.send()
+    Ok(())
+}
+
+fn store_revel_session_from_response(res: &mut reqwest::Response) -> Result<()> {
+    let setcookie: &reqwest::header::SetCookie = res.headers().get().unwrap();
+    let cookie = extract_setcookie(setcookie);
+    let revel_session = find_revel_session(cookie)?;
+    super::store_session_info(SERVICE_NAME, revel_session.as_bytes())
+        .chain(ErrorKind::StoringRevelSessionFailed())
 }
 
 fn get_cookie_and_csrf_token() -> Result<(Vec<(String, String)>, String)> {

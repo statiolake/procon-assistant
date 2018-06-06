@@ -1,51 +1,126 @@
-use reqwest;
+use std::error;
+use std::result;
+
 use scraper::{Html, Selector};
 
-use super::print_msg;
-use imp::auth::atcoder;
+use imp::auth::atcoder as auth;
 use imp::test_case::TestCaseFile;
+use login::atcoder as login;
 
 define_error!();
 define_error_kind! {
-    [UnknownContestName; (contest_name: String); format!("unknown contest-name: `{}'", contest_name)];
-    [FetchingProblemFailed; (long_contest_name: String, problem: String); format!(
-        "failed to fetch the problem: {} problem {}", long_contest_name, problem
-    )];
-    [FindingTagFailed; (selector: String); format!("missing tag: failed to find `{}'\nmaybe failed to login?", selector)];
+    [FindingTagFailed; (selector: String); format!("missing tag: failed to find `{}'\nmaybe you are not logged in?", selector)];
     [UnexpectedNumberOfPreTag; (detected: usize); format!("unexpected number of <pre>: {}", detected)];
     [CouldNotDetermineTestCaseFileName; (); format!("failed to determine test case file name.")];
-    [TestCaseCreationFailed; (); format!("failed to create test case.")];
+    [AuthenticatedGetFailed; (url: String); format!("failed to get the page at `{}'.", url)];
+    [GettingTextFailed; (); format!("failed to get text from page.")];
+    [InvalidFormatForProblemId; (problem: String); format!(concat!(
+        "invalid format for problem-id: `{}'\n",
+        "example: `abc022a' for AtCoder Beginner Contest 022 Problem A"
+    ), problem)];
+    [LoginFailed; (); format!("logging in failed.")];
 }
 
-fn get_long_contest_name(contest_name: &str) -> Result<&str> {
-    match contest_name {
-        "abc" => Ok("AtCoder Beginner Contest"),
-        "arc" => Ok("AtCoder Regular Contest"),
-        "agc" => Ok("AtCoder Grand Contest"),
-        _ => Err(Error::new(ErrorKind::UnknownContestName(
-            contest_name.to_string(),
-        ))),
+pub struct AtCoder {
+    problem: Problem,
+}
+
+impl AtCoder {
+    pub fn new(problem_id: String) -> Result<AtCoder> {
+        Problem::from_problem_id(problem_id).map(|problem| AtCoder { problem })
     }
 }
 
-pub fn main(problem_id: &str) -> Result<()> {
-    let long_contest_name;
-    let problem;
-    let text = if problem_id.len() != 7 {
-        long_contest_name = "unknown";
-        problem = "unknown";
-        download_text_by_url("Unknown", "Unknown", problem_id)
-    } else {
-        let contest_name = &problem_id[0..3];
-        let contest_id = &problem_id[0..6];
-        long_contest_name = get_long_contest_name(contest_name)?;
-        problem = &problem_id[6..7];
-        download_text(long_contest_name, problem_id, contest_id, problem)
-    }.chain(ErrorKind::FetchingProblemFailed(
-        long_contest_name.into(),
-        problem.into(),
-    ))?;
+pub enum Problem {
+    ProblemId {
+        problem_id: String,
+        contest_name: String,
+        contest_id: String,
+        problem: String,
+        url: String,
+    },
+    DirectUrl {
+        url: String,
+    },
+}
 
+impl Problem {
+    pub fn from_problem_id(problem_id: String) -> Result<Problem> {
+        let problem = if problem_id.starts_with("http") {
+            Problem::DirectUrl { url: problem_id }
+        } else {
+            if problem_id.len() != 7 {
+                return Err(Error::new(ErrorKind::InvalidFormatForProblemId(problem_id)));
+            }
+            let contest_name = problem_id[0..3].to_string();
+            let contest_id = problem_id[0..6].to_string();
+            let problem = problem_id[6..7].to_string();
+            let url = format!(
+                "https://beta.atcoder.jp/contests/{}/tasks/{}_{}",
+                contest_id, contest_id, problem
+            );
+            Problem::ProblemId {
+                problem_id,
+                contest_name,
+                contest_id,
+                problem,
+                url,
+            }
+        };
+        Ok(problem)
+    }
+
+    pub fn problem_id(&self) -> &str {
+        match *self {
+            Problem::ProblemId { ref problem_id, .. } => &problem_id,
+            Problem::DirectUrl { .. } => "Unknown",
+        }
+    }
+
+    pub fn url(&self) -> &str {
+        match *self {
+            Problem::ProblemId { ref url, .. } => url,
+            Problem::DirectUrl { ref url } => url,
+        }
+    }
+}
+
+impl super::TestCaseProvider for AtCoder {
+    fn site_name(&self) -> &str {
+        "AtCoder"
+    }
+
+    fn problem_id(&self) -> &str {
+        self.problem.problem_id()
+    }
+
+    fn url(&self) -> &str {
+        self.problem.url()
+    }
+
+    fn needs_authenticate(&self) -> bool {
+        print_info!(
+            true,
+            "needs_authenticate() is not implemetented for now, always returns `false'."
+        );
+        false
+    }
+
+    fn authenticate(&self) -> result::Result<(), Box<dyn error::Error + Send>> {
+        login::main()
+            .chain(ErrorKind::LoginFailed())
+            .map_err(|e| (box e) as Box<_>)
+    }
+
+    fn fetch_test_case_files(
+        &self,
+    ) -> result::Result<Vec<TestCaseFile>, Box<dyn error::Error + Send>> {
+        let text = download_text(self.problem.url()).map_err(|e| (box e) as Box<_>)?;
+        parse_text(text).map_err(|e| (box e) as Box<_>)
+    }
+}
+
+fn parse_text(text: String) -> Result<Vec<TestCaseFile>> {
     let document = Html::parse_document(&text);
     let sel_div_task_statement = Selector::parse("div#task-statement").unwrap();
     let sel_span_ja = Selector::parse("span.lang-ja").unwrap();
@@ -69,41 +144,24 @@ pub fn main(problem_id: &str) -> Result<()> {
         return Err(Error::new(ErrorKind::UnexpectedNumberOfPreTag(pres.len())));
     }
 
+    let beginning =
+        TestCaseFile::next_unused_idx().chain(ErrorKind::CouldNotDetermineTestCaseFileName())?;
+    let mut result = Vec::new();
     for i in 0..(pres.len() / 2) {
-        print_msg::in_generating_sample_case(long_contest_name, problem_id, i + 1);
-        let tsf = TestCaseFile::new_with_next_unused_name(
+        let tsf = TestCaseFile::new_with_idx(
+            beginning + i as i32,
             pres[i * 2 + 1].inner_html().as_bytes().into(),
             pres[i * 2 + 2].inner_html().as_bytes().into(),
-        ).chain(ErrorKind::CouldNotDetermineTestCaseFileName())?;
-        tsf.write().chain(ErrorKind::TestCaseCreationFailed())?;
+        );
+        result.push(tsf)
     }
 
-    print_msg::in_generating_sample_case_finished(long_contest_name, problem_id, pres.len() / 2);
-
-    Ok(())
+    Ok(result)
 }
 
-fn download_text(
-    long_contest_name: &str,
-    problem_id: &str,
-    contest_id: &str,
-    problem: &str,
-) -> reqwest::Result<String> {
-    let url = format!(
-        "https://beta.atcoder.jp/contests/{}/tasks/{}_{}",
-        contest_id, contest_id, problem
-    );
-
-    download_text_by_url(long_contest_name, problem_id, &url)
-}
-
-fn download_text_by_url(
-    long_contest_name: &str,
-    problem_id: &str,
-    url: &str,
-) -> reqwest::Result<String> {
-    print_msg::in_fetching_problem(long_contest_name, problem_id, &url);
-    let mut res = atcoder::get_with_auth(url)?;
-    atcoder::store_revel_session_from_response(&mut res, false).ok();
-    res.text()
+fn download_text(url: &str) -> Result<String> {
+    auth::authenticated_get(url)
+        .chain(ErrorKind::AuthenticatedGetFailed(url.to_string()))?
+        .text()
+        .chain(ErrorKind::GettingTextFailed())
 }

@@ -64,17 +64,20 @@ impl TestCaseFile {
         }
     }
 
-    pub fn new_with_next_unused_name(
-        if_contents: Vec<u8>,
-        of_contents: Vec<u8>,
-    ) -> Result<TestCaseFile> {
-        let mut i = 1;
-        while Path::new(&make_if_name(i)).exists() {
-            i += 1;
+    pub fn new_with_idx(idx: i32, if_contents: Vec<u8>, of_contents: Vec<u8>) -> TestCaseFile {
+        let if_name = make_if_name(idx);
+        let of_name = make_of_name(idx);
+        TestCaseFile::new(if_name, if_contents, of_name, of_contents)
+    }
+
+    pub fn next_unused_idx() -> Result<i32> {
+        let mut idx = 1;
+        while Path::new(&make_if_name(idx)).exists() {
+            idx += 1;
         }
 
-        let if_name = make_if_name(i);
-        let of_name = make_of_name(i);
+        let if_name = make_if_name(idx);
+        let of_name = make_of_name(idx);
 
         if Path::new(&of_name).exists() {
             return Err(Error::new(ErrorKind::MismatchingTestCaseFiles(
@@ -83,12 +86,7 @@ impl TestCaseFile {
             )));
         }
 
-        Ok(TestCaseFile::new(
-            if_name,
-            if_contents,
-            of_name,
-            of_contents,
-        ))
+        Ok(idx)
     }
 
     pub fn load_from(if_name: String, of_name: String) -> io::Result<TestCaseFile> {

@@ -1,7 +1,9 @@
-use reqwest;
 use scraper::{Html, Selector};
 
-use super::print_msg;
+use std::error;
+use std::result;
+
+use imp::auth::aoj as auth;
 use imp::test_case::TestCaseFile;
 
 define_error!();
@@ -9,15 +11,98 @@ define_error_kind!{
     [FetchingProblemFailed; (problem_id: String); format!("failed to fetch the problem `{}'", problem_id)];
     [UnexpectedNumberOfPreTag; (detected: usize); format!("unexpected number of <pre>: {}", detected)];
     [CouldNotDetermineTestCaseFileName; (); format!("failed to determine test case file name.")];
-    [TestCaseCreationFailed; (); format!("failed to create test case.")];
+    [AuthenticatedGetFailed; (url: String); format!("failed to get the page at `{}'.", url)];
+    [GettingTextFailed; (); format!("failed to get text from page.")];
 }
 
-const CONTEST: &str = "Aizu Online Judge";
+pub struct Aoj {
+    problem: Problem,
+}
 
-pub fn main(problem_id: &str) -> Result<()> {
-    let text =
-        download_text(problem_id).chain(ErrorKind::FetchingProblemFailed(problem_id.to_string()))?;
+impl Aoj {
+    pub fn new(problem_id: String) -> Result<Aoj> {
+        Problem::from_problem_id(problem_id).map(|problem| Aoj { problem })
+    }
+}
 
+pub enum Problem {
+    ProblemId { problem_id: String, url: String },
+    DirectUrl { url: String },
+}
+
+impl Problem {
+    pub fn from_problem_id(problem_id: String) -> Result<Problem> {
+        let problem = if problem_id.starts_with("http") {
+            Problem::DirectUrl { url: problem_id }
+        } else {
+            Problem::ProblemId {
+                url: format!(
+                    "http://judge.u-aizu.ac.jp/onlinejudge/description.jsp?lang=jp&id={}",
+                    problem_id,
+                ),
+                problem_id,
+            }
+        };
+        Ok(problem)
+    }
+
+    pub fn problem_id(&self) -> &str {
+        match *self {
+            Problem::ProblemId { ref problem_id, .. } => problem_id,
+            Problem::DirectUrl { .. } => "Unknown",
+        }
+    }
+
+    pub fn url(&self) -> &str {
+        match *self {
+            Problem::ProblemId { ref url, .. } => url,
+            Problem::DirectUrl { ref url } => url,
+        }
+    }
+}
+
+impl super::TestCaseProvider for Aoj {
+    fn site_name(&self) -> &str {
+        "Aizu Online Judge"
+    }
+
+    fn problem_id(&self) -> &str {
+        self.problem.problem_id()
+    }
+
+    fn url(&self) -> &str {
+        self.problem.url()
+    }
+
+    fn needs_authenticate(&self) -> bool {
+        print_info!(
+            true,
+            "needs_authenticate() is not implemetented for now, always returns `false'."
+        );
+        false
+    }
+
+    fn authenticate(&self) -> result::Result<(), Box<dyn error::Error + Send>> {
+        print_info!(
+            true,
+            "authenticate() for AOJ is not implemented for now, do nothing."
+        );
+        Ok(())
+    }
+
+    fn fetch_test_case_files(
+        &self,
+    ) -> result::Result<Vec<TestCaseFile>, Box<dyn error::Error + Send>> {
+        let text = download_text(self.problem.url())
+            .chain(ErrorKind::FetchingProblemFailed(
+                self.problem.problem_id().to_string(),
+            ))
+            .map_err(|e| (box e) as Box<_>)?;
+        parse_text(text).map_err(|e| (box e) as Box<_>)
+    }
+}
+
+pub fn parse_text(text: String) -> Result<Vec<TestCaseFile>> {
     let document = Html::parse_document(&text);
     let sel_pre = Selector::parse("pre").unwrap();
 
@@ -30,25 +115,24 @@ pub fn main(problem_id: &str) -> Result<()> {
         pres = pres.into_iter().skip(1).collect();
     }
 
+    let mut result = Vec::new();
+    let beginning =
+        TestCaseFile::next_unused_idx().chain(ErrorKind::CouldNotDetermineTestCaseFileName())?;
     for i in 0..(pres.len() / 2) {
-        print_msg::in_generating_sample_case(CONTEST, problem_id, i + 1);
-        let tsf = TestCaseFile::new_with_next_unused_name(
+        let tsf = TestCaseFile::new_with_idx(
+            beginning + i as i32,
             pres[i * 2].inner_html().as_bytes().into(),
             pres[i * 2 + 1].inner_html().as_bytes().into(),
-        ).chain(ErrorKind::CouldNotDetermineTestCaseFileName())?;
-        tsf.write().chain(ErrorKind::TestCaseCreationFailed())?;
+        );
+        result.push(tsf);
     }
 
-    print_msg::in_generating_sample_case_finished(CONTEST, problem_id, pres.len() / 2);
-
-    Ok(())
+    Ok(result)
 }
 
-fn download_text(id: &str) -> reqwest::Result<String> {
-    let url = format!(
-        "http://judge.u-aizu.ac.jp/onlinejudge/description.jsp?lang=jp&id={}",
-        id,
-    );
-    print_msg::in_fetching_problem(CONTEST, id, &url);
-    reqwest::get(&url)?.text()
+fn download_text(url: &str) -> Result<String> {
+    auth::authenticated_get(url)
+        .chain(ErrorKind::AuthenticatedGetFailed(url.to_string()))?
+        .text()
+        .chain(ErrorKind::GettingTextFailed())
 }

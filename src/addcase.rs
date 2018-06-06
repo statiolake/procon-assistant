@@ -13,8 +13,11 @@ define_error_kind! {
 
 pub fn main() -> Result<()> {
     let config: ConfigFile = ConfigFile::get_config().chain(ErrorKind::GettingConfigFailed())?;
-    let tsf = TestCaseFile::new_with_next_unused_name("".as_bytes().into(), "".as_bytes().into())
-        .chain(ErrorKind::TestCaseFileSettingUpFailed())?;
+    let tsf = TestCaseFile::new_with_idx(
+        TestCaseFile::next_unused_idx().chain(ErrorKind::TestCaseFileSettingUpFailed())?,
+        "".as_bytes().into(),
+        "".as_bytes().into(),
+    );
     tsf.write().chain(ErrorKind::TestCaseFileCreationFailed())?;
 
     print_created!("{}, {}", tsf.if_name, tsf.of_name);

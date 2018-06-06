@@ -1,4 +1,3 @@
-use reqwest;
 use scraper::{Html, Selector};
 
 use std::env;
@@ -6,7 +5,8 @@ use std::path::Path;
 
 use super::print_msg;
 use fetch;
-use imp::auth;
+use fetch::atcoder::AtCoder;
+use imp::auth::atcoder as auth;
 use initdirs;
 
 define_error!();
@@ -22,7 +22,11 @@ define_error_kind!{
     [GettingTasksFailed; (); "failed to get tasks.".to_string()];
     [GettingProblemIdFailed; (); "failed to get problem id.".to_string()];
     [EmptyProblemId; (); "problem id was empty.".to_string()];
-    [ChildError; (); format!("during processing")];
+    [GettingProviderFailed; (); format!("failed to get provider.")];
+    [FetchingTestCaseFailed; (); format!("failed to fetch test cases.")];
+    [WritingTestCaseFailed; (); format!("failed to write test case files.")];
+    [AuthenticatedGetFailed; (url: String); format!("failed to get the page at `{}'.", url)];
+    [GettingTextFailed; (); format!("failed to get text from page.")];
 }
 
 fn get_long_contest_name(contest_name: &str) -> Result<&str> {
@@ -66,7 +70,12 @@ pub fn main(contest_id: &str) -> Result<()> {
 
         let curr_url = ('a' as u8 + problem) as char;
         problem_id.push(curr_url);
-        fetch::atcoder::main(&problem_id).chain(ErrorKind::ChildError())?;
+
+        let atcoder = AtCoder::new(problem_id.clone()).chain(ErrorKind::GettingProviderFailed())?;
+        let tcfs =
+            fetch::fetch_test_case_files(box atcoder).chain(ErrorKind::FetchingTestCaseFailed())?;
+        fetch::write_test_case_files(tcfs).chain(ErrorKind::WritingTestCaseFailed())?;
+
         problem_id.pop();
 
         env::set_current_dir(Path::new("..")).unwrap();
@@ -80,7 +89,7 @@ fn get_range_of_problems(long_contest_name: &str, contest_id: &str) -> Result<(c
     // fetch the tasks
     let url = format!("https://beta.atcoder.jp/contests/{}/tasks", contest_id);
     print_msg::in_fetching_tasks(long_contest_name);
-    let text = download_text_by_url(&url).chain(ErrorKind::GettingProblemPageFailed())?;
+    let text = download_text(&url).chain(ErrorKind::GettingProblemPageFailed())?;
 
     let document = Html::parse_document(&text);
     let sel_tbody = Selector::parse("tbody").unwrap();
@@ -111,8 +120,9 @@ fn get_range_of_problems(long_contest_name: &str, contest_id: &str) -> Result<(c
     ))
 }
 
-fn download_text_by_url(url: &str) -> reqwest::Result<String> {
-    let mut res = auth::atcoder::get_with_auth(url)?;
-    auth::atcoder::store_revel_session_from_response(&mut res, false).ok();
-    res.text()
+fn download_text(url: &str) -> Result<String> {
+    auth::authenticated_get(url)
+        .chain(ErrorKind::AuthenticatedGetFailed(url.to_string()))?
+        .text()
+        .chain(ErrorKind::GettingTextFailed())
 }
