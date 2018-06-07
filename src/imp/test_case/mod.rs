@@ -28,7 +28,7 @@ pub enum TestCase {
 }
 
 impl TestCase {
-    pub fn judge(self) -> (String, Result<JudgeResult>) {
+    pub fn judge(self) -> (String,  Result<(time::Duration, JudgeResult)>) {
         match self {
             TestCase::File(tcf) => (tcf.to_string(), tcf.judge()),
         }
@@ -116,25 +116,26 @@ impl TestCaseFile {
         Ok(())
     }
 
-    pub fn judge(self) -> Result<JudgeResult> {
+    pub fn judge(self) -> Result<(time::Duration, JudgeResult)> {
         let if_contents = remove_cr(self.if_contents);
         let mut child = spawn_main()?;
         input_to_child(&mut child, &if_contents);
-        if let Some(judge) = wait_or_timeout(&mut child)? {
-            return Ok(judge);
+        let (duration, maybe_judge) = wait_or_timeout(&mut child)?;
+        if let Some(judge) = maybe_judge {
+            return Ok((duration, judge));
         }
 
         let of_contents = remove_cr(self.of_contents);
         let childstdout = remove_cr(read_child_stdout(&mut child));
 
         if of_contents != childstdout {
-            Ok(compare_content_in_detail(
+            Ok((duration, compare_content_in_detail(
                 if_contents,
                 of_contents,
                 childstdout,
-            ))
+            )))
         } else {
-            Ok(JudgeResult::Passed)
+            Ok((duration, JudgeResult::Passed))
         }
     }
 }
@@ -176,9 +177,11 @@ fn input_to_child(child: &mut Child, if_contents: &Vec<u8>) {
     child.stdin.take().unwrap().write_all(if_contents).unwrap()
 }
 
-fn wait_or_timeout(child: &mut Child) -> Result<Option<JudgeResult>> {
-    let timeout_at = time::now() + time::Duration::milliseconds(config::TIMEOUT_MILLISECOND);
+fn wait_or_timeout(child: &mut Child) -> Result<(time::Duration, Option<JudgeResult>)> {
+    let start = time::now();
+    let timeout_at = start + time::Duration::milliseconds(config::TIMEOUT_MILLISECOND);
     loop {
+        let now = time::now();
         let try_wait_result = child.try_wait();
         let res = match try_wait_result {
             Ok(Some(status)) => (false, handle_try_wait_normal(status)),
@@ -186,18 +189,19 @@ fn wait_or_timeout(child: &mut Child) -> Result<Option<JudgeResult>> {
             Err(_) => (false, handle_try_wait_error()),
         };
         match res {
-            (_, Some(re)) => return Ok(Some(re)),
+            (_, Some(re)) => return Ok((now - start, Some(re))),
             (true, _) => {}
             (false, _) => break,
         }
 
-        if timeout_at < time::now() {
+        if timeout_at < now {
             // timeout!
             child.kill().unwrap();
-            return Ok(Some(JudgeResult::TimeLimitExceeded));
+            return Ok((now - start, Some(JudgeResult::TimeLimitExceeded)));
         }
     }
-    Ok(None)
+    let now = time::now();
+    Ok((now - start, None))
 }
 
 fn handle_try_wait_normal(status: ExitStatus) -> Option<JudgeResult> {

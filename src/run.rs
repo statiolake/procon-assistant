@@ -1,5 +1,7 @@
 use colored_print::color::ConsoleColor;
 use colored_print::color::ConsoleColor::*;
+use time;
+
 use std::thread;
 
 use clip;
@@ -107,8 +109,8 @@ fn run(tcs: Vec<TestCase>) -> Result<JudgeResult> {
     println!("");
     let mut whole_result = JudgeResult::Passed;
     for (display, result) in judge_results.into_iter() {
-        let result = result.chain(ErrorKind::JudgingFailed())?;
-        print_result(&result, display);
+        let (duration, result) = result.chain(ErrorKind::JudgingFailed())?;
+        print_result(&result, &duration, display);
         // update whole result
         if result != JudgeResult::Passed && whole_result == JudgeResult::Passed {
             whole_result = result;
@@ -117,7 +119,7 @@ fn run(tcs: Vec<TestCase>) -> Result<JudgeResult> {
     Ok(whole_result)
 }
 
-fn print_result(result: &JudgeResult, display: String) {
+fn print_result(result: &JudgeResult, duration: &time::Duration, display: String) {
     // get color and short result string
     let (color, short_name) = result.short_name();
     colored_println! {
@@ -125,6 +127,7 @@ fn print_result(result: &JudgeResult, display: String) {
         Reset, "    ";
         color, "{}", short_name;
         Reset, " {}", display;
+        Reset, " (in {} ms)", duration.num_milliseconds();
     }
 
     match result {
