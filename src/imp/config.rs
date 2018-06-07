@@ -56,7 +56,9 @@ pub mod src_support {
         use super::Result;
         use imp::common;
 
-        #[cfg(unix)]
+        pub const PROCON_LIB_DIR: &str = "procon-lib";
+
+        // #[cfg(not(windows))]
         pub const LANG: Lang = Lang {
             file_type: "cpp",
             src_file_name: "main.cpp",
@@ -64,8 +66,7 @@ pub mod src_support {
             flags_setter: flags_setter,
         };
 
-        pub const PROCON_LIB_DIR: &str = "procon-lib";
-        #[cfg(unix)]
+        // #[cfg(not(windows))]
         pub fn flags_setter(cmd: &mut Command) -> Result<()> {
             cmd.arg(format!("-I{}", common::get_procon_lib_dir().display()).escape_default());
             cmd.args(&[
@@ -81,29 +82,29 @@ pub mod src_support {
             Ok(())
         }
 
-        #[cfg(windows)]
-        pub const LANG: Lang = Lang {
-            file_type: "cpp",
-            src_file_name: "main.cpp",
-            compiler: "cmd",
-            flags_setter: flags_setter,
-        };
-
-        #[cfg(windows)]
-        pub fn flags_setter(cmd: &mut Command) -> Result<()> {
-            cmd.args(&[
-                "/c",
-                "vsprompt.bat",
-                "cl",
-                "/EHsc",
-                "/Zi",
-                "/source-charset:utf-8",
-                "/DPA_DEBUG",
-            ]);
-            cmd.arg(format!("/I{}", common::get_procon_lib_dir().display()).escape_default());
-            cmd.arg("main.cpp");
-            Ok(())
-        }
+        // #[cfg(windows)]
+        // pub const LANG: Lang = Lang {
+        //     file_type: "cpp",
+        //     src_file_name: "main.cpp",
+        //     compiler: "cmd",
+        //     flags_setter: flags_setter,
+        // };
+        //
+        // #[cfg(windows)]
+        // pub fn flags_setter(cmd: &mut Command) -> Result<()> {
+        //     cmd.args(&[
+        //         "/c",
+        //         "vsprompt.bat",
+        //         "cl",
+        //         "/EHsc",
+        //         "/Zi",
+        //         "/source-charset:utf-8",
+        //         "/DPA_DEBUG",
+        //     ]);
+        //     cmd.arg(format!("/I{}", common::get_procon_lib_dir().display()).escape_default());
+        //     cmd.arg("main.cpp");
+        //     Ok(())
+        // }
     }
 
     pub mod rust {
