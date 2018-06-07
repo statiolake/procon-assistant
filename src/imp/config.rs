@@ -2,20 +2,21 @@ use serde_json;
 
 use std::env;
 use std::fs::File;
+use tags::SPACER;
 
 pub const TIMEOUT_MILLISECOND: i64 = 3000;
 pub const HEADER_FILE_EXTENSIONS: &[&str] = &["h", "hpp"];
 
 define_error!();
 define_error_kind! {
-    [ConfigFileMissing; (); concat!(
+    [ConfigFileMissing; (); format!(concat!(
         "`config.json' is missing.\n",
-        "please check that file is placed at the same directory where this binary is placed."
-    )];
-    [ErrorInConfigFile; (); concat!(
+        "{}please check that file is placed at the same directory where this binary is placed."
+    ), SPACER)];
+    [ErrorInConfigFile; (); format!(concat!(
         "failed to parse config.json.\n",
-        "maybe that file has syntax error, unknown options, or mismatched types."
-    )];
+        "{}maybe that file has syntax error, unknown options, or mismatched types."
+    ), SPACER)];
 }
 
 #[derive(Deserialize)]

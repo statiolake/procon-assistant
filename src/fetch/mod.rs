@@ -7,19 +7,18 @@ use fetch::atcoder::AtCoder;
 use std::env;
 use std::error;
 use std::ffi::OsStr;
+use std::fmt::Debug;
 use std::result;
 
 use imp::test_case::TestCaseFile;
+use tags::SPACER;
 
 define_error!();
 define_error_kind! {
-    [ArgumentFormatError; (passed_arg: String); format!(
-        concat!(
-            "argument's format is not collect: `{}'.\n",
-            "please specify contest-site and problem-id separated by `:' (colon)."
-        ),
-        passed_arg
-    )];
+    [ArgumentFormatError; (passed_arg: String); format!(concat!(
+        "argument's format is not collect: `{}'.\n",
+        "{}please specify contest-site and problem-id separated by `:' (colon)."
+    ), passed_arg, SPACER)];
     [UnknownContestSite; (site: String); format!(
         "contest-site `{}' is unknown.", site
     )];
@@ -72,14 +71,7 @@ pub fn write_test_case_files(tcfs: Vec<TestCaseFile>) -> Result<()> {
     Ok(())
 }
 
-fn get_descriptor(problem_id: Option<String>) -> Result<ProblemDescriptor> {
-    match problem_id {
-        Some(arg) => ProblemDescriptor::parse(arg),
-        None => handle_empty_arg(),
-    }
-}
-
-fn get_provider(dsc: ProblemDescriptor) -> Result<Box<dyn TestCaseProvider>> {
+pub fn get_provider(dsc: ProblemDescriptor) -> Result<Box<dyn TestCaseProvider>> {
     match &*dsc.contest_site {
         "aoj" => Aoj::new(dsc.problem_id)
             .chain(ErrorKind::ProviderCreationFailed())
@@ -88,6 +80,12 @@ fn get_provider(dsc: ProblemDescriptor) -> Result<Box<dyn TestCaseProvider>> {
             .chain(ErrorKind::ProviderCreationFailed())
             .map(|p| (box p) as Box<_>),
         _ => Err(Error::new(ErrorKind::UnknownContestSite(dsc.contest_site))),
+    }
+}
+fn get_descriptor(problem_id: Option<String>) -> Result<ProblemDescriptor> {
+    match problem_id {
+        Some(arg) => ProblemDescriptor::parse(arg),
+        None => handle_empty_arg(),
     }
 }
 
@@ -149,7 +147,7 @@ impl ProblemDescriptor {
     }
 }
 
-pub trait TestCaseProvider {
+pub trait TestCaseProvider: Debug {
     fn site_name(&self) -> &str;
     fn problem_id(&self) -> &str;
     fn url(&self) -> &str;

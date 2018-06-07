@@ -6,21 +6,26 @@ use scraper::{Html, Selector};
 use imp::auth::atcoder as auth;
 use imp::test_case::TestCaseFile;
 use login::atcoder as login;
+use tags::SPACER;
 
 define_error!();
 define_error_kind! {
-    [FindingTagFailed; (selector: String); format!("missing tag: failed to find `{}'\nmaybe you are not logged in?", selector)];
+    [FindingTagFailed; (selector: String); format!(concat!(
+        "missing tag: failed to find `{}'\n",
+        "{}maybe you are not logged in?"
+    ), selector, SPACER)];
     [UnexpectedNumberOfPreTag; (detected: usize); format!("unexpected number of <pre>: {}", detected)];
     [CouldNotDetermineTestCaseFileName; (); format!("failed to determine test case file name.")];
     [AuthenticatedGetFailed; (url: String); format!("failed to get the page at `{}'.", url)];
     [GettingTextFailed; (); format!("failed to get text from page.")];
     [InvalidFormatForProblemId; (problem: String); format!(concat!(
         "invalid format for problem-id: `{}'\n",
-        "example: `abc022a' for AtCoder Beginner Contest 022 Problem A"
-    ), problem)];
+        "{}example: `abc022a' for AtCoder Beginner Contest 022 Problem A"
+    ), problem, SPACER)];
     [LoginFailed; (); format!("logging in failed.")];
 }
 
+#[derive(Debug)]
 pub struct AtCoder {
     problem: Problem,
 }
@@ -31,6 +36,7 @@ impl AtCoder {
     }
 }
 
+#[derive(Debug)]
 pub enum Problem {
     ProblemId {
         problem_id: String,

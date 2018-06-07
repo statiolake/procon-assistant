@@ -16,6 +16,7 @@ pub const FETCHING: &str = "   Fetching";
 pub const ERROR: &str = "      Error";
 pub const LOGGING_IN: &str = " Logging in";
 pub const INFO: &str = "       Info";
+pub const SPACER: &str = "            "; // to indent next line
 
 macro_rules! print_error {
     ($($args:expr),*) => (

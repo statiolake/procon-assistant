@@ -15,6 +15,7 @@ define_error_kind!{
     [GettingTextFailed; (); format!("failed to get text from page.")];
 }
 
+#[derive(Debug)]
 pub struct Aoj {
     problem: Problem,
 }
@@ -25,6 +26,7 @@ impl Aoj {
     }
 }
 
+#[derive(Debug)]
 pub enum Problem {
     ProblemId { problem_id: String, url: String },
     DirectUrl { url: String },

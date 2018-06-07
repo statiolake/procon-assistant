@@ -1,10 +1,12 @@
 use std::fs;
 use std::path::PathBuf;
 
+use tags::SPACER;
+
 define_error!();
 define_error_kind! {
     [InvalidNumberOfArgument; (n: usize, info: &'static str); format!(
-        "invalid number of arguments for initdir command: {}\n{}", n, info
+        "invalid number of arguments for initdir command: {}\n{}{}", n, SPACER, info
     )];
     [ParsingNumberOfProblemsFailed; (); format!(
         "failed to parse the number of problems."
