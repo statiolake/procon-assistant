@@ -168,6 +168,7 @@ fn remove_include_guard(mut lines: Vec<String>) -> Result<Vec<String>> {
         } else {
             building += &lines[i];
         }
+        building += " ";
 
         i += 1;
     }
@@ -185,7 +186,7 @@ fn minify(preprocessed_lines: Vec<String>) -> String {
         .filter(|x| !x.is_empty())
         .collect();
     let re_whitespace_after_block_comment = Regex::new(r#"\*/\s+"#).unwrap();
-    let re_whitespace_after_semicolon = Regex::new(r#";\s+"#).unwrap();
+    let re_whitespace_after_colons = Regex::new(r#"(?P<col>[;:])\s+"#).unwrap();
     let re_multiple_space = Regex::new(r#"\s+"#).unwrap();
     let re_whitespace_around_operator =
         Regex::new(r#"\s*(?P<op>[+\-*/%~^|&<>=,.]|<<|>>|<=|>=|==|!=|\+=|-=|\*=|/=)\s*"#).unwrap();
@@ -193,7 +194,7 @@ fn minify(preprocessed_lines: Vec<String>) -> String {
 
     for (regex, replace) in [
         (re_whitespace_after_block_comment, "*/"),
-        (re_whitespace_after_semicolon, ";"),
+        (re_whitespace_after_colons, "$col"),
         (re_multiple_space, " "),
         (re_whitespace_around_operator, "$op"),
         (re_whitespace_around_paren, "$par"),
