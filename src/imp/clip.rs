@@ -147,7 +147,8 @@ fn remove_include_guard(mut lines: Vec<String>) -> Result<Vec<String>> {
         if re_preprocessor_directive.is_match(&lines[i]) {
             result.push(mem::replace(&mut building, String::new()));
             let has_enough_space_for_ifdef_define = i < lines.len() - 1;
-            if has_enough_space_for_ifdef_define && re_ifndef.is_match(&lines[i])
+            if has_enough_space_for_ifdef_define
+                && re_ifndef.is_match(&lines[i])
                 && re_define.is_match(&lines[i + 1])
             {
                 let symbol_name = re_ifndef
@@ -186,10 +187,10 @@ fn minify(preprocessed_lines: Vec<String>) -> String {
         .filter(|x| !x.is_empty())
         .collect();
     let re_whitespace_after_block_comment = Regex::new(r#"\*/\s+"#).unwrap();
-    let re_whitespace_after_colons = Regex::new(r#"(?P<col>[;:])\s+"#).unwrap();
+    let re_whitespace_after_colons = Regex::new(r#"\s*(?P<col>[;:])\s*"#).unwrap();
     let re_multiple_space = Regex::new(r#"\s+"#).unwrap();
     let re_whitespace_around_operator =
-        Regex::new(r#"\s*(?P<op>[+\-*/%~^|&<>=,.]|<<|>>|<=|>=|==|!=|\+=|-=|\*=|/=)\s*"#).unwrap();
+        Regex::new(r#"\s*(?P<op>[+\-*/%~^|&<>=,.!?]|<<|>>|<=|>=|==|!=|\+=|-=|\*=|/=)\s*"#).unwrap();
     let re_whitespace_around_paren = Regex::new(r#"\s*(?P<par>[({)}])\s*"#).unwrap();
 
     for (regex, replace) in [
