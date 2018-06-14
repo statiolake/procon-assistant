@@ -33,7 +33,7 @@ impl super::ContestProvider for Local {
     }
 
     fn contest_id(&self) -> &str {
-        "Local"
+        "."
     }
 
     fn url(&self) -> &str {
@@ -55,7 +55,7 @@ fn make_fetcher(problem_list: Vec<String>) -> Result<Fetchers> {
         .collect::<Result<_>>()
         .map(|fetchers| Fetchers {
             fetchers,
-            contest_id: "Local".to_string(),
+            contest_id: ".".to_string(),
             beginning_char: 'a',
         })
 }
