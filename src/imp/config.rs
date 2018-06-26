@@ -62,7 +62,7 @@ pub mod src_support {
         pub const LANG: Lang = Lang {
             file_type: "cpp",
             src_file_name: "main.cpp",
-            compiler: "g++",
+            compiler: "clang++",
             flags_setter: flags_setter,
         };
 
@@ -76,9 +76,13 @@ pub mod src_support {
                 "-Wextra",
                 "-Wno-old-style-cast",
                 "-DPA_DEBUG",
-                "-omain",
-                "main.cpp",
             ]);
+            if cfg!(windows) {
+                cmd.arg("-omain.exe");
+            } else {
+                cmd.arg("-omain");
+            }
+            cmd.arg("main.cpp");
             Ok(())
         }
 
