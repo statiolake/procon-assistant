@@ -114,6 +114,7 @@ fn remove_line_comments(mut lines: Vec<String>) -> Vec<String> {
 
 fn remove_include_guard(mut lines: Vec<String>) -> Result<Vec<String>> {
     let re_preprocessor_directive = Regex::new(r#"\s*#.*"#).unwrap();
+    let re_continuing_backslash = Regex::new(r#"\\\s*$"#).unwrap();
     let re_if = Regex::new(r#"\s*#\s*if"#).unwrap();
     let re_ifndef = Regex::new(r#"\s*#\s*ifndef\s*(.*)"#).unwrap();
     let re_define = Regex::new(r#"\s*#\s*define\s*([^(]*)"#).unwrap();
@@ -164,7 +165,13 @@ fn remove_include_guard(mut lines: Vec<String>) -> Result<Vec<String>> {
                     i += 1;
                 }
             } else {
-                result.push(lines[i].clone());
+                loop {
+                    result.push(lines[i].clone());
+                    if !re_continuing_backslash.is_match(&lines[i]) {
+                        break;
+                    }
+                    i += 1
+                }
             }
         } else {
             building += &lines[i];
