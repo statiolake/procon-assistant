@@ -1,8 +1,10 @@
 use imp::srcfile::SrcFile;
+use std::fs::File;
 
 define_error!();
 define_error_kind! {
     [SpawningCompilerFailed; (); "failed to spawn compiler; check your installation."];
+    [CheckingMetadataFailed; (); "failed to check the files metadata."];
 }
 
 pub struct CompilerOutput {
@@ -22,7 +24,8 @@ impl CompilerOutput {
 }
 
 pub fn compile(mut src: SrcFile) -> Result<CompilerOutput> {
-    let result = src.compile_cmd
+    let result = src
+        .compile_cmd
         .output()
         .chain(ErrorKind::SpawningCompilerFailed())?;
 
@@ -30,6 +33,22 @@ pub fn compile(mut src: SrcFile) -> Result<CompilerOutput> {
     let stderr = wrap_output_to_option(&result.stderr).map(output_to_string);
 
     Ok(CompilerOutput::new(result.status.success(), stdout, stderr))
+}
+
+pub fn is_compile_needed(src: &SrcFile) -> Result<bool> {
+    let src = File::open(&src.file_name).chain(ErrorKind::CheckingMetadataFailed())?;
+    let bin = File::open("main.exe").chain(ErrorKind::CheckingMetadataFailed())?;
+    let src_modified = src
+        .metadata()
+        .chain(ErrorKind::CheckingMetadataFailed())?
+        .modified()
+        .chain(ErrorKind::CheckingMetadataFailed())?;
+    let bin_modified = bin
+        .metadata()
+        .chain(ErrorKind::CheckingMetadataFailed())?
+        .modified()
+        .chain(ErrorKind::CheckingMetadataFailed())?;
+    return Ok(src_modified > bin_modified);
 }
 
 fn wrap_output_to_option(output: &[u8]) -> Option<(&[u8])> {

@@ -26,6 +26,10 @@ pub fn main() -> Result<()> {
 
 pub fn compile() -> Result<bool> {
     let src = srcfile::get_source_file().chain(ErrorKind::GettingSourceFileFailed())?;
+    if !compile::is_compile_needed(&src).unwrap_or(true) {
+        print_info!(true, "no need to compile.");
+        return Ok(true);
+    }
     compile_src(src).chain(ErrorKind::CompilationFailed())
 }
 
