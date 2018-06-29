@@ -58,7 +58,7 @@ pub mod src_support {
 
         pub const PROCON_LIB_DIR: &str = "procon-lib";
 
-        #[cfg(not(windows))]
+        // #[cfg(not(windows))]
         pub const LANG: Lang = Lang {
             file_type: "cpp",
             src_file_name: "main.cpp",
@@ -66,7 +66,7 @@ pub mod src_support {
             flags_setter: flags_setter,
         };
 
-        #[cfg(not(windows))]
+        // #[cfg(not(windows))]
         pub fn flags_setter(cmd: &mut Command) -> Result<()> {
             cmd.arg(format!("-I{}", common::get_procon_lib_dir().display()).escape_default());
             cmd.args(&[
@@ -82,6 +82,7 @@ pub mod src_support {
             Ok(())
         }
 
+        /*
         #[cfg(windows)]
         pub const LANG: Lang = Lang {
             file_type: "cpp",
@@ -105,6 +106,7 @@ pub mod src_support {
             cmd.arg("main.cpp");
             Ok(())
         }
+        */
     }
 
     pub mod rust {
