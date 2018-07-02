@@ -1,3 +1,4 @@
+#[cfg(not(unix))]
 use clipboard::{ClipboardContext, ClipboardProvider};
 
 use std::collections::HashSet;
