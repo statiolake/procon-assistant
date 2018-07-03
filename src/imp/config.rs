@@ -79,6 +79,9 @@ pub mod src_support {
                 "-omain",
                 "main.cpp",
             ]);
+            if cfg!(unix) {
+                cmd.arg("-fdiagnostics-color=always");
+            }
             Ok(())
         }
 

@@ -1,5 +1,5 @@
 use colored_print::color::ConsoleColor;
-use colored_print::color::ConsoleColor::LightMagenta;
+use colored_print::color::ConsoleColor::Reset;
 
 use imp::common;
 use imp::compile;
@@ -7,7 +7,7 @@ use imp::compile::CompilerOutput;
 use imp::srcfile;
 use imp::srcfile::SrcFile;
 
-const OUTPUT_COLOR: ConsoleColor = LightMagenta;
+const OUTPUT_COLOR: ConsoleColor = Reset;
 
 define_error!();
 define_error_kind! {
