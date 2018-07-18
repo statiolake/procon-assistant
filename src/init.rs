@@ -39,12 +39,10 @@ pub fn main() -> Result<()> {
         print_generated!("{}", file);
     }
 
-    if config.auto_open {
-        match config.open_directory_instead_of_specific_file {
-            true => common::open(&config.editor, ".").chain(ErrorKind::OpeningEditorFailed())?,
-            false => {
-                common::open(&config.editor, "main.cpp").chain(ErrorKind::OpeningEditorFailed())?
-            }
+    if config.init_auto_open {
+        match config.init_open_directory_instead_of_specific_file {
+            true => common::open(&config, &["."]).chain(ErrorKind::OpeningEditorFailed())?,
+            false => common::open(&config, &["main.cpp"]).chain(ErrorKind::OpeningEditorFailed())?,
         }
     }
 

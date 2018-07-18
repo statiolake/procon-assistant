@@ -14,6 +14,7 @@ extern crate serde_json;
 extern crate serde_derive;
 extern crate encoding;
 extern crate time;
+extern crate dirs;
 
 macro_rules! define_error {
     () => {

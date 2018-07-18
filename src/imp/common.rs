@@ -1,12 +1,13 @@
+use dirs;
 use isatty;
 
-use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 
 use imp::config;
+use imp::config::ConfigFile;
 
 pub fn colorize() -> bool {
     isatty::stdout_isatty()
@@ -19,12 +20,34 @@ define_error_kind! {
     [WritingFailed; (file_name: String); format!("failed to write to file `{}'", file_name)];
 }
 
-pub fn open(editor: &str, name: &str) -> Result<()> {
-    Command::new(editor)
-        .arg(name)
-        .spawn()
-        .map(|_| ())
-        .chain(ErrorKind::SpawningCommandFailed(editor.to_string()))
+pub fn open(config: &ConfigFile, names: &[&str]) -> Result<()> {
+    let mut commands = Vec::new();
+    if config.addcase_give_argument_once {
+        let mut command = Command::new(&config.editor);
+        command.args(names);
+        commands.push(command);
+    } else {
+        for name in names {
+            let mut command = Command::new(&config.editor);
+            command.arg(name);
+            commands.push(command);
+        }
+    }
+
+    for mut command in commands {
+        if config.addcase_wait_editor_finish {
+            use std::process::Stdio;
+            command
+                .stdin(Stdio::inherit())
+                .stdout(Stdio::inherit())
+                .stderr(Stdio::inherit())
+                .output()
+                .map(|_| ())
+        } else {
+            command.spawn().map(|_| ())
+        }.chain(ErrorKind::SpawningCommandFailed(config.editor.to_string()))?;
+    }
+    Ok(())
 }
 
 pub fn ensure_to_create_file(name: &str, text: &[u8]) -> Result<()> {
@@ -39,7 +62,7 @@ pub fn ensure_to_create_file(name: &str, text: &[u8]) -> Result<()> {
 }
 
 pub fn get_home_path() -> PathBuf {
-    env::home_dir().expect("critical error: failed to get home_dir")
+    dirs::home_dir().expect("critical error: failed to get home_dir")
 }
 
 pub fn get_procon_lib_dir() -> PathBuf {

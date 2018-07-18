@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [dependencies]
 clipboard = "0.4.6"
+dirs = "1.0.2"
 encoding = "0.2.33"
 isatty = "0.1.6"
 percent-encoding = "1.0.1"

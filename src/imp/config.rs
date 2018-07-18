@@ -22,8 +22,11 @@ define_error_kind! {
 #[derive(Deserialize)]
 pub struct ConfigFile {
     pub editor: String,
-    pub auto_open: bool,
-    pub open_directory_instead_of_specific_file: bool,
+    pub init_auto_open: bool,
+    pub init_open_directory_instead_of_specific_file: bool,
+    // for terminal editor like vim
+    pub addcase_wait_editor_finish: bool,
+    pub addcase_give_argument_once: bool,
 }
 
 impl ConfigFile {
