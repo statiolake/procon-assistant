@@ -12,9 +12,11 @@ extern crate serde;
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
+extern crate dirs;
 extern crate encoding;
 extern crate time;
-extern crate dirs;
+#[macro_use]
+extern crate lazy_static;
 
 macro_rules! define_error {
     () => {
@@ -139,7 +141,7 @@ fn main() {
     let args: Vec<_> = args.into_iter().skip(2).collect();
     let result = match cmd.as_str() {
         "initdirs" | "id" => initdirs::main(args).map_err(box_err),
-        "init" | "i" => init::main().map_err(box_err),
+        "init" | "i" => init::main(args).map_err(box_err),
         "addcase" | "a" | "ac" => addcase::main().map_err(box_err),
         "solveinclude" | "si" => solve_include::main().map_err(box_err),
         "clip" | "c" => clip::main().map_err(box_err),

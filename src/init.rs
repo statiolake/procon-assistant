@@ -1,4 +1,5 @@
 use imp::config::ConfigFile;
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -7,9 +8,24 @@ use std::path::{Path, PathBuf};
 
 use imp::common;
 
+lazy_static! {
+    static ref SOURCE: HashMap<&'static str, &'static str> = {
+        let mut m = HashMap::new();
+        m.insert("cpp", "main.cpp");
+        m.insert("rust", "main.rs");
+        m
+    };
+    static ref FILETYPE_ALIAS: HashMap<&'static str, &'static str> = {
+        let mut m = HashMap::new();
+        m.insert("cpp", "cpp");
+        m.insert("rust", "rust");
+        m.insert("r", "rust");
+        m
+    };
+}
+
 const FILES: &[&str] = &[
     ".clang_complete",
-    "main.cpp",
     ".vscode/c_cpp_properties.json",
     ".vscode/tasks.json",
     ".vscode/launch.json",
@@ -18,6 +34,7 @@ const FILES: &[&str] = &[
 define_error!();
 define_error_kind! {
     [GettingConfigFailed; (); format!("failed to get config.")];
+    [UnknownFileType; (file_type: String); format!("unknown file type: {}", file_type)];
     [CreateDestinationDirectoryFailed; (name: String); format!("creating directory `{}' failed.", name)];
     [CreateDestinationFailed; (name: String); format!("creating `{}' failed.", name)];
     [WriteToDestinationFailed; (name: String); format!("writing `{}' failed.", name)];
@@ -26,8 +43,22 @@ define_error_kind! {
     [OpeningEditorFailed; (); format!("failed to open editor.")];
 }
 
-pub fn main() -> Result<()> {
+pub fn main(args: Vec<String>) -> Result<()> {
     let config: ConfigFile = ConfigFile::get_config().chain(ErrorKind::GettingConfigFailed())?;
+
+    // generate source code
+    let specified_file_type = args
+        .into_iter()
+        .next()
+        .unwrap_or(config.init_default_file_type.clone());
+    let file_type = FILETYPE_ALIAS
+        .get(&*specified_file_type)
+        .ok_or(Error::new(ErrorKind::UnknownFileType(specified_file_type)))?;
+    generate(Path::new(SOURCE.get(file_type).expect(&format!(
+        "internal error: unknown file type {}",
+        file_type
+    ))))?;
+
     for file in FILES {
         let path = Path::new(file);
         if path.exists() {
@@ -76,7 +107,8 @@ fn create_and_write_file(path: &Path, content: &str) -> Result<()> {
         ))?;
     }
     let path_string = path.display().to_string();
-    let mut f = File::create(path).chain(ErrorKind::CreateDestinationFailed(path_string.clone()))?;
+    let mut f =
+        File::create(path).chain(ErrorKind::CreateDestinationFailed(path_string.clone()))?;
     f.write_all(content.as_bytes())
         .chain(ErrorKind::WriteToDestinationFailed(path_string))
 }

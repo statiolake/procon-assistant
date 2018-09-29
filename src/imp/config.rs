@@ -24,6 +24,7 @@ pub struct ConfigFile {
     pub editor: String,
     pub init_auto_open: bool,
     pub init_open_directory_instead_of_specific_file: bool,
+    pub init_default_file_type: String,
     // for terminal editor like vim
     pub addcase_wait_editor_finish: bool,
     pub addcase_give_argument_once: bool,
@@ -96,7 +97,7 @@ pub mod src_support {
             compiler: "cmd",
             flags_setter: flags_setter,
         };
-
+        
         #[cfg(windows)]
         pub fn flags_setter(cmd: &mut Command) -> Result<()> {
             cmd.args(&[
