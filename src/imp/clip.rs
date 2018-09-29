@@ -31,7 +31,7 @@ pub fn set_clipboard(content: String) {
 pub fn set_clipboard(content: String) {
     use std::process::{Command, Stdio};
     let mut child = Command::new("xsel")
-        .arg("-b")
+        .arg("-bi")
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -207,7 +207,8 @@ fn minify(preprocessed_lines: Vec<String>) -> String {
         (re_multiple_space, " "),
         (re_whitespace_around_operator, "$op"),
         (re_whitespace_around_paren, "$par"),
-    ].iter()
+    ]
+        .iter()
     {
         for r in &mut result {
             *r = r.trim().into();
