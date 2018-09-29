@@ -28,7 +28,7 @@ pub enum TestCase {
 }
 
 impl TestCase {
-    pub fn judge(self) -> (String,  Result<(time::Duration, JudgeResult)>) {
+    pub fn judge(self) -> (String, Result<(time::Duration, JudgeResult)>) {
         match self {
             TestCase::File(tcf) => (tcf.to_string(), tcf.judge()),
         }
@@ -129,11 +129,10 @@ impl TestCaseFile {
         let childstdout = remove_cr(read_child_stdout(&mut child));
 
         if of_contents != childstdout {
-            Ok((duration, compare_content_in_detail(
-                if_contents,
-                of_contents,
-                childstdout,
-            )))
+            Ok((
+                duration,
+                compare_content_in_detail(if_contents, of_contents, childstdout),
+            ))
         } else {
             Ok((duration, JudgeResult::Passed))
         }

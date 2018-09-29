@@ -45,7 +45,8 @@ pub fn open(config: &ConfigFile, names: &[&str]) -> Result<()> {
                 .map(|_| ())
         } else {
             command.spawn().map(|_| ())
-        }.chain(ErrorKind::SpawningCommandFailed(config.editor.to_string()))?;
+        }
+        .chain(ErrorKind::SpawningCommandFailed(config.editor.to_string()))?;
     }
     Ok(())
 }

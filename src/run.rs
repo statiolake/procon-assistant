@@ -96,7 +96,8 @@ fn run(tcs: Vec<TestCase>) -> Result<JudgeResult> {
         config::TIMEOUT_MILLISECOND
     );
 
-    let handles: Vec<_> = tcs.into_iter()
+    let handles: Vec<_> = tcs
+        .into_iter()
         .map(|tc| thread::spawn(move || tc.judge()))
         .collect();
 
