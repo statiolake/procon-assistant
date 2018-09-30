@@ -8,8 +8,7 @@ use clip;
 use compile;
 use imp::common;
 use imp::config;
-use imp::srcfile;
-use imp::srcfile::SrcFile;
+use imp::langs;
 use imp::test_case;
 use imp::test_case::judge_result::{JudgeResult, WrongAnswer};
 use imp::test_case::{TestCase, TestCaseFile};
@@ -20,7 +19,7 @@ define_error!();
 define_error_kind! {
     [CompilationFailed; (); format!("failed to compile.")];
     [RunningTestsFailed; (); format!("test running failed.")];
-    [GettingSourceFileFailed; (); format!("failed to get source file.")];
+    [GettingLanguageFailed; (); format!("failed to get source file.")];
     [CopyingToClipboardFailed; (); format!("failed to copy to clipboard.")];
     [InvalidArgument; (); format!("failed to parse the passed argument.")];
     [LoadingTestCaseFailed; (); format!("failed to load some test case.")];
@@ -28,7 +27,8 @@ define_error_kind! {
 }
 
 pub fn main(args: Vec<String>) -> Result<()> {
-    let success = compile::compile().chain(ErrorKind::CompilationFailed())?;
+    let lang = langs::get_lang().chain(ErrorKind::GettingLanguageFailed())?;
+    let success = compile::compile(&lang).chain(ErrorKind::CompilationFailed())?;
     let result = match success {
         true => run_tests(&args).chain(ErrorKind::RunningTestsFailed())?,
         false => JudgeResult::CompilationError,
@@ -45,10 +45,8 @@ pub fn main(args: Vec<String>) -> Result<()> {
 
     // copy the answer to the clipboard
     if let JudgeResult::Passed = result {
-        let SrcFile { file_name, .. } =
-            srcfile::get_source_file().chain(ErrorKind::GettingSourceFileFailed())?;
         println!("");
-        clip::copy_to_clipboard(file_name.as_ref()).chain(ErrorKind::CopyingToClipboardFailed())?;
+        clip::copy_to_clipboard(&lang).chain(ErrorKind::CopyingToClipboardFailed())?;
     }
 
     Ok(())

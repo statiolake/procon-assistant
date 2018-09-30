@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 
 use imp::common;
 use imp::langs;
+use imp::langs::Lang;
 
 const FILES: &[&str] = &[
     ".clang_complete",
@@ -38,16 +39,14 @@ pub fn main(args: Vec<String>) -> Result<()> {
     let file_type = langs::FILETYPE_ALIAS
         .get(&*specified_file_type)
         .ok_or(Error::new(ErrorKind::UnknownFileType(specified_file_type)))?;
-    safe_generate(Path::new(
-        langs::LANGS_MAP
-            .get(file_type)
-            .expect(&format!("internal error: unknown file type {}", file_type))
-            .src_file_name,
-    ))?;
+    let lang = langs::LANGS_MAP
+        .get(file_type)
+        .expect(&format!("internal error: unknown file type {}", file_type));
+    safe_generate(&lang, Path::new(&lang.src_file_name))?;
 
     for file in FILES {
         let path = Path::new(file);
-        safe_generate(path)?;
+        safe_generate(&lang, path)?;
     }
 
     if config.init_auto_open {
@@ -60,18 +59,18 @@ pub fn main(args: Vec<String>) -> Result<()> {
     Ok(())
 }
 
-fn safe_generate(path: &Path) -> Result<()> {
+fn safe_generate(lang: &Lang, path: &Path) -> Result<()> {
     if path.exists() {
         print_info!(true, "file {} already exists, skipping.", path.display());
         return Ok(());
     }
 
-    generate(path)?;
+    generate(lang, path)?;
     print_generated!("{}", path.display());
     Ok(())
 }
 
-fn generate(path: &Path) -> Result<()> {
+fn generate(lang: &Lang, path: &Path) -> Result<()> {
     let exe_dir = env::current_exe().unwrap();
     let exe_dir = exe_dir.parent().unwrap();
     let template_path = exe_dir
@@ -87,7 +86,11 @@ fn generate(path: &Path) -> Result<()> {
     template_file
         .read_to_string(&mut content)
         .chain(ErrorKind::ReadFromTemplateFailed(template_path_string))?;
-    let content = content.replace("$LIB_DIR", &libdir_escaped());
+    let escaped_lib_dir = (lang.lib_dir_getter)()
+        .display()
+        .to_string()
+        .escape_default();
+    let content = content.replace("$LIB_DIR", &escaped_lib_dir);
     create_and_write_file(path, &content)
 }
 
@@ -104,9 +107,9 @@ fn create_and_write_file(path: &Path, content: &str) -> Result<()> {
         .chain(ErrorKind::WriteToDestinationFailed(path_string))
 }
 
-fn libdir_escaped() -> String {
-    common::get_procon_lib_dir()
-        .display()
-        .to_string()
-        .escape_default()
-}
+// fn libdir_escaped() -> String {
+//     common::get_procon_lib_dir()
+//         .display()
+//         .to_string()
+//         .escape_default()
+// }
