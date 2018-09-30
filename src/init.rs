@@ -1,5 +1,4 @@
 use imp::config::ConfigFile;
-use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -7,22 +6,7 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
 use imp::common;
-
-lazy_static! {
-    static ref SOURCE: HashMap<&'static str, &'static str> = {
-        let mut m = HashMap::new();
-        m.insert("cpp", "main.cpp");
-        m.insert("rust", "main.rs");
-        m
-    };
-    static ref FILETYPE_ALIAS: HashMap<&'static str, &'static str> = {
-        let mut m = HashMap::new();
-        m.insert("cpp", "cpp");
-        m.insert("rust", "rust");
-        m.insert("r", "rust");
-        m
-    };
-}
+use imp::langs;
 
 const FILES: &[&str] = &[
     ".clang_complete",
@@ -51,23 +35,19 @@ pub fn main(args: Vec<String>) -> Result<()> {
         .into_iter()
         .next()
         .unwrap_or(config.init_default_file_type.clone());
-    let file_type = FILETYPE_ALIAS
+    let file_type = langs::FILETYPE_ALIAS
         .get(&*specified_file_type)
         .ok_or(Error::new(ErrorKind::UnknownFileType(specified_file_type)))?;
-    generate(Path::new(SOURCE.get(file_type).expect(&format!(
-        "internal error: unknown file type {}",
-        file_type
-    ))))?;
+    safe_generate(Path::new(
+        langs::LANGS_MAP
+            .get(file_type)
+            .expect(&format!("internal error: unknown file type {}", file_type))
+            .src_file_name,
+    ))?;
 
     for file in FILES {
         let path = Path::new(file);
-        if path.exists() {
-            print_info!(true, "file {} already exists, skipping.", file);
-            continue;
-        }
-
-        generate(path)?;
-        print_generated!("{}", file);
+        safe_generate(path)?;
     }
 
     if config.init_auto_open {
@@ -77,6 +57,17 @@ pub fn main(args: Vec<String>) -> Result<()> {
         }
     }
 
+    Ok(())
+}
+
+fn safe_generate(path: &Path) -> Result<()> {
+    if path.exists() {
+        print_info!(true, "file {} already exists, skipping.", path.display());
+        return Ok(());
+    }
+
+    generate(path)?;
+    print_generated!("{}", path.display());
     Ok(())
 }
 
