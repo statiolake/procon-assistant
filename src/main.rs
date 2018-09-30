@@ -64,6 +64,15 @@ macro_rules! define_error {
 }
 
 macro_rules! define_error_kind {
+    () => {
+        #[derive(Debug)]
+        pub enum ErrorKind {}
+        impl ::std::fmt::Display for Error {
+            fn fmt(&self, _: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                unreachable!();
+            }
+        }
+    };
     ($([$id:ident; ($($cap:ident : $ty:ty),*); $ex:expr];)*) => {
         #[derive(Debug)]
         pub enum ErrorKind {
