@@ -36,7 +36,7 @@ fn flags_setter(cmd: &mut Command) {
         "-Wextra",
         "-Wno-old-style-cast",
         "-DPA_DEBUG",
-        "-omain",
+        if cfg!(unix) { "-omain" } else { "-omain.exe" },
         "main.cpp",
     ]);
     if cfg!(unix) {
