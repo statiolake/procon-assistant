@@ -16,6 +16,7 @@ pub const FETCHING: &str = "   Fetching";
 pub const ERROR: &str = "      Error";
 pub const LOGGING_IN: &str = " Logging in";
 pub const INFO: &str = "       Info";
+pub const DEBUG: &str = "      Debug";
 pub const SPACER: &str = "            "; // to indent next line
 
 macro_rules! print_error {
@@ -103,6 +104,16 @@ macro_rules! print_info {
         if $enabled {
             print_with_tag! {
                 $crate::tags::TAGS_INFO_COLOR, $crate::tags::INFO, $($args),*
+            }
+        }
+    )
+}
+
+macro_rules! print_debug {
+    ($enabled:expr, $($args:expr),*) => (
+        if cfg!(debug_assertions) && $enabled {
+            print_with_tag! {
+                $crate::tags::TAGS_INFO_COLOR, $crate::tags::DEBUG, $($args),*
             }
         }
     )
