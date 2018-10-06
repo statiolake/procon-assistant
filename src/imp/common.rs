@@ -6,7 +6,6 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 
-use imp::config;
 use imp::config::ConfigFile;
 
 pub fn colorize() -> bool {
@@ -64,10 +63,4 @@ pub fn ensure_to_create_file(name: &str, text: &[u8]) -> Result<()> {
 
 pub fn get_home_path() -> PathBuf {
     dirs::home_dir().expect("critical error: failed to get home_dir")
-}
-
-pub fn get_procon_lib_dir() -> PathBuf {
-    let mut home_dir = get_home_path();
-    home_dir.push(config::src_support::cpp::PROCON_LIB_DIR);
-    home_dir
 }

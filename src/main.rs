@@ -64,6 +64,15 @@ macro_rules! define_error {
 }
 
 macro_rules! define_error_kind {
+    () => {
+        #[derive(Debug)]
+        pub enum ErrorKind {}
+        impl ::std::fmt::Display for Error {
+            fn fmt(&self, _: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                unreachable!();
+            }
+        }
+    };
     ($([$id:ident; ($($cap:ident : $ty:ty),*); $ex:expr];)*) => {
         #[derive(Debug)]
         pub enum ErrorKind {
@@ -94,7 +103,7 @@ mod init;
 mod initdirs;
 mod login;
 mod run;
-mod solve_include;
+mod preprocess;
 
 use std::env;
 use std::error;
@@ -143,7 +152,7 @@ fn main() {
         "initdirs" | "id" => initdirs::main(args).map_err(box_err),
         "init" | "i" => init::main(args).map_err(box_err),
         "addcase" | "a" | "ac" => addcase::main().map_err(box_err),
-        "solveinclude" | "si" => solve_include::main().map_err(box_err),
+        "preprocess" | "si" | "pp" => preprocess::main().map_err(box_err),
         "clip" | "c" => clip::main().map_err(box_err),
         "fetch" | "f" => fetch::main(args).map_err(box_err),
         "download" | "d" | "dl" => download::main(args).map_err(box_err),

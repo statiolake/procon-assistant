@@ -1,4 +1,4 @@
-use imp::srcfile::SrcFile;
+use imp::langs::Lang;
 use std::fs::File;
 
 define_error!();
@@ -23,9 +23,8 @@ impl CompilerOutput {
     }
 }
 
-pub fn compile(mut src: SrcFile) -> Result<CompilerOutput> {
-    let result = src
-        .compile_cmd
+pub fn compile(lang: &Lang) -> Result<CompilerOutput> {
+    let result = (lang.compile_command_maker)()
         .output()
         .chain(ErrorKind::SpawningCompilerFailed())?;
 
@@ -35,8 +34,8 @@ pub fn compile(mut src: SrcFile) -> Result<CompilerOutput> {
     Ok(CompilerOutput::new(result.status.success(), stdout, stderr))
 }
 
-pub fn is_compile_needed(src: &SrcFile) -> Result<bool> {
-    let src = File::open(&src.file_name).chain(ErrorKind::CheckingMetadataFailed())?;
+pub fn is_compile_needed(lang: &Lang) -> Result<bool> {
+    let src = File::open(&lang.src_file_name).chain(ErrorKind::CheckingMetadataFailed())?;
     let bin = File::open("main.exe").chain(ErrorKind::CheckingMetadataFailed())?;
     let src_modified = src
         .metadata()
