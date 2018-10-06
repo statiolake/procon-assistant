@@ -1,4 +1,6 @@
-use reqwest;
+use reqwest::header;
+use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::{RequestBuilder, StatusCode};
 use scraper::{Html, Selector};
 
 const SERVICE_NAME: &str = "atcoder";
@@ -13,9 +15,10 @@ define_error_kind! {
     [CsrfTokenMissingValue; (); format!("csrf token has no attribute value!")];
     [PostingAccountInfoFailed; (); format!("failed to post username and password")];
     [LoginUnsuccessful; (); format!("logging in failed; check your username and password.")];
+    [InvalidHeaderValue; (); format!("invalid header value.")];
     [MissingRevelSession; (); format!("failed to find REVEL_SESSION")];
     [StoringRevelSessionFailed; (); format!("failed to store REVEL_SESSION.")];
-    [HTTPStatusNotOk; (status: reqwest::StatusCode); format!("HTTP status not OK: {:?}", status)];
+    [HTTPStatusNotOk; (status: StatusCode); format!("HTTP status not OK: {:?}", status)];
 }
 
 pub fn login(username: String, password: String) -> Result<()> {
@@ -31,13 +34,13 @@ pub fn login(username: String, password: String) -> Result<()> {
 pub fn authenticated_get(url: &str) -> Result<reqwest::Response> {
     let client = reqwest::Client::new();
     let mut builder = client.get(url);
-    add_auth_info_to_builder_if_possible(&mut builder)?;
+    builder = add_auth_info_to_builder_if_possible(builder)?;
     let mut res = builder.send().chain(ErrorKind::RequestingError())?;
     store_revel_session_from_response(&mut res)?;
     Ok(res)
 }
 
-fn add_auth_info_to_builder_if_possible(builder: &mut reqwest::RequestBuilder) -> Result<()> {
+fn add_auth_info_to_builder_if_possible(mut builder: RequestBuilder) -> Result<RequestBuilder> {
     fn handle_invalid_utf_8(e: Error) -> Error {
         super::clear_session_info(SERVICE_NAME)
             .expect("critical error: failed to clean session info.");
@@ -53,17 +56,14 @@ fn add_auth_info_to_builder_if_possible(builder: &mut reqwest::RequestBuilder) -
             .trim()
             .to_string();
 
-        let mut cookie = reqwest::header::Cookie::new();
-        cookie.append("REVEL_SESSION", revel_session);
-        builder.header(cookie);
+        builder = builder.header(header::COOKIE, format!("REVEL_SESSION={}", revel_session));
     }
 
-    Ok(())
+    Ok(builder)
 }
 
 fn store_revel_session_from_response(res: &mut reqwest::Response) -> Result<()> {
-    let setcookie: &reqwest::header::SetCookie = res.headers().get().unwrap();
-    let cookie = extract_setcookie(setcookie);
+    let cookie = extract_setcookie(res.headers());
     let revel_session = find_revel_session(cookie)?;
     super::store_session_info(SERVICE_NAME, revel_session.as_bytes())
         .chain(ErrorKind::StoringRevelSessionFailed())
@@ -87,8 +87,7 @@ fn get_cookie_and_csrf_token() -> Result<(Vec<(String, String)>, String)> {
 }
 
 fn get_cookie_from_response(res: &mut reqwest::Response) -> Vec<(String, String)> {
-    let setcookie: &reqwest::header::SetCookie = res.headers().get().unwrap();
-    extract_setcookie(setcookie)
+    extract_setcookie(res.headers())
 }
 
 fn get_csrf_token_from_response(res: &mut reqwest::Response) -> Result<String> {
@@ -121,17 +120,17 @@ fn login_get_cookie(
         ("password", &password),
         ("csrf_token", &csrf_token),
     ];
-    let post_cookie = make_post_cookie(cookie);
+    let post_cookie = make_post_cookie(cookie)?;
+    print_debug!(true, "post: cookie: {:?}", post_cookie);
     let res = post(client, &params, post_cookie).chain(ErrorKind::PostingAccountInfoFailed())?;
 
     result_check(&res)?;
 
-    if !is_login_succeeded(&res) {
+    if !is_login_succeeded(&res)? {
         return Err(Error::new(ErrorKind::LoginUnsuccessful()));
     }
 
-    let setcookie: &reqwest::header::SetCookie = res.headers().get().unwrap();
-    let cookie = extract_setcookie(setcookie);
+    let cookie = extract_setcookie(res.headers());
 
     Ok(cookie)
 }
@@ -142,42 +141,50 @@ fn make_client() -> reqwest::Result<reqwest::Client> {
         .build()
 }
 
-fn make_post_cookie(cookie: Vec<(String, String)>) -> reqwest::header::Cookie {
-    let mut post_cookie = reqwest::header::Cookie::new();
-    for (head, value) in cookie.iter() {
-        post_cookie.append(head.clone(), value.clone());
+fn make_post_cookie(cookie: Vec<(String, String)>) -> Result<HeaderValue> {
+    let mut post_cookie = Vec::new();
+    for (head, value) in cookie {
+        post_cookie.push(format!("{}={}", head, value));
     }
-    post_cookie
+    HeaderValue::from_str(&post_cookie.join("; ")).chain(ErrorKind::InvalidHeaderValue())
 }
 
 fn post(
     client: reqwest::Client,
     params: &[(&str, &str)],
-    post_cookie: reqwest::header::Cookie,
+    post_cookie: HeaderValue,
 ) -> reqwest::Result<reqwest::Response> {
     client
         .post("https://beta.atcoder.jp/login")
         .form(params)
-        .header(post_cookie)
+        .header(header::COOKIE, post_cookie)
         .send()
 }
 
-fn is_login_succeeded(res: &reqwest::Response) -> bool {
-    let loc: &reqwest::header::Location = res.headers().get().unwrap();
-    &**loc == "/"
+fn is_login_succeeded(res: &reqwest::Response) -> Result<bool> {
+    let loc = res.headers().get(header::LOCATION).unwrap();
+    loc.to_str()
+        .map(|loc| loc == "/")
+        .chain(ErrorKind::InvalidHeaderValue())
 }
 
-fn extract_setcookie(setcookie: &reqwest::header::SetCookie) -> Vec<(String, String)> {
-    setcookie
-        .iter()
-        .map(|cookiestr| {
-            let split: Vec<_> = cookiestr.split('=').collect();
-            (
-                split[0].into(),
-                split[1].chars().take_while(|&ch| ch != ';').collect(),
-            )
+fn extract_setcookie(header: &HeaderMap) -> Vec<(String, String)> {
+    let mut res: Vec<_> = header
+        .get_all(header::SET_COOKIE)
+        .into_iter()
+        .filter_map(|x| x.to_str().ok())
+        .flat_map(|cookiestr| cookiestr.split(';'))
+        .filter_map(|raw_value| {
+            let mut split = raw_value.splitn(2, '=');
+            let name = split.next()?.trim().to_string();
+            let value = split.next()?.trim().to_string();
+            print_debug!(true, "set-cookie: {} -> '{}'='{}'", raw_value, name, value);
+            Some((name, value))
         })
-        .collect()
+        .collect();
+    res.sort();
+    res.dedup();
+    res
 }
 
 fn find_revel_session(cookie: Vec<(String, String)>) -> Result<String> {
@@ -189,8 +196,9 @@ fn find_revel_session(cookie: Vec<(String, String)>) -> Result<String> {
 }
 
 fn result_check(res: &reqwest::Response) -> Result<()> {
+    print_debug!(true, "response: {:?}", res);
     match res.status() {
-        reqwest::StatusCode::Ok | reqwest::StatusCode::Found => Ok(()),
+        StatusCode::OK | StatusCode::FOUND => Ok(()),
         _ => Err(Error::new(ErrorKind::HTTPStatusNotOk(res.status()))),
     }
 }
