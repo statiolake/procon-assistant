@@ -102,8 +102,8 @@ mod imp;
 mod init;
 mod initdirs;
 mod login;
-mod run;
 mod preprocess;
+mod run;
 
 use std::env;
 use std::error;
