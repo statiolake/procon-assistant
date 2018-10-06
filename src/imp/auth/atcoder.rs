@@ -92,11 +92,13 @@ fn get_cookie_from_response(res: &mut reqwest::Response) -> Vec<(String, String)
 }
 
 fn get_csrf_token_from_response(res: &mut reqwest::Response) -> Result<String> {
-    let doc = res.text()
+    let doc = res
+        .text()
         .map(|res| Html::parse_document(&res))
         .chain(ErrorKind::ParsingHtmlFailed())?;
     let sel_csrf_token = Selector::parse("input[name=csrf_token]").unwrap();
-    let csrf_token_tag = doc.select(&sel_csrf_token)
+    let csrf_token_tag = doc
+        .select(&sel_csrf_token)
         .next()
         .ok_or(Error::new(ErrorKind::GettingCsrfTokenFailed()))?;
     let csrf_token_tag_value = csrf_token_tag

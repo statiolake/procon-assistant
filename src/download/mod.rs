@@ -60,7 +60,8 @@ fn get_provider(arg: String) -> Result<Box<dyn ContestProvider>> {
         _ => Err(Error::new(ErrorKind::UnknownContestSite(
             contest_site.to_string(),
         ))),
-    }.map(|provider| (box provider) as Box<_>)
+    }
+    .map(|provider| (box provider) as Box<_>)
 }
 
 fn get_local_provider() -> Result<Box<dyn ContestProvider>> {

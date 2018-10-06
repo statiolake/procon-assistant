@@ -60,7 +60,8 @@ pub fn fetch_test_case_files(provider: Box<dyn TestCaseProvider>) -> Result<Vec<
 }
 
 pub fn write_test_case_files(tcfs: Vec<TestCaseFile>) -> Result<()> {
-    let n = tcfs.into_iter()
+    let n = tcfs
+        .into_iter()
         .map(|tcf| {
             print_generating!("Sample Case: {}", tcf);
             tcf.write()
