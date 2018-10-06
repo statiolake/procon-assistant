@@ -1,0 +1,7 @@
+[
+    {
+        "directory": ".",
+        "command": "clang++ -std=c++14 -I$LIB_DIR -Wno-old-style-cast",
+        "file": "main.cpp"
+    }
+]

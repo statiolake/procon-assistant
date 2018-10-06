@@ -11,6 +11,7 @@ use imp::langs::Lang;
 
 const FILES: &[&str] = &[
     ".clang_complete",
+    "compile_commands.json",
     ".vscode/c_cpp_properties.json",
     ".vscode/tasks.json",
     ".vscode/launch.json",
