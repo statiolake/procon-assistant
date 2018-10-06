@@ -1,8 +1,6 @@
 #[cfg(not(unix))]
-use clipboard::{ClipboardContext, ClipboardProvider};
-
-#[cfg(not(unix))]
 pub fn set_clipboard(content: String) {
+    use clipboard::{ClipboardContext, ClipboardProvider};
     let mut provider: ClipboardContext =
         ClipboardProvider::new().expect("critical error: cannot get clipboard provider.");
     provider
