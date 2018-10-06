@@ -1,8 +1,8 @@
 #![feature(box_syntax, str_escape, specialization)]
 #[macro_use]
 extern crate colored_print;
+extern crate atty;
 extern crate clipboard;
-extern crate isatty;
 extern crate percent_encoding;
 extern crate regex;
 extern crate reqwest;

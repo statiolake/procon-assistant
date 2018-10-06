@@ -1,5 +1,4 @@
 use dirs;
-use isatty;
 
 use std::fs::File;
 use std::io::Write;
@@ -9,7 +8,9 @@ use std::process::Command;
 use imp::config::ConfigFile;
 
 pub fn colorize() -> bool {
-    isatty::stdout_isatty()
+    use atty;
+    use atty::Stream;
+    atty::is(Stream::Stdout)
 }
 
 define_error!();
