@@ -12,6 +12,7 @@ pub fn set_clipboard(content: String) {
 
 #[cfg(unix)]
 pub fn set_clipboard(content: String) {
+    use std::io::prelude::*;
     use std::process::{Command, Stdio};
     let mut child = Command::new("xsel")
         .arg("-bi")
