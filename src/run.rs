@@ -35,8 +35,8 @@ pub fn main(args: Vec<String>) -> Result<()> {
     };
 
     let (result_color, result_long_verb, result_long_name) = result.long_name();
-    println!("");
-    colored_println!{
+    eprintln!("");
+    colored_eprintln!{
         common::colorize();
         Reset, "    Your solution {}", result_long_verb;
         result_color, "{}", result_long_name;
@@ -45,7 +45,7 @@ pub fn main(args: Vec<String>) -> Result<()> {
 
     // copy the answer to the clipboard
     if let JudgeResult::Passed = result {
-        println!("");
+        eprintln!("");
         clip::copy_to_clipboard(&lang).chain(ErrorKind::CopyingToClipboardFailed())?;
     }
 
@@ -80,7 +80,7 @@ fn enumerate_test_cases(args: &Vec<String>) -> Result<Vec<TestCase>> {
 fn print_solution_output(kind: &str, result: &Vec<String>) {
     print_info!(true, "{}:", kind);
     for line in result.iter() {
-        colored_println! {
+        colored_eprintln! {
             common::colorize();
             OUTPUT_COLOR, "        {}", line;
         }
@@ -105,7 +105,7 @@ fn run(tcs: Vec<TestCase>) -> Result<JudgeResult> {
     let judge_results: Vec<_> = handles.into_iter().map(|x| x.join().unwrap()).collect();
 
     print_finished!("running");
-    println!("");
+    eprintln!("");
     let mut whole_result = JudgeResult::Passed;
     for (display, result) in judge_results.into_iter() {
         let (duration, result) = result.chain(ErrorKind::JudgingFailed())?;
@@ -121,7 +121,7 @@ fn run(tcs: Vec<TestCase>) -> Result<JudgeResult> {
 fn print_result(result: &JudgeResult, duration: &time::Duration, display: String) {
     // get color and short result string
     let (color, short_name) = result.short_name();
-    colored_println! {
+    colored_eprintln! {
         common::colorize();
         Reset, "    ";
         color, "{}", short_name;

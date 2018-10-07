@@ -51,7 +51,7 @@ pub fn print_compiler_output(kind: &str, output: Option<String>) {
         let output = output.trim().split('\n');
         print_info!(true, "compiler {}:", kind);
         for line in output {
-            colored_println! {
+            colored_eprintln! {
                 common::colorize();
                 OUTPUT_COLOR, "        {}", line;
             }

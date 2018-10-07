@@ -121,7 +121,7 @@ macro_rules! print_debug {
 
 macro_rules! print_with_tag {
     ($color:expr, $tag:expr, $fmt:expr $(,$args:expr)*) => (
-        colored_println! {
+        colored_eprintln! {
             $crate::imp::common::colorize();
             $color, "{}", $tag;
             $crate::colored_print::color::ConsoleColor::Reset, " ";

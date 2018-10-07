@@ -10,7 +10,7 @@ use imp::config::ConfigFile;
 pub fn colorize() -> bool {
     use atty;
     use atty::Stream;
-    atty::is(Stream::Stdout)
+    atty::is(Stream::Stderr)
 }
 
 define_error!();
