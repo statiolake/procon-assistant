@@ -10,8 +10,8 @@ use imp::langs;
 use super::{Error, ErrorKind, Result};
 use super::{Minified, Preprocessed, RawSource};
 
-pub fn preprocess(content: RawSource, silent: bool) -> Result<Preprocessed> {
-    let content = parse_include(None, content, silent)?;
+pub fn preprocess(content: RawSource) -> Result<Preprocessed> {
+    let content = parse_include(None, content)?;
     let content = remove_block_comments(content);
     let lines: Vec<String> = content.split('\n').map(|x| x.into()).collect();
     let removed = Some(lines)
@@ -52,11 +52,7 @@ pub fn minify(preprocessed_lines: Preprocessed) -> Minified {
     Minified(result.join("\n"))
 }
 
-fn parse_include(
-    curr_file_path: Option<&Path>,
-    content: RawSource,
-    silent: bool,
-) -> Result<String> {
+fn parse_include(curr_file_path: Option<&Path>, content: RawSource) -> Result<String> {
     let content = content.into_inner();
     let re_inc = Regex::new(r#" *# *include *" *([^>]*) *""#).unwrap();
     let curr_extension = curr_file_path.map(|path| {
@@ -84,9 +80,9 @@ fn parse_include(
         for cap in re_inc.captures_iter(&line.clone()) {
             let inc_file = &cap[1];
             let inc_path = lib_dir.join(Path::new(inc_file).components().collect::<PathBuf>());
-            print_info!(!silent, "including {}", inc_path.display());
+            print_info!(true, "including {}", inc_path.display());
             let inc_src = super::read_source_file(&inc_path)
-                .and_then(|src| parse_include(Some(&inc_path), src, silent))?;
+                .and_then(|src| parse_include(Some(&inc_path), src))?;
             let replaced = re_inc.replace(line, &*inc_src).to_string();
             mem::replace(line, replaced);
         }

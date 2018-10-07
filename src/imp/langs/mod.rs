@@ -16,7 +16,7 @@ pub struct Lang {
     pub compiler: &'static str,
     pub lib_dir_getter: fn() -> PathBuf,
     pub compile_command_maker: fn() -> Command,
-    pub preprocessor: fn(RawSource, silent: bool) -> preprocess::Result<Preprocessed>,
+    pub preprocessor: fn(RawSource) -> preprocess::Result<Preprocessed>,
     pub minifier: fn(Preprocessed) -> Minified,
 }
 

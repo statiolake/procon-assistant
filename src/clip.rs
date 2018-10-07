@@ -20,7 +20,7 @@ pub fn copy_to_clipboard(lang: &Lang) -> preprocess::Result<()> {
     let file_path = Path::new(&lang.src_file_name);
     print_copying!("{} to clipboard", file_path.display());
     let raw = preprocess::read_source_file(file_path)?;
-    let preprocessed = (lang.preprocessor)(raw, false)?;
+    let preprocessed = (lang.preprocessor)(raw)?;
     let minified = (lang.minifier)(preprocessed);
     clip::set_clipboard(minified.into_inner());
     print_finished!("copying");
