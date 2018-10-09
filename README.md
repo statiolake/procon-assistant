@@ -30,6 +30,25 @@ creates `main.cpp` in the **current directory** with a simple template
 which contians the include path for your own library (hard-coded, default:
 `~/procon-lib`).
 
+### `addcase`
+
+alias: `a`, `ac`
+
+creates new sample case file `inX.txt` and `outX.txt`. `X` is replaced by
+not-existing-but-smallest-more-than-zero-integer. They are automatically
+opened. paste there sample input and expected sample output.
+
+### `preprocess`
+
+alias: `pp`, `si` (for compatibility; previously this was `solve-include`
+command)
+
+preprocesses current solution (solve includes) so that it can be submitted to
+the contest. You can pipe them into clipboard using clipboard utilities like
+`cliputil` or `xsel`. Note that it doesn't minify the solution, you can use this
+to avoid minifying bug (for example, contiguous spaces even in string literal
+are reduced by minifier).
+
 ### `clip`
 
 alias: `c`
@@ -71,14 +90,6 @@ sample cases for each problem.
 ```
 % procon-assistant download atcoder:agc022 # AtCder Grand Contest 022
 ```
-
-### `addcase`
-
-alias: `a`, `ac`
-
-creates new sample case file `inX.txt` and `outX.txt`. `X` is replaced by
-not-existing-but-smallest-more-than-zero-integer. They are automatically
-opened. paste there sample input and expected sample output.
 
 ### `run [sample case using for test]`
 
@@ -124,6 +135,14 @@ your program's output is judged and result will be as follows.
     Your program's output is all collect when checks line by line, but
     is different when checks whole output. Maybe you forget newline after
     the last output line.
+
+### `compile`
+
+alias: `co`
+
+compiles your solution. It won't do any test. If you have a lot of error
+messages, maybe using `compile` is a better choice, since you can focus on
+compiler error messages.
 
 ### `login {contest-site}`
 

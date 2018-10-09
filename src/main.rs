@@ -118,22 +118,27 @@ fn help() {
     println!("        initializes directories tree (name/{{a,...,a+num}})");
     println!("    init");
     println!("        initializes files in directory");
+    println!("    addcase");
+    println!("        adds new sample case.");
+    println!("        creates inX.txt, outX.txt in current directory.");
+    println!("    preprocess");
+    println!("        preprocess your source code and display it.");
     println!("    clip");
     println!("        copy source file to clipboard (with library expanded)");
     println!("    fetch {{contest-site}}:{{problem-id}}");
     println!("        fetches sample cases of given problem-id in given contest-site.");
     println!("        examples:");
     println!("          - aoj:0123        problem of id 0123 in Aizu Online Judge");
-    println!("          - atcoder:abc012a Atcoder Beginner Contest 012 Problem A");
+    println!("          - atcoder:abc012a AtCoder Beginner Contest 012 Problem A");
+    println!("          - atcoder:https://... the specified problem of AtCoder")
     println!("    download {{contest-site}}:{{contest-id}}");
     println!("        fetches sample cases of given problem-id in given contest-site.");
     println!("        examples:");
     println!("          - atcoder:abc012  Atcoder Beginner Contest 012");
-    println!("    addcase");
-    println!("        adds new sample case.");
-    println!("        creates inX.txt, outX.txt in current directory.");
     println!("    run [test_case]");
     println!("        runs and tests current solution (main.cpp) with input inX.txt.");
+    println!("    compile");
+    println!("        only compiles, no test is done.")
     println!("    login {{contest-site}}");
     println!("        log in to the contest-site.");
 }
