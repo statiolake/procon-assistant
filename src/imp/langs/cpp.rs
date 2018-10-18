@@ -35,6 +35,7 @@ fn flags_setter(cmd: &mut Command) {
         "-Wall",
         "-Wextra",
         "-Wno-old-style-cast",
+        "-fsanitize=address",
         "-DPA_DEBUG",
         if cfg!(unix) { "-omain" } else { "-omain.exe" },
         "main.cpp",
