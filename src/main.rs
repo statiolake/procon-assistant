@@ -130,7 +130,7 @@ fn help() {
     println!("        examples:");
     println!("          - aoj:0123        problem of id 0123 in Aizu Online Judge");
     println!("          - atcoder:abc012a AtCoder Beginner Contest 012 Problem A");
-    println!("          - atcoder:https://... the specified problem of AtCoder")
+    println!("          - atcoder:https://... the specified problem of AtCoder");
     println!("    download {{contest-site}}:{{contest-id}}");
     println!("        fetches sample cases of given problem-id in given contest-site.");
     println!("        examples:");
@@ -138,7 +138,7 @@ fn help() {
     println!("    run [test_case]");
     println!("        runs and tests current solution (main.cpp) with input inX.txt.");
     println!("    compile");
-    println!("        only compiles, no test is done.")
+    println!("        only compiles, no test is done.");
     println!("    login {{contest-site}}");
     println!("        log in to the contest-site.");
 }
