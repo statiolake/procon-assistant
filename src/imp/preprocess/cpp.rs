@@ -12,6 +12,14 @@ use super::{Minified, Preprocessed, RawSource};
 
 lazy_static! {
     static ref RE_INC: Regex = Regex::new(r#" *# *include *" *([^>]*) *""#).unwrap();
+    static ref RE_WHITESPACE_AFTER_BLOCK_COMMENT: Regex = Regex::new(r#"\*/\s+"#).unwrap();
+    static ref RE_WHITESPACE_AFTER_COLONS: Regex = Regex::new(r#"\s*(?P<col>[;:])\s*"#).unwrap();
+    static ref RE_MULTIPLE_SPACE: Regex = Regex::new(r#"\s+"#).unwrap();
+    static ref RE_WHITESPACE_AROUND_OPERATOR: Regex =
+        Regex::new(r#"\s*(?P<op>[+\-*/%~^|&<>=,.!?]|<<|>>|<=|>=|==|!=|\+=|-=|\*=|/=)\s*"#).unwrap();
+    static ref RE_WHITESPACE_AROUND_PAREN: Regex = Regex::new(r#"\s*(?P<par>[({)}])\s*"#).unwrap();
+    static ref RE_BLOCK_COMMENT: Regex = Regex::new(r#"(?s)/\*.*?\*/"#).unwrap();
+    static ref RE_LINE_COMMENT: Regex = Regex::new(r#"//.*"#).unwrap();
 }
 
 pub fn preprocess(content: RawSource) -> Result<Preprocessed> {
@@ -29,19 +37,13 @@ pub fn minify(preprocessed_lines: Preprocessed) -> Minified {
         .map(|x| x.trim().to_string())
         .filter(|x| !x.is_empty())
         .collect();
-    let re_whitespace_after_block_comment = Regex::new(r#"\*/\s+"#).unwrap();
-    let re_whitespace_after_colons = Regex::new(r#"\s*(?P<col>[;:])\s*"#).unwrap();
-    let re_multiple_space = Regex::new(r#"\s+"#).unwrap();
-    let re_whitespace_around_operator =
-        Regex::new(r#"\s*(?P<op>[+\-*/%~^|&<>=,.!?]|<<|>>|<=|>=|==|!=|\+=|-=|\*=|/=)\s*"#).unwrap();
-    let re_whitespace_around_paren = Regex::new(r#"\s*(?P<par>[({)}])\s*"#).unwrap();
 
     for (regex, replace) in [
-        (re_whitespace_after_block_comment, "*/"),
-        (re_whitespace_after_colons, "$col"),
-        (re_multiple_space, " "),
-        (re_whitespace_around_operator, "$op"),
-        (re_whitespace_around_paren, "$par"),
+        (&*RE_WHITESPACE_AFTER_BLOCK_COMMENT, "*/"),
+        (&*RE_WHITESPACE_AFTER_COLONS, "$col"),
+        (&*RE_MULTIPLE_SPACE, " "),
+        (&*RE_WHITESPACE_AROUND_OPERATOR, "$op"),
+        (&*RE_WHITESPACE_AROUND_PAREN, "$par"),
     ]
         .iter()
     {
@@ -111,15 +113,12 @@ fn parse_include(
 }
 
 fn remove_block_comments(content: String) -> String {
-    let re_block_comment = Regex::new(r#"(?s)/\*.*?\*/"#).unwrap();
-    re_block_comment.replace_all(&content, "").into()
+    RE_BLOCK_COMMENT.replace_all(&content, "").into()
 }
 
 fn remove_line_comments(mut lines: Vec<String>) -> Vec<String> {
-    let re_line_comment = Regex::new(r#"//.*"#).unwrap();
-
     for line in &mut lines {
-        *line = re_line_comment.replace_all(line, "").trim().into();
+        *line = RE_LINE_COMMENT.replace_all(line, "").trim().into();
     }
     lines
 }
