@@ -4,14 +4,13 @@ use std::path::{Path, PathBuf};
 
 use regex::Regex;
 
-use imp::config;
 use imp::langs;
 
 use super::Result;
 use super::{Minified, Preprocessed, RawSource};
 
 lazy_static! {
-    static ref RE_INC: Regex = Regex::new(r#" *# *include *" *([^>]*) *""#).unwrap();
+    static ref RE_INC: Regex = Regex::new(r#" *# *include *" *(?P<inc_file>[^>]*) *""#).unwrap();
     static ref RE_WHITESPACE_AFTER_BLOCK_COMMENT: Regex = Regex::new(r#"\*/\s+"#).unwrap();
     static ref RE_WHITESPACE_AFTER_COLONS: Regex = Regex::new(r#"\s*(?P<col>[;:])\s*"#).unwrap();
     static ref RE_MULTIPLE_SPACE: Regex = Regex::new(r#"\s+"#).unwrap();
@@ -23,7 +22,11 @@ lazy_static! {
 }
 
 pub fn preprocess(content: RawSource) -> Result<Preprocessed> {
-    let content = parse_include(None, &mut HashSet::new(), content)?;
+    let content = parse_include(
+        &(langs::cpp::LANG.lib_dir_getter)(),
+        &mut HashSet::new(),
+        content,
+    )?;
     let content = remove_block_comments(content);
     let lines: Vec<String> = content.split('\n').map(|x| x.into()).collect();
     let removed = remove_line_comments(lines);
@@ -56,58 +59,46 @@ pub fn minify(preprocessed_lines: Preprocessed) -> Minified {
 }
 
 fn parse_include(
-    curr_file_path: Option<&Path>,
+    lib_dir: &Path,
     included: &mut HashSet<PathBuf>,
     content: RawSource,
 ) -> Result<String> {
     let content = content.into_inner();
-    let curr_extension = curr_file_path.map(|path| {
-        path.extension()
-            .unwrap()
-            .to_str()
-            .expect("critical error: failed to get file extension.")
-    });
-    let is_header = curr_extension
-        .map(|ext| config::HEADER_FILE_EXTENSIONS.contains(&ext))
-        .unwrap_or(false);
-
-    let lib_dir = if is_header {
-        curr_file_path
-            .expect("logical error: this must be some")
-            .parent()
-            .unwrap()
-            .to_path_buf()
-    } else {
-        (langs::cpp::LANG.lib_dir_getter)()
-    };
     assert!(lib_dir.is_absolute());
 
-    let mut modified_content: Vec<String> = content.split('\n').map(|x| x.to_string()).collect();
-    for line in modified_content.iter_mut() {
-        for cap in RE_INC.captures_iter(&line.clone()) {
-            let inc_file = &cap[1];
-            let inc_path = lib_dir.join(Path::new(inc_file).components().collect::<PathBuf>());
+    let mut lines: Vec<String> = content.split('\n').map(|x| x.to_string()).collect();
 
-            print_info!(true, "including {}", inc_path.display());
-            if included.contains(&inc_path) {
-                print_info!(
-                    true,
-                    "skipping previously included file {}",
-                    inc_path.display()
-                );
-                mem::replace(line, String::new());
-                continue;
+    for line in lines.iter_mut() {
+        let inc_path: PathBuf = match RE_INC.captures(&line) {
+            None => continue,
+            Some(caps) => {
+                let inc_file = caps.name("inc_file").unwrap().as_str();
+                let inc_path = lib_dir.join(Path::new(inc_file));
+                inc_path.components().collect()
             }
+        };
 
+        print_info!(true, "including {}", inc_path.display());
+        let will_be_replaced = if included.contains(&inc_path) {
+            print_info!(
+                true,
+                "... skipping previously included file {}",
+                inc_path.display()
+            );
+            String::new()
+        } else {
             included.insert(inc_path.clone());
+            let next_lib_dir = inc_path
+                .parent()
+                .expect("internal error: cannot extract parent");
             let inc_src = super::read_source_file(&inc_path)
-                .and_then(|src| parse_include(Some(&inc_path), included, src))?;
-            let replaced = RE_INC.replace(line, &*inc_src).to_string();
+                .and_then(|src| parse_include(next_lib_dir, included, src))?;
+            inc_src
+        };
 
-            mem::replace(line, replaced);
-        }
+        mem::replace(line, will_be_replaced);
     }
-    let modified_content = modified_content.join("\n");
+    let modified_content = lines.join("\n");
 
     Ok(modified_content)
 }

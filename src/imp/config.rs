@@ -5,7 +5,6 @@ use std::fs::File;
 use tags::SPACER;
 
 pub const TIMEOUT_MILLISECOND: i64 = 3000;
-pub const HEADER_FILE_EXTENSIONS: &[&str] = &["h", "hpp"];
 
 define_error!();
 define_error_kind! {
