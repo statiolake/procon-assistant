@@ -8,7 +8,6 @@ use std::path::Path;
 define_error!();
 define_error_kind! {
     [FileNotFound; (file_name: String); format!("failed to load `{}'; file not found.", file_name)];
-    [PreProcessorIfNotMatch; (); format!("failed to find endif matching with ifdef.")];
 }
 
 macro_rules! preprocessor_newtype {
