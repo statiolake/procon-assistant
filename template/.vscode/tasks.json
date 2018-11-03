@@ -5,7 +5,7 @@
     "tasks": [
         {
             "label": "procon-assistant compile",
-            "type": "shell",
+            "type": "process",
             "command": "procon-assistant",
             "args": [
                 "compile"
@@ -13,7 +13,7 @@
         },
         {
             "label": "procon-assistant run",
-            "type": "shell",
+            "type": "process",
             "command": "procon-assistant",
             "args": [
                 "run"
@@ -21,7 +21,7 @@
         },
         {
             "label": "procon-assistant init",
-            "type": "shell",
+            "type": "process",
             "command": "procon-assistant",
             "args": [
                 "init"
@@ -29,7 +29,7 @@
         },
         {
             "label": "procon-assistant fetch",
-            "type": "shell",
+            "type": "process",
             "command": "procon-assistant",
             "args": [
                 "fetch"
@@ -37,7 +37,7 @@
         },
         {
             "label": "procon-assistant download",
-            "type": "shell",
+            "type": "process",
             "command": "procon-assistant",
             "args": [
                 "download"
