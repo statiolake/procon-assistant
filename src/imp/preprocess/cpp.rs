@@ -10,7 +10,7 @@ use super::Result;
 use super::{Minified, Preprocessed, RawSource};
 
 lazy_static! {
-    static ref RE_INC: Regex = Regex::new(r#" *# *include *" *(?P<inc_file>[^>]*) *""#).unwrap();
+    static ref RE_INCLUDE: Regex = Regex::new(r#" *# *include *" *(?P<inc_file>[^>]*) *""#).unwrap();
     static ref RE_WHITESPACE_AFTER_BLOCK_COMMENT: Regex = Regex::new(r#"\*/\s+"#).unwrap();
     static ref RE_WHITESPACE_AFTER_COLONS: Regex = Regex::new(r#"\s*(?P<col>[;:])\s*"#).unwrap();
     static ref RE_MULTIPLE_SPACE: Regex = Regex::new(r#"\s+"#).unwrap();
@@ -69,7 +69,7 @@ fn parse_include(
     let mut lines: Vec<String> = content.split('\n').map(|x| x.to_string()).collect();
 
     for line in lines.iter_mut() {
-        let inc_path: PathBuf = match RE_INC.captures(&line) {
+        let inc_path: PathBuf = match RE_INCLUDE.captures(&line) {
             None => continue,
             Some(caps) => {
                 let inc_file = caps.name("inc_file").unwrap().as_str();
