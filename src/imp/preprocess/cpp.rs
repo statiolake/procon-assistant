@@ -10,7 +10,7 @@ use super::Result;
 use super::{Minified, Preprocessed, RawSource};
 
 lazy_static! {
-    static ref RE_INCLUDE: Regex = Regex::new(r#" *# *include *" *(?P<inc_file>[^>]*) *""#).unwrap();
+    static ref RE_INCLUDE: Regex = Regex::new(r#"\s*#\s*include\s*"(?P<inc_file>[^"]*)\s*""#).unwrap();
     static ref RE_PRAGMA_ONCE: Regex = Regex::new(r#"\s*#\s*pragma\s+once\s*"#).unwrap();
     static ref RE_WHITESPACE_AFTER_BLOCK_COMMENT: Regex = Regex::new(r#"\*/\s+"#).unwrap();
     static ref RE_WHITESPACE_AFTER_COLONS: Regex = Regex::new(r#"\s*(?P<col>[;:])\s*"#).unwrap();
