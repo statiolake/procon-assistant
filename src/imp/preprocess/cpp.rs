@@ -10,7 +10,8 @@ use super::Result;
 use super::{Minified, Preprocessed, RawSource};
 
 lazy_static! {
-    static ref RE_INCLUDE: Regex = Regex::new(r#"\s*#\s*include\s*"(?P<inc_file>[^"]*)\s*""#).unwrap();
+    static ref RE_INCLUDE: Regex =
+        Regex::new(r#"\s*#\s*include\s*"(?P<inc_file>[^"]*)\s*""#).unwrap();
     static ref RE_PRAGMA_ONCE: Regex = Regex::new(r#"\s*#\s*pragma\s+once\s*"#).unwrap();
     static ref RE_WHITESPACE_AFTER_BLOCK_COMMENT: Regex = Regex::new(r#"\*/\s+"#).unwrap();
     static ref RE_WHITESPACE_AFTER_COLONS: Regex = Regex::new(r#"\s*(?P<col>[;:])\s*"#).unwrap();
@@ -43,15 +44,15 @@ pub fn minify(preprocessed_lines: Preprocessed) -> Minified {
         .filter(|x| !x.is_empty())
         .collect();
 
-    for (regex, replace) in [
+    let replaces = [
         (&*RE_WHITESPACE_AFTER_BLOCK_COMMENT, "*/"),
         (&*RE_WHITESPACE_AFTER_COLONS, "$col"),
         (&*RE_MULTIPLE_SPACE, " "),
         (&*RE_WHITESPACE_AROUND_OPERATOR, "$op"),
         (&*RE_WHITESPACE_AROUND_PAREN, "$par"),
-    ]
-    .iter()
-    {
+    ];
+
+    for (regex, replace) in replaces.iter() {
         for r in &mut result {
             *r = r.trim().into();
             *r = regex.replace_all(r, replace as &str).into();
