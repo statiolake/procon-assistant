@@ -30,7 +30,7 @@ pub fn preprocess(content: RawSource) -> Result<Preprocessed> {
     let content = remove_block_comments(content);
     let lines: Vec<String> = content.split('\n').map(|x| x.into()).collect();
     let removed = remove_line_comments(lines);
-    Ok(Preprocessed(removed))
+    Ok(Preprocessed(concat_safe_lines(removed)))
 }
 
 pub fn minify(preprocessed_lines: Preprocessed) -> Minified {
@@ -48,7 +48,7 @@ pub fn minify(preprocessed_lines: Preprocessed) -> Minified {
         (&*RE_WHITESPACE_AROUND_OPERATOR, "$op"),
         (&*RE_WHITESPACE_AROUND_PAREN, "$par"),
     ]
-        .iter()
+    .iter()
     {
         for r in &mut result {
             *r = r.trim().into();
@@ -112,4 +112,38 @@ fn remove_line_comments(mut lines: Vec<String>) -> Vec<String> {
         *line = RE_LINE_COMMENT.replace_all(line, "").trim().into();
     }
     lines
+}
+
+fn concat_safe_lines(lines: Vec<String>) -> Vec<String> {
+    fn push_and_init(vec: &mut Vec<String>, line: &mut String) {
+        if !line.is_empty() {
+            vec.push(mem::replace(line, String::new()));
+        }
+    }
+
+    let mut res = Vec::new();
+    let mut res_line = String::new();
+
+    let mut line_continues;
+    for line in lines {
+        let line = line.trim();
+        line_continues = true;
+
+        if line.starts_with("#") {
+            // flush current string
+            push_and_init(&mut res, &mut res_line);
+            line_continues = line.ends_with("\\");
+        }
+
+        res_line += line.trim_matches('\\');
+
+        if !line_continues {
+            push_and_init(&mut res, &mut res_line);
+        }
+    }
+
+    // push last line if something left
+    push_and_init(&mut res, &mut res_line);
+
+    res
 }
