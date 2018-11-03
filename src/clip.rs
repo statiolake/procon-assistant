@@ -23,7 +23,9 @@ pub fn copy_to_clipboard(lang: &Lang) -> preprocess::Result<()> {
     let preprocessed = (lang.preprocessor)(raw)?;
     let minified = (lang.minifier)(preprocessed);
     let minified = minified.into_inner() + "\n";
-    clip::set_clipboard(minified);
+    clip::set_clipboard(minified.clone());
     print_finished!("copying");
+    print_info!(true, "the copied string is as follows. you can pipe it when auto-copying did not function.");
+    println!("{}", minified);
     Ok(())
 }
