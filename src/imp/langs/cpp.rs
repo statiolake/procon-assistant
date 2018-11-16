@@ -8,7 +8,7 @@ use imp::preprocess;
 pub const LANG: Lang = Lang {
     file_type: "cpp",
     src_file_name: "main.cpp",
-    compiler: "clang++",
+    compiler: "g++",
     lib_dir_getter: get_lib_dir,
     compile_command_maker: compile_command,
     preprocessor: preprocess::cpp::preprocess,
