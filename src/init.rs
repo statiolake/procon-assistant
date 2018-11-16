@@ -87,11 +87,8 @@ fn generate(lang: &Lang, path: &Path) -> Result<()> {
     template_file
         .read_to_string(&mut content)
         .chain(ErrorKind::ReadFromTemplateFailed(template_path_string))?;
-    let escaped_lib_dir = (lang.lib_dir_getter)()
-        .display()
-        .to_string()
-        .escape_default();
-    let content = content.replace("$LIB_DIR", &escaped_lib_dir);
+
+    let content = content.replace("$LIB_DIR", &libdir_escaped(&lang));
     create_and_write_file(path, &content)
 }
 
@@ -108,9 +105,10 @@ fn create_and_write_file(path: &Path, content: &str) -> Result<()> {
         .chain(ErrorKind::WriteToDestinationFailed(path_string))
 }
 
-// fn libdir_escaped() -> String {
-//     common::get_procon_lib_dir()
-//         .display()
-//         .to_string()
-//         .escape_default()
-// }
+
+fn libdir_escaped(lang: &Lang) -> String {
+    (lang.lib_dir_getter)()
+        .display()
+        .to_string()
+        .escape_default()
+}
