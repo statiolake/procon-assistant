@@ -17,6 +17,7 @@ extern crate encoding;
 extern crate time;
 #[macro_use]
 extern crate lazy_static;
+extern crate which;
 
 macro_rules! define_error {
     () => {

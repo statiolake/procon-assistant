@@ -89,6 +89,7 @@ fn generate(lang: &Lang, path: &Path) -> Result<()> {
         .chain(ErrorKind::ReadFromTemplateFailed(template_path_string))?;
 
     let content = content.replace("$LIB_DIR", &libdir_escaped(&lang));
+    let content = content.replace("$GDB_PATH", &gdbpath_escaped());
     create_and_write_file(path, &content)
 }
 
@@ -105,6 +106,11 @@ fn create_and_write_file(path: &Path, content: &str) -> Result<()> {
         .chain(ErrorKind::WriteToDestinationFailed(path_string))
 }
 
+fn gdbpath_escaped() -> String {
+    which::which("gdb")
+        .map(|path| path.display().to_string().escape_default())
+        .unwrap_or("dummy - could not find GDB in your system".into())
+}
 
 fn libdir_escaped(lang: &Lang) -> String {
     (lang.lib_dir_getter)()

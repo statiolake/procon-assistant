@@ -18,6 +18,7 @@ serde_json = "1.0.32"
 time = "0.1.40"
 lazy_static = "1.1.0"
 atty = "0.2.11"
+which = "2.0.0"
 
 [dependencies.colored_print]
 git = "https://github.com/statiolake/colored_print.git"

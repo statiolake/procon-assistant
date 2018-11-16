@@ -27,6 +27,7 @@
             "environment": [],
             "externalConsole": true,
             "MIMode": "gdb",
+            "miDebuggerPath": "$GDB_PATH",
             "preLaunchTask": "procon-assistant compile",
             "setupCommands": [
                 {
