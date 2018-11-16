@@ -13,6 +13,7 @@ lazy_static! {
     static ref RE_INCLUDE: Regex =
         Regex::new(r#"\s*#\s*include\s*"(?P<inc_file>[^"]*)\s*""#).unwrap();
     static ref RE_PRAGMA_ONCE: Regex = Regex::new(r#"\s*#\s*pragma\s+once\s*"#).unwrap();
+    static ref RE_DEBUG_STATEMENT: Regex = Regex::new(r#"\s*PD\s*\((?P<stmt>[^;]*)\);"#).unwrap();
     static ref RE_WHITESPACE_AFTER_BLOCK_COMMENT: Regex = Regex::new(r#"\*/\s+"#).unwrap();
     static ref RE_WHITESPACE_AFTER_COLONS: Regex = Regex::new(r#"\s*(?P<col>[;:])\s*"#).unwrap();
     static ref RE_MULTIPLE_SPACE: Regex = Regex::new(r#"\s+"#).unwrap();
@@ -32,7 +33,8 @@ pub fn preprocess(content: RawSource) -> Result<Preprocessed> {
     let content = remove_block_comments(content);
     let lines: Vec<String> = content.split('\n').map(|x| x.into()).collect();
     let comment_removed = remove_line_comments(lines);
-    let removed = remove_pragma_once(comment_removed);
+    let debug_statement_removed = remove_debug_statement(comment_removed);
+    let removed = remove_pragma_once(debug_statement_removed);
     Ok(Preprocessed(concat_safe_lines(removed)))
 }
 
@@ -113,6 +115,13 @@ fn remove_block_comments(content: String) -> String {
 fn remove_line_comments(mut lines: Vec<String>) -> Vec<String> {
     for line in &mut lines {
         *line = RE_LINE_COMMENT.replace_all(line, "").trim().into();
+    }
+    lines
+}
+
+fn remove_debug_statement(mut lines: Vec<String>) -> Vec<String> {
+    for line in &mut lines {
+        *line = RE_DEBUG_STATEMENT.replace_all(line, "").trim().into();
     }
     lines
 }
