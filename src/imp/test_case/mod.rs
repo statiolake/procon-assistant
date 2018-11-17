@@ -33,6 +33,12 @@ impl TestCase {
             TestCase::File(tcf) => (tcf.to_string(), tcf.judge()),
         }
     }
+
+    pub fn into_test_case_file(self) -> TestCaseFile {
+        match self {
+            TestCase::File(file) => file,
+        }
+    }
 }
 
 impl From<TestCaseFile> for TestCase {

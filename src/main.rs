@@ -94,6 +94,7 @@ macro_rules! define_error_kind {
 #[macro_use]
 mod tags;
 mod addcase;
+mod delcase;
 
 mod clip;
 mod compile;
@@ -122,6 +123,17 @@ fn help() {
     println!("    addcase");
     println!("        adds new sample case.");
     println!("        creates inX.txt, outX.txt in current directory.");
+    println!("    delcase {{number}}");
+    println!("        deletes specified existing sample case.");
+    println!("        removes inX.txt, outX.txt in current directory and");
+    println!("        decrement the case number of succeeding sample cases.");
+    println!("        example:");
+    println!("            assume there are three test cases now:");
+    println!("                (in1.txt, out1.txt), (in2.txt, out2.txt), (in3.txt, out3.txt)");
+    println!("            if you run `procon-assistant delcase 2`, then there are");
+    println!("            two test cases:");
+    println!("                (in1.txt, out1.txt), (in2.txt, out2.txt)");
+    println!("            where (in2.txt, out2.txt) was previously (in3.txt, out3.txt).");
     println!("    preprocess");
     println!("        preprocess your source code and display it.");
     println!("    clip");
@@ -158,6 +170,7 @@ fn main() {
         "initdirs" | "id" => initdirs::main(args).map_err(box_err),
         "init" | "i" => init::main(args).map_err(box_err),
         "addcase" | "a" | "ac" => addcase::main().map_err(box_err),
+        "delcase" | "dc" => delcase::main(args).map_err(box_err),
         "preprocess" | "si" | "pp" => preprocess::main().map_err(box_err),
         "clip" | "c" => clip::main().map_err(box_err),
         "fetch" | "f" => fetch::main(args).map_err(box_err),
