@@ -1,12 +1,12 @@
+use scraper::{Html, Selector};
+
 use std::error;
 use std::result;
 
-use scraper::{Html, Selector};
-
-use imp::auth::atcoder as auth;
-use imp::test_case::TestCaseFile;
-use login::atcoder as login;
-use tags::SPACER;
+use crate::imp::auth::atcoder as auth;
+use crate::imp::test_case::TestCaseFile;
+use crate::login::atcoder as login;
+use crate::tags::SPACER;
 
 define_error!();
 define_error_kind! {

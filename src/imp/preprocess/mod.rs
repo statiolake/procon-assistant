@@ -1,9 +1,9 @@
-pub mod cpp;
-pub mod rust;
-
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
+
+pub mod cpp;
+pub mod rust;
 
 define_error!();
 define_error_kind! {

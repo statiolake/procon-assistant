@@ -1,13 +1,13 @@
-use imp::config::ConfigFile;
 use std::env;
 use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
-use imp::common;
-use imp::langs;
-use imp::langs::Lang;
+use crate::imp::common;
+use crate::imp::config::ConfigFile;
+use crate::imp::langs;
+use crate::imp::langs::Lang;
 
 const FILES: &[&str] = &[
     ".clang_complete",

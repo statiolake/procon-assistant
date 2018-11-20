@@ -1,6 +1,3 @@
-pub mod aoj;
-pub mod atcoder;
-
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -8,7 +5,8 @@ use std::io;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use rpassword;
+pub mod aoj;
+pub mod atcoder;
 
 pub fn ask_account_info(service_name: &str) -> (String, String) {
     print!("  {} Username: ", service_name);

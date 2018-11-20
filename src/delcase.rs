@@ -1,8 +1,8 @@
 use std::fs;
 use std::io;
 
-use imp::test_case;
-use imp::test_case::TestCaseFile;
+use crate::imp::test_case;
+use crate::imp::test_case::TestCaseFile;
 
 define_error!();
 define_error_kind! {

@@ -1,5 +1,3 @@
-use reqwest;
-
 define_error!();
 define_error_kind! {
     [UnsupportedAction; (action: String); format!("sorry, {} is not supported for now.", action)];

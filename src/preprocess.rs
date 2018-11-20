@@ -1,5 +1,5 @@
-use imp::langs;
-use imp::preprocess;
+use crate::imp::langs;
+use crate::imp::preprocess;
 
 define_error!();
 define_error_kind! {

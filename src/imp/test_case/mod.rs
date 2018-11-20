@@ -1,16 +1,15 @@
-pub mod judge_result;
-
 use std::fmt;
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
 use std::path::Path;
 use std::process::{Child, Command, ExitStatus, Stdio};
-use time;
 
 use self::judge_result::{JudgeResult, OutputDifference};
-use imp::common;
-use imp::config;
+use crate::imp::common;
+use crate::imp::config;
+
+pub mod judge_result;
 
 define_error!();
 define_error_kind! {

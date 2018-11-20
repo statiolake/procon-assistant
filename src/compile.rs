@@ -1,11 +1,11 @@
-use colored_print::color::ConsoleColor;
-use colored_print::color::ConsoleColor::Reset;
+use colored_print::color::{ConsoleColor, ConsoleColor::Reset};
+use colored_print::colored_eprintln;
 
-use imp::common;
-use imp::compile;
-use imp::compile::CompilerOutput;
-use imp::langs;
-use imp::langs::Lang;
+use crate::imp::common;
+use crate::imp::compile;
+use crate::imp::compile::CompilerOutput;
+use crate::imp::langs;
+use crate::imp::langs::Lang;
 
 const OUTPUT_COLOR: ConsoleColor = Reset;
 

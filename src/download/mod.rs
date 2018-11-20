@@ -1,6 +1,3 @@
-pub mod atcoder;
-pub mod local;
-
 use std::env;
 use std::error;
 use std::path::Path;
@@ -9,10 +6,13 @@ use std::str;
 
 use self::atcoder::AtCoder;
 use self::local::Local;
-use fetch;
-use fetch::TestCaseProvider;
-use initdirs;
-use tags::SPACER;
+use crate::fetch;
+use crate::fetch::TestCaseProvider;
+use crate::initdirs;
+use crate::tags::SPACER;
+
+pub mod atcoder;
+pub mod local;
 
 define_error!();
 define_error_kind! {

@@ -1,11 +1,9 @@
-use dirs;
-
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 
-use imp::config::ConfigFile;
+use crate::imp::config::ConfigFile;
 
 pub fn colorize() -> bool {
     use atty;

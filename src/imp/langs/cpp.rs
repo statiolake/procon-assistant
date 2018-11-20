@@ -2,8 +2,8 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use super::Lang;
-use imp::common;
-use imp::preprocess;
+use crate::imp::common;
+use crate::imp::preprocess;
 
 pub const LANG: Lang = Lang {
     file_type: "cpp",

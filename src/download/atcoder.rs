@@ -3,9 +3,9 @@ use scraper::{Html, Selector};
 use std::error;
 use std::result;
 
-use fetch::atcoder::AtCoder as FetchAtCoder;
-use fetch::TestCaseProvider;
-use imp::auth::atcoder as auth;
+use crate::fetch::atcoder::AtCoder as FetchAtCoder;
+use crate::fetch::TestCaseProvider;
+use crate::imp::auth::atcoder as auth;
 
 define_error!();
 define_error_kind!{

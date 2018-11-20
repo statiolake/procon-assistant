@@ -1,17 +1,16 @@
-pub mod aoj;
-pub mod atcoder;
-
-use fetch::aoj::Aoj;
-use fetch::atcoder::AtCoder;
-
 use std::env;
 use std::error;
 use std::ffi::OsStr;
 use std::fmt::Debug;
 use std::result;
 
-use imp::test_case::TestCaseFile;
-use tags::SPACER;
+use crate::fetch::aoj::Aoj;
+use crate::fetch::atcoder::AtCoder;
+use crate::imp::test_case::TestCaseFile;
+use crate::tags::SPACER;
+
+pub mod aoj;
+pub mod atcoder;
 
 define_error!();
 define_error_kind! {

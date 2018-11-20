@@ -1,10 +1,11 @@
+use lazy_static::lazy_static;
+use regex::Regex;
+
 use std::collections::HashSet;
 use std::mem;
 use std::path::{Path, PathBuf};
 
-use regex::Regex;
-
-use imp::langs;
+use crate::imp::langs;
 
 use super::Result;
 use super::{Minified, Preprocessed, RawSource};

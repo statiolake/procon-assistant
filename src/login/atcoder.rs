@@ -1,5 +1,5 @@
-use imp::auth;
-use imp::auth::atcoder as auth_atcoder;
+use crate::imp::auth;
+use crate::imp::auth::atcoder as auth_atcoder;
 
 define_error!();
 define_error_kind! {

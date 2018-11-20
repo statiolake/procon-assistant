@@ -1,10 +1,12 @@
+use lazy_static::lazy_static;
+
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 
-use imp::preprocess;
-use imp::preprocess::{Minified, Preprocessed, RawSource};
+use crate::imp::preprocess;
+use crate::imp::preprocess::{Minified, Preprocessed, RawSource};
 
 pub mod cpp;
 pub mod rust;

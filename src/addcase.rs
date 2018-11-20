@@ -1,7 +1,6 @@
-use imp::common::open;
-use imp::test_case::TestCaseFile;
-
-use imp::config::ConfigFile;
+use crate::imp::common::open;
+use crate::imp::config::ConfigFile;
+use crate::imp::test_case::TestCaseFile;
 
 define_error!();
 define_error_kind! {

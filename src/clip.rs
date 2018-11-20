@@ -1,9 +1,9 @@
 use std::path::Path;
 
-use imp::clip;
-use imp::langs;
-use imp::langs::Lang;
-use imp::preprocess;
+use crate::imp::clip;
+use crate::imp::langs;
+use crate::imp::langs::Lang;
+use crate::imp::preprocess;
 
 define_error!();
 define_error_kind! {

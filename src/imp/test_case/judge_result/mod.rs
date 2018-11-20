@@ -1,8 +1,8 @@
-pub mod output_diff;
-
-use colored_print::color::ConsoleColor::{self, *};
+use colored_print::color::{ConsoleColor, ConsoleColor::*};
 
 pub use self::output_diff::*;
+
+pub mod output_diff;
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct WrongAnswer {

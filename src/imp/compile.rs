@@ -1,5 +1,6 @@
-use imp::langs::Lang;
 use std::fs::File;
+
+use crate::imp::langs::Lang;
 
 define_error!();
 define_error_kind! {

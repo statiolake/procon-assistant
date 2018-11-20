@@ -1,5 +1,4 @@
-use colored_print::color::ConsoleColor;
-use colored_print::color::ConsoleColor::*;
+use colored_print::color::{ConsoleColor, ConsoleColor::*};
 
 pub const TAGS_COLOR: ConsoleColor = LightGreen;
 pub const TAGS_ERROR_COLOR: ConsoleColor = Red;
@@ -121,11 +120,11 @@ macro_rules! print_debug {
 
 macro_rules! print_with_tag {
     ($color:expr, $tag:expr, $fmt:expr $(,$args:expr)*) => (
-        colored_eprintln! {
+        colored_print::colored_eprintln! {
             $crate::imp::common::colorize();
             $color, "{}", $tag;
-            $crate::colored_print::color::ConsoleColor::Reset, " ";
-            $crate::colored_print::color::ConsoleColor::Reset, $fmt $(,$args)*;
+            colored_print::color::ConsoleColor::Reset, " ";
+            colored_print::color::ConsoleColor::Reset, $fmt $(,$args)*;
         }
     )
 }

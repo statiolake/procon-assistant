@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use tags::SPACER;
+use crate::tags::SPACER;
 
 define_error!();
 define_error_kind! {

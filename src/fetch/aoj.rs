@@ -3,8 +3,8 @@ use scraper::{Html, Selector};
 use std::error;
 use std::result;
 
-use imp::auth::aoj as auth;
-use imp::test_case::TestCaseFile;
+use crate::imp::auth::aoj as auth;
+use crate::imp::test_case::TestCaseFile;
 
 define_error!();
 define_error_kind!{

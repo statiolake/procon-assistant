@@ -1,17 +1,17 @@
-use colored_print::color::ConsoleColor;
-use colored_print::color::ConsoleColor::*;
+use colored_print::color::{ConsoleColor, ConsoleColor::*};
+use colored_print::colored_eprintln;
 use time;
 
 use std::thread;
 
-use clip;
-use compile;
-use imp::common;
-use imp::config;
-use imp::langs;
-use imp::test_case;
-use imp::test_case::judge_result::{JudgeResult, WrongAnswer};
-use imp::test_case::{TestCase, TestCaseFile};
+use crate::clip;
+use crate::compile;
+use crate::imp::common;
+use crate::imp::config;
+use crate::imp::langs;
+use crate::imp::test_case;
+use crate::imp::test_case::judge_result::{JudgeResult, WrongAnswer};
+use crate::imp::test_case::{TestCase, TestCaseFile};
 
 const OUTPUT_COLOR: ConsoleColor = LightMagenta;
 
