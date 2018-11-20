@@ -75,13 +75,18 @@ pub fn get_provider(dsc: ProblemDescriptor) -> Result<Box<dyn TestCaseProvider>>
     match &*dsc.contest_site {
         "aoj" => Aoj::new(dsc.problem_id)
             .chain(ErrorKind::ProviderCreationFailed())
-            .map(|p| (box p) as Box<_>),
+            .map(provider_into_box),
         "atcoder" | "at" => AtCoder::new(dsc.problem_id)
             .chain(ErrorKind::ProviderCreationFailed())
-            .map(|p| (box p) as Box<_>),
+            .map(provider_into_box),
         _ => Err(Error::new(ErrorKind::UnknownContestSite(dsc.contest_site))),
     }
 }
+
+fn provider_into_box<T: 'static + TestCaseProvider>(x: T) -> Box<dyn TestCaseProvider> {
+    Box::new(x)
+}
+
 fn get_descriptor(problem_id: Option<String>) -> Result<ProblemDescriptor> {
     match problem_id {
         Some(arg) => ProblemDescriptor::parse(arg),

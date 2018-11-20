@@ -115,15 +115,19 @@ impl super::TestCaseProvider for AtCoder {
     fn authenticate(&self) -> result::Result<(), Box<dyn error::Error + Send>> {
         login::main()
             .chain(ErrorKind::LoginFailed())
-            .map_err(|e| (box e) as Box<_>)
+            .map_err(error_into_box)
     }
 
     fn fetch_test_case_files(
         &self,
     ) -> result::Result<Vec<TestCaseFile>, Box<dyn error::Error + Send>> {
-        let text = download_text(self.problem.url()).map_err(|e| (box e) as Box<_>)?;
-        parse_text(text).map_err(|e| (box e) as Box<_>)
+        let text = download_text(self.problem.url()).map_err(error_into_box)?;
+        parse_text(text).map_err(error_into_box)
     }
+}
+
+fn error_into_box<T: 'static + error::Error + Send>(x: T) -> Box<dyn error::Error + Send> {
+    Box::new(x)
 }
 
 fn parse_text(text: String) -> Result<Vec<TestCaseFile>> {

@@ -99,9 +99,13 @@ impl super::TestCaseProvider for Aoj {
             .chain(ErrorKind::FetchingProblemFailed(
                 self.problem.problem_id().to_string(),
             ))
-            .map_err(|e| (box e) as Box<_>)?;
-        parse_text(text).map_err(|e| (box e) as Box<_>)
+            .map_err(error_into_box)?;
+        parse_text(text).map_err(error_into_box)
     }
+}
+
+fn error_into_box<T: 'static + error::Error + Send>(x: T) -> Box<dyn error::Error + Send> {
+    Box::new(x)
 }
 
 pub fn parse_text(text: String) -> Result<Vec<TestCaseFile>> {

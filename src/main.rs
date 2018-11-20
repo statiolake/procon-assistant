@@ -1,4 +1,4 @@
-#![feature(box_syntax, str_escape, specialization)]
+#![feature(str_escape)]
 // #[macro_use]
 // extern crate colored_print;
 // extern crate atty;
@@ -58,7 +58,7 @@ macro_rules! define_error {
             for ::std::result::Result<T, E>
         {
             fn chain(self, kind: ErrorKind) -> Result<T> {
-                self.map_err(|e| Error::with_cause(kind, box e))
+                self.map_err(|e| Error::with_cause(kind, Box::new(e)))
             }
         }
     };
@@ -203,5 +203,5 @@ fn print_causes(e: &dyn error::Error) {
 }
 
 fn box_err<'a, E: error::Error + 'a>(e: E) -> Box<dyn error::Error + 'a> {
-    box e as Box<dyn error::Error>
+    Box::new(e)
 }

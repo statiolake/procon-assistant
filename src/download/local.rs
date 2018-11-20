@@ -41,10 +41,13 @@ impl super::ContestProvider for Local {
     }
 
     fn make_fetchers(&self) -> result::Result<Fetchers, Box<dyn error::Error + Send>> {
-        let problem_list =
-            load_problem_list(self.file_path.clone()).map_err(|e| (box e) as Box<_>)?;
-        make_fetcher(problem_list).map_err(|e| (box e) as Box<_>)
+        let problem_list = load_problem_list(self.file_path.clone()).map_err(error_into_box)?;
+        make_fetcher(problem_list).map_err(error_into_box)
     }
+}
+
+fn error_into_box<T: 'static + error::Error + Send>(x: T) -> Box<dyn error::Error + Send> {
+    Box::new(x)
 }
 
 fn make_fetcher(problem_list: Vec<String>) -> Result<Fetchers> {

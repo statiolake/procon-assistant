@@ -82,23 +82,34 @@ impl super::ContestProvider for AtCoder {
     }
 
     fn make_fetchers(&self) -> result::Result<super::Fetchers, Box<dyn error::Error + Send>> {
-        let (beginning_char, numof_problems) =
-            get_range_of_problems(self.contest.contest_id()).map_err(|e| (box e) as Box<_>)?;
-        (0..numof_problems)
-            .into_iter()
-            .map(|problem| {
-                let problem = ('a' as u8 + problem) as char; // hack: atcoder regular contest starts 'a' while it's showed as 'c'
-                let problem_id = format!("{}{}", self.contest.contest_id(), problem);
-                fetcher_for(problem_id).map(|fetcher| (box fetcher) as Box<dyn TestCaseProvider>)
-            })
-            .collect::<Result<Vec<Box<dyn TestCaseProvider>>>>()
-            .map(|fetchers| super::Fetchers {
-                contest_id: self.contest.contest_id().to_string(),
-                fetchers,
-                beginning_char,
-            })
-            .map_err(|e| (box e) as Box<_>)
+        let id = self.contest.contest_id();
+        let (beginning_char, numof_problems) = get_range_of_problems(id).map_err(error_into_box)?;
+
+        let fetchers = (0..numof_problems).into_iter().map(|problem| {
+            let problem = ('a' as u8 + problem) as char; // hack: atcoder regular contest starts 'a' while it's showed as 'c'
+            let problem_id = format!("{}{}", self.contest.contest_id(), problem);
+            fetcher_for(problem_id).map(fetcher_into_box)
+        });
+
+        let fetchers: Result<Vec<_>> = fetchers.collect();
+        let fetchers = fetchers.map_err(error_into_box)?;
+
+        let fetchers = super::Fetchers {
+            contest_id: self.contest.contest_id().to_string(),
+            fetchers: fetchers,
+            beginning_char: beginning_char,
+        };
+
+        Ok(fetchers)
     }
+}
+
+fn error_into_box<T: 'static + error::Error + Send>(e: T) -> Box<dyn error::Error + Send> {
+    Box::new(e)
+}
+
+fn fetcher_into_box<T: 'static + TestCaseProvider>(x: T) -> Box<dyn TestCaseProvider> {
+    Box::new(x)
 }
 
 // Result<(beginning_char, numof_problems)>

@@ -51,6 +51,10 @@ pub fn main(args: Vec<String>) -> Result<()> {
     Ok(())
 }
 
+fn provider_into_box<T: 'static + ContestProvider>(provider: T) -> Box<dyn ContestProvider> {
+    Box::new(provider)
+}
+
 fn get_provider(arg: String) -> Result<Box<dyn ContestProvider>> {
     let (contest_site, contest_id) = parse_arg(&arg)?;
     match contest_site {
@@ -61,11 +65,11 @@ fn get_provider(arg: String) -> Result<Box<dyn ContestProvider>> {
             contest_site.to_string(),
         ))),
     }
-    .map(|provider| (box provider) as Box<_>)
+    .map(provider_into_box)
 }
 
 fn get_local_provider() -> Result<Box<dyn ContestProvider>> {
-    Ok((box Local::from_path("problems.txt".to_string())) as Box<_>)
+    Ok(Box::new(Local::from_path("problems.txt".to_string())))
 }
 
 fn parse_arg(arg: &str) -> Result<(&str, &str)> {
@@ -77,26 +81,20 @@ fn parse_arg(arg: &str) -> Result<(&str, &str)> {
 }
 
 fn handle_empty_arg() -> Result<Box<dyn ContestProvider>> {
-    Ok(env::current_dir()
-        .map_err(|_| ())
-        .and_then(|current_dir| {
-            current_dir
-                .file_name()
-                .ok_or(())
-                .and_then(|file_name| file_name.to_str().ok_or(()))
-                .map(|file_name| file_name.to_string())
-        })
-        .map(|file_name| file_name.to_string())
-        .and_then(|file_name| {
-            if ["abc", "arc", "agc"].contains(&&file_name[0..3]) {
-                AtCoder::new(file_name)
-                    .map(|p| (box p) as Box<_>)
-                    .map_err(|_| ())
-            } else {
-                Err(())
-            }
-        })
-        .unwrap_or(get_local_provider()?))
+    fn handle_empty_arg_impl() -> Option<Box<dyn ContestProvider>> {
+        let current_dir = env::current_dir().ok()?;
+        let file_name = current_dir
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map(|name| name.to_string())?;
+
+        if ["abc", "arc", "agc"].contains(&&file_name[0..3]) {
+            AtCoder::new(file_name).map(provider_into_box).ok()
+        } else {
+            None
+        }
+    }
+    Ok(handle_empty_arg_impl().unwrap_or(get_local_provider()?))
 }
 
 pub struct Fetchers {
