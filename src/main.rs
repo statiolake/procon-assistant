@@ -1,23 +1,23 @@
 #![feature(box_syntax, str_escape, specialization)]
-#[macro_use]
-extern crate colored_print;
-extern crate atty;
-extern crate clipboard;
-extern crate percent_encoding;
-extern crate regex;
-extern crate reqwest;
-extern crate rpassword;
-extern crate scraper;
-extern crate serde;
-extern crate serde_json;
-#[macro_use]
-extern crate serde_derive;
-extern crate dirs;
-extern crate encoding;
-extern crate time;
-#[macro_use]
-extern crate lazy_static;
-extern crate which;
+// #[macro_use]
+// extern crate colored_print;
+// extern crate atty;
+// extern crate clipboard;
+// extern crate percent_encoding;
+// extern crate regex;
+// extern crate reqwest;
+// extern crate rpassword;
+// extern crate scraper;
+// extern crate serde;
+// extern crate serde_json;
+// #[macro_use]
+// extern crate serde_derive;
+// extern crate dirs;
+// extern crate encoding;
+// extern crate time;
+// #[macro_use]
+// extern crate lazy_static;
+// extern crate which;
 
 macro_rules! define_error {
     () => {
