@@ -7,7 +7,7 @@ use crate::imp::auth::aoj as auth;
 use crate::imp::test_case::TestCaseFile;
 
 define_error!();
-define_error_kind!{
+define_error_kind! {
     [FetchingProblemFailed; (problem_id: String); format!("failed to fetch the problem `{}'", problem_id)];
     [UnexpectedNumberOfPreTag; (detected: usize); format!("unexpected number of <pre>: {}", detected)];
     [CouldNotDetermineTestCaseFileName; (); format!("failed to determine test case file name.")];

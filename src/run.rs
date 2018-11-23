@@ -36,7 +36,7 @@ pub fn main(args: Vec<String>) -> Result<()> {
 
     let (result_color, result_long_verb, result_long_name) = result.long_name();
     eprintln!("");
-    colored_eprintln!{
+    colored_eprintln! {
         common::colorize();
         Reset, "    Your solution {}", result_long_verb;
         result_color, "{}", result_long_name;

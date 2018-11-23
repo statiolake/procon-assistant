@@ -8,7 +8,7 @@ use crate::fetch::TestCaseProvider;
 use crate::imp::auth::atcoder as auth;
 
 define_error!();
-define_error_kind!{
+define_error_kind! {
     [InvalidFormatForContestId; (contest_id: String); format!(
         "contest_id `{}' is invalid; the example format for AtCoder Grand Contest 022: agc022",
         contest_id
