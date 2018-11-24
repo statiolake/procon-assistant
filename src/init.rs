@@ -66,68 +66,68 @@ pub fn main(args: Vec<String>) -> Result<()> {
     let cmdopt = CmdOpt::parse(args)?;
     let project = validate_arguments(&config, cmdopt)?;
 
-    let out_dir = Path::new(&project.name);
-    create_project_directory(&out_dir)?;
+    let path_project = Path::new(&project.name);
+    create_project_directory(&path_project)?;
 
     let path_src_file = Path::new(&project.lang.src_file_name);
-    safe_generate(&project.lang, out_dir, path_src_file)?;
+    safe_generate(&project.lang, path_project, path_src_file)?;
 
     for file in FILES {
         let path = Path::new(file);
-        safe_generate(&project.lang, out_dir, path)?;
+        safe_generate(&project.lang, path_project, path)?;
     }
 
     if config.init_auto_open {
-        let open_path = if config.init_open_directory_instead_of_specific_file {
-            out_dir.display().to_string()
+        let path_open = if config.init_open_directory_instead_of_specific_file {
+            path_project.display().to_string()
         } else {
-            out_dir
+            path_project
                 .join(&project.lang.src_file_name)
                 .display()
                 .to_string()
         };
-        common::open(&config, &[&open_path]).chain(ErrorKind::OpeningEditorFailed())?;
+        common::open(&config, &[&path_open]).chain(ErrorKind::OpeningEditorFailed())?;
     }
 
     Ok(())
 }
 
-fn create_project_directory(out_dir: &Path) -> Result<()> {
-    fs::create_dir_all(out_dir).chain(ErrorKind::CreateDestinationDirectoryFailed(
-        out_dir.display().to_string(),
+fn create_project_directory(path_project: &Path) -> Result<()> {
+    fs::create_dir_all(path_project).chain(ErrorKind::CreateDestinationDirectoryFailed(
+        path_project.display().to_string(),
     ))
 }
 
-fn safe_generate(lang: &Lang, out_dir: &Path, path: &Path) -> Result<()> {
-    if out_dir.join(path).exists() {
+fn safe_generate(lang: &Lang, path_project: &Path, path: &Path) -> Result<()> {
+    if path_project.join(path).exists() {
         print_info!(true, "file {} already exists, skipping.", path.display());
         return Ok(());
     }
 
-    generate(lang, out_dir, path)?;
+    generate(lang, path_project, path)?;
     print_generated!("{}", path.display());
     Ok(())
 }
 
-fn generate(lang: &Lang, out_dir: &Path, path: &Path) -> Result<()> {
+fn generate(lang: &Lang, path_project: &Path, path: &Path) -> Result<()> {
     let exe_dir = env::current_exe().unwrap();
     let exe_dir = exe_dir.parent().unwrap();
-    let template_path = exe_dir.join("template").join(path);
-    let out_path = out_dir.join(path);
+    let path_template = exe_dir.join("template").join(path);
+    let path_project = path_project.join(path);
 
-    let template_path_string = template_path.display().to_string();
-    print_info!(true, "loading template from `{}'", template_path_string);
-    let mut template_file = File::open(template_path)
-        .chain(ErrorKind::OpenTemplateFailed(template_path_string.clone()))?;
+    let path_template_string = path_template.display().to_string();
+    print_info!(true, "loading template from `{}'", path_template_string);
+    let mut template_file = File::open(path_template)
+        .chain(ErrorKind::OpenTemplateFailed(path_template_string.clone()))?;
 
     let mut content = String::new();
     template_file
         .read_to_string(&mut content)
-        .chain(ErrorKind::ReadFromTemplateFailed(template_path_string))?;
+        .chain(ErrorKind::ReadFromTemplateFailed(path_template_string))?;
 
     let content = content.replace("$LIB_DIR", &libdir_escaped(&lang));
     let content = content.replace("$GDB_PATH", &gdbpath_escaped());
-    create_and_write_file(&out_path, &content)
+    create_and_write_file(&path_project, &content)
 }
 
 fn validate_arguments(config: &ConfigFile, cmdopt: CmdOpt) -> Result<Project> {
