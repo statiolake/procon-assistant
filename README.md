@@ -21,14 +21,14 @@ problem-beginning-char is `a` by default. you can specify it manualy (to use
 with AtCoder Regular Contest that begins from Problem C. if you want to make
 directory with uppercase, you can specify like `A`) .
 
-### `init`
+### `init {project-dir} [--type,-t lang]`
 
 alias: `i`
 
-creates `main.cpp` in the **current directory** with a simple template
-(hard-coded) and automatically open it. it also creates `.clang_complete` file
-which contians the include path for your own library (hard-coded, default:
-`~/procon-lib`).
+creates `main.cpp` in the **project-dir** with a simple template for specified
+language (if not, default is for C++) and automatically open it with your
+editor. it also creates `.clang_complete` file which contians the include path
+for your own library (default: `~/procon-lib`).
 
 ### `addcase`
 
