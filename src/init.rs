@@ -93,7 +93,7 @@ pub fn main(args: Vec<String>) -> Result<()> {
 }
 
 fn create_project_directory(out_dir: &Path) -> Result<()> {
-    fs::create_dir(out_dir).chain(ErrorKind::CreateDestinationDirectoryFailed(
+    fs::create_dir_all(out_dir).chain(ErrorKind::CreateDestinationDirectoryFailed(
         out_dir.display().to_string(),
     ))
 }
