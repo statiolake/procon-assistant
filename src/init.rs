@@ -30,13 +30,13 @@ define_error_kind! {
     [OpeningEditorFailed; (); format!("failed to open editor.")];
 }
 
-struct CmdLineArgs {
+struct CmdOpt {
     name: String,
     lang: Option<String>,
 }
 
-impl CmdLineArgs {
-    pub fn parse(args: Vec<String>) -> Result<CmdLineArgs> {
+impl CmdOpt {
+    pub fn parse(args: Vec<String>) -> Result<CmdOpt> {
         let mut args = args.into_iter();
 
         let mut name = None;
@@ -50,7 +50,7 @@ impl CmdLineArgs {
         }
 
         name.ok_or(Error::new(ErrorKind::ProjectNameNotSpecified()))
-            .map(|name| CmdLineArgs { name, lang })
+            .map(|name| CmdOpt { name, lang })
     }
 }
 
@@ -63,8 +63,8 @@ pub fn main(args: Vec<String>) -> Result<()> {
     let config: ConfigFile = ConfigFile::get_config().chain(ErrorKind::GettingConfigFailed())?;
 
     // parse command line arguments
-    let cmdargs = CmdLineArgs::parse(args)?;
-    let project = validate_arguments(&config, cmdargs)?;
+    let cmdopt = CmdOpt::parse(args)?;
+    let project = validate_arguments(&config, cmdopt)?;
 
     let out_dir = Path::new(&project.name);
     create_project_directory(&out_dir)?;
@@ -130,11 +130,11 @@ fn generate(lang: &Lang, out_dir: &Path, path: &Path) -> Result<()> {
     create_and_write_file(&out_path, &content)
 }
 
-fn validate_arguments(config: &ConfigFile, cmdargs: CmdLineArgs) -> Result<Project> {
-    let name = cmdargs.name;
+fn validate_arguments(config: &ConfigFile, cmdopt: CmdOpt) -> Result<Project> {
+    let name = cmdopt.name;
 
     // generate source code
-    let specified_lang = cmdargs.lang.unwrap_or(config.init_default_lang.clone());
+    let specified_lang = cmdopt.lang.unwrap_or(config.init_default_lang.clone());
 
     let lang = langs::FILETYPE_ALIAS
         .get(&*specified_lang)
