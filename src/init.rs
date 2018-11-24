@@ -134,9 +134,7 @@ fn validate_arguments(config: &ConfigFile, cmdargs: CmdLineArgs) -> Result<Proje
     let name = cmdargs.name;
 
     // generate source code
-    let specified_lang = cmdargs
-        .lang
-        .unwrap_or(config.init_default_file_type.clone());
+    let specified_lang = cmdargs.lang.unwrap_or(config.init_default_lang.clone());
 
     let lang = langs::FILETYPE_ALIAS
         .get(&*specified_lang)

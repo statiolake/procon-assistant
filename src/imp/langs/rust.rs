@@ -6,7 +6,7 @@ use crate::imp::common;
 use crate::imp::preprocess;
 
 pub const LANG: Lang = Lang {
-    file_type: "rust",
+    lang: "rust",
     src_file_name: "main.rs",
     compiler: "rustc",
     lib_dir_getter: get_lib_dir,

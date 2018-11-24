@@ -6,7 +6,7 @@ use crate::imp::common;
 use crate::imp::preprocess;
 
 pub const LANG: Lang = Lang {
-    file_type: "cpp",
+    lang: "cpp",
     src_file_name: "main.cpp",
     compiler: "g++",
     lib_dir_getter: get_lib_dir,

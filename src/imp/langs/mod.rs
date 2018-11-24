@@ -13,7 +13,7 @@ pub mod rust;
 
 #[derive(Clone)]
 pub struct Lang {
-    pub file_type: &'static str,
+    pub lang: &'static str,
     pub src_file_name: &'static str,
     pub compiler: &'static str,
     pub lib_dir_getter: fn() -> PathBuf,
@@ -25,8 +25,8 @@ pub struct Lang {
 lazy_static! {
     pub static ref LANGS_MAP: HashMap<&'static str, Lang> = {
         let mut m = HashMap::new();
-        m.insert(cpp::LANG.file_type, cpp::LANG);
-        m.insert(rust::LANG.file_type, rust::LANG);
+        m.insert(cpp::LANG.lang, cpp::LANG);
+        m.insert(rust::LANG.lang, rust::LANG);
         m
     };
     pub static ref FILETYPE_ALIAS: HashMap<&'static str, &'static str> = {

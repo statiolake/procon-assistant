@@ -26,7 +26,7 @@ pub struct ConfigFile {
     pub is_terminal_editor: bool,
     pub init_auto_open: bool,
     pub init_open_directory_instead_of_specific_file: bool,
-    pub init_default_file_type: String,
+    pub init_default_lang: String,
     pub addcase_give_argument_once: bool,
 }
 
