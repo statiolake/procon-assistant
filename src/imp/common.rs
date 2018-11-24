@@ -33,7 +33,7 @@ pub fn open(config: &ConfigFile, names: &[&str]) -> Result<()> {
     }
 
     for mut command in commands {
-        if config.addcase_wait_editor_finish {
+        if config.is_terminal_editor {
             use std::process::Stdio;
             command
                 .stdin(Stdio::inherit())
