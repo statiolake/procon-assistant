@@ -46,12 +46,9 @@ pub fn store_session_info(service_name: &str, contents: &[u8]) -> io::Result<()>
     clear_session_info(service_name).expect("critical error: failed to clear session info.");
 
     let place = place_to_store(service_name);
-    // print_info!(
-    //     true,
-    //     "storing session info for {} at {}",
-    //     service_name,
-    //     place.display()
-    // );
+    if let Some(parent) = place.parent() {
+        fs::create_dir_all(parent)?;
+    }
     File::create(place)?.write_all(contents)?;
 
     Ok(())
