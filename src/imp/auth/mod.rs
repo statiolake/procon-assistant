@@ -1,4 +1,3 @@
-use std::env;
 use std::fs;
 use std::fs::File;
 use std::io;
@@ -23,7 +22,7 @@ pub fn ask_account_info(service_name: &str) -> (String, String) {
 }
 
 pub fn place_to_store(service_name: &str) -> PathBuf {
-    let mut place_to_store = env::current_exe()
+    let mut place_to_store = current_exe::current_exe()
         .expect("critical error: failed to get current executable path.")
         .parent()
         .expect("critical error: failed to get parent directory of current executable. ???")

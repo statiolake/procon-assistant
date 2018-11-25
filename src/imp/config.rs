@@ -1,6 +1,5 @@
 use serde_derive::Deserialize;
 
-use std::env;
 use std::fs::File;
 
 use crate::tags::SPACER;
@@ -32,7 +31,9 @@ pub struct ConfigFile {
 
 impl ConfigFile {
     pub fn get_config() -> Result<ConfigFile> {
-        let config_path = env::current_exe().unwrap().with_file_name("config.json");
+        let config_path = current_exe::current_exe()
+            .unwrap()
+            .with_file_name("config.json");
         File::open(&config_path)
             .chain(ErrorKind::ConfigFileMissing())
             .and_then(|f| serde_json::from_reader(f).chain(ErrorKind::ErrorInConfigFile()))

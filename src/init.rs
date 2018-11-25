@@ -1,4 +1,3 @@
-use std::env;
 use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
@@ -110,7 +109,7 @@ fn safe_generate(lang: &Lang, path_project: &Path, path: &Path) -> Result<()> {
 }
 
 fn generate(lang: &Lang, path_project: &Path, path: &Path) -> Result<()> {
-    let exe_dir = env::current_exe().unwrap();
+    let exe_dir = current_exe::current_exe().unwrap();
     let exe_dir = exe_dir.parent().unwrap();
     let path_template = exe_dir.join("template").join(path);
     let path_project = path_project.join(path);
