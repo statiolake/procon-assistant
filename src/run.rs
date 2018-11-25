@@ -24,6 +24,7 @@ define_error_kind! {
     [InvalidArgument; (); format!("failed to parse the passed argument.")];
     [LoadingTestCaseFailed; (); format!("failed to load some test case.")];
     [JudgingFailed; (); format!("failed to judge.")];
+    [TestNotSuccessful; (); format!("some test fails.")];
 }
 
 pub fn main(args: Vec<String>) -> Result<()> {
@@ -47,9 +48,11 @@ pub fn main(args: Vec<String>) -> Result<()> {
     if let JudgeResult::Passed = result {
         eprintln!("");
         clip::copy_to_clipboard(&lang).chain(ErrorKind::CopyingToClipboardFailed())?;
-    }
 
-    Ok(())
+        Ok(())
+    } else {
+        Err(Error::new(ErrorKind::TestNotSuccessful()))
+    }
 }
 
 fn run_tests(args: &Vec<String>) -> Result<JudgeResult> {
