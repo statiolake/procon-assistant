@@ -132,23 +132,21 @@ fn error_into_box<T: 'static + error::Error + Send>(x: T) -> Box<dyn error::Erro
 
 fn parse_text(text: String) -> Result<Vec<TestCaseFile>> {
     let document = Html::parse_document(&text);
-    let sel_div_task_statement = Selector::parse("div#task-statement").unwrap();
+    let sel_div_task_stmt = Selector::parse("div#task-statement").unwrap();
     let sel_span_ja = Selector::parse("span.lang-ja").unwrap();
     let sel_pre = Selector::parse("pre").unwrap();
 
-    let pres: Vec<_> = document
-        .select(&sel_div_task_statement)
-        .next()
-        .ok_or(Error::new(ErrorKind::FindingTagFailed(
-            "div#task-statement".into(),
-        )))?
-        .select(&sel_span_ja)
-        .next()
-        .ok_or(Error::new(ErrorKind::FindingTagFailed(
-            "div#span.lang-ja".into(),
-        )))?
-        .select(&sel_pre)
-        .collect();
+    let div_task_stmt = document.select(&sel_div_task_stmt).next();
+    let div_task_stmt = div_task_stmt.ok_or(Error::new(ErrorKind::FindingTagFailed(
+        "div#task-statement".into(),
+    )))?;
+
+    let lang_ja = div_task_stmt.select(&sel_span_ja).next();
+    let lang_ja = lang_ja.or(div_task_stmt.select(&sel_div_task_stmt).next());
+    let lang_ja = lang_ja.ok_or(Error::new(ErrorKind::FindingTagFailed(
+        "span.lang-ja".into(),
+    )))?;
+    let pres: Vec<_> = lang_ja.select(&sel_pre).collect();
 
     if pres.len() <= 1 || (pres.len() - 1) % 2 != 0 {
         return Err(Error::new(ErrorKind::UnexpectedNumberOfPreTag(pres.len())));
