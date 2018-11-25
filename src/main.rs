@@ -49,7 +49,7 @@ macro_rules! define_error_kind {
     () => {
         #[derive(Debug)]
         pub enum ErrorKind {}
-        impl ::std::fmt::Display for Error {
+        impl ::std::fmt::Display for ErrorKind {
             fn fmt(&self, _: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                 unreachable!();
             }
