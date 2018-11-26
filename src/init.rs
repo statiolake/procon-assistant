@@ -19,7 +19,6 @@ const FILES: &[&str] = &[
 define_error!();
 define_error_kind! {
     [GettingConfigFailed; (); format!("failed to get config.")];
-    [ProjectNameNotSpecified; (); format!("project name was not specified.")];
     [UnknownFileType; (lang: String); format!("unknown file type: {}", lang)];
     [CreateDestinationDirectoryFailed; (name: String); format!("creating directory `{}' failed.", name)];
     [CreateDestinationFailed; (name: String); format!("creating `{}' failed.", name)];
@@ -30,7 +29,7 @@ define_error_kind! {
 }
 
 struct CmdOpt {
-    name: String,
+    name: Option<String>,
     lang: Option<String>,
 }
 
@@ -48,8 +47,7 @@ impl CmdOpt {
             }
         }
 
-        name.ok_or(Error::new(ErrorKind::ProjectNameNotSpecified()))
-            .map(|name| CmdOpt { name, lang })
+        Ok(CmdOpt { name, lang })
     }
 }
 
@@ -130,7 +128,7 @@ fn generate(lang: &Lang, path_project: &Path, path: &Path) -> Result<()> {
 }
 
 fn validate_arguments(config: &ConfigFile, cmdopt: CmdOpt) -> Result<Project> {
-    let name = cmdopt.name;
+    let name = cmdopt.name.unwrap_or(".".into());
 
     // generate source code
     let specified_lang = cmdopt.lang.unwrap_or(config.init_default_lang.clone());
