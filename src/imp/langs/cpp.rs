@@ -8,7 +8,7 @@ use crate::imp::preprocess;
 pub const LANG: Lang = Lang {
     lang: "cpp",
     src_file_name: "main.cpp",
-    compiler: "g++",
+    compiler: "clang++",
     lib_dir_getter: get_lib_dir,
     compile_command_maker: compile_command,
     preprocessor: preprocess::cpp::preprocess,
@@ -31,16 +31,26 @@ fn flags_setter(cmd: &mut Command) {
     cmd.arg(format!("-I{}", get_lib_dir().display()).escape_default());
     cmd.args(&[
         "-g",
+        #[cfg(windows)]
+        "-gcodeview",
+        "-O0",
+        #[cfg(unix)]
+        "-fdiagnostics-color=always",
+        #[cfg(unix)]
+        "-fsanitize=address,leak,memory,undefined",
+        #[cfg(windows)]
+        "-Xclang",
+        #[cfg(windows)]
+        "-flto-visibility-public-std",
         "-std=c++14",
         "-Wall",
         "-Wextra",
         "-Wno-old-style-cast",
         "-DPA_DEBUG",
-        if cfg!(unix) { "-omain" } else { "-omain.exe" },
+        #[cfg(unix)]
+        "-omain",
+        #[cfg(windows)]
+        "-omain.exe",
         "main.cpp",
     ]);
-    if cfg!(unix) {
-        cmd.arg("-fsanitize=address");
-        cmd.arg("-fdiagnostics-color=always");
-    }
 }
