@@ -1,4 +1,84 @@
-# procon-assistant: assistant program for programming contest.
+# procon-assistant
+
+assistant program for programming contest.
+
+## How to Setup
+
+### Prerequirements
+
+#### Common
+
+1. clang
+
+    clang is used to compile the binary.
+
+    **Note for Windows** LLVM for Windows (official build) found at
+    <http://releases.llvm.org/download.html> is recommended (MinGW on MSYS2
+    version may work, but not tested). Make sure your `clang++.exe` executable
+    is placed at the directory which is added to `PATH` environment variable.
+
+1. your favorite editor
+
+    Any kind of editor works well with this program, but especially Vim or
+    Visual Studio Code is useful. Auto-completion and syntax checker
+    integration settings are present, since I usually use them to code.
+
+#### Windows
+
+Nothing special is needed.
+
+#### Linux
+
+##### Build Dependencies
+
+* OpenSSL (development)
+* pkgconf
+
+if one of them is lacking, simply it doesn't compile.
+
+##### Runtime Dependencies
+
+* xclip (for clipboard functionality)
+
+You can use other features without xclip (though it prints no-such-file error
+when trying to use xclip).
+
+### Create config.json
+
+This program needs `config.json` in the same directory with the executable
+(usually `target/release/config.json` or somewhere).
+
+An example config is:
+
+```json
+{
+  "editor": "/path/to/your/favorite/editor",
+  "is_terminal_editor": false,
+  "init_auto_open": true,
+  "init_open_directory_instead_of_specific_file": false,
+  "init_default_lang": "cpp",
+  "addcase_give_argument_once": false
+}
+```
+
+Short description for each variable is as follows:
+
+| name | type | description |
+|------|------|-------------|
+| editor | boolean | The path of your editor |
+| is_terminal_editor | boolean | if the editor is used within the terminal; this matters `addcase` command waits the editor's finish or not. `addcase` opens two file, `inX.txt` and `outX.txt`. When true, addcase waits the editor's finish before opening `outX.txt`. Otherwise `addcase` spawns the editor opening `outX.txt` before the finish of the first editor opening `inX.txt`. |
+| init_auto_open | boolean | If true, open initialized file or project with the editor to start coding. |
+| init_open_directory_instead_of_specific_file | boolean | If true, the project directory name is specified instead of the `main.cpp`. This is useful for Visual Studio Code, which treat one directory as a workspace. |
+| init_default_lang | string | The default language to be initialized if the language is not specified by the command-line argument. currently, `cpp` and `rust` are supported. |
+| addcase_give_argument_once | boolean | If true, two filenames (`inX.txt`, `outX.txt`) will be passed to the editor at once.  |
+
+### Copy or create symlink (or junction in Windows) to `template` directory
+
+`init` command generates various files. Templates for these generated files
+are in `template` directory, so this program needs `template` directory is at
+the same place the executable exists. Of course, you can simply copy them to
+the same directory, but to avoid inconsistency I recommend making them as a
+link.
 
 ## Usage
 
