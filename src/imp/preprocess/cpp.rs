@@ -155,7 +155,14 @@ fn concat_safe_lines(lines: Vec<String>) -> Vec<String> {
             line_continues = line.ends_with("\\");
         }
 
-        res_line += line.trim_matches('\\');
+        if res_line != "" {
+            // to avoid concatenating two tokens (to avoid previously separated
+            // by newline character to be concatenated because of elision of
+            // newline charactor), insert space between two lines.
+            res_line += " ";
+        }
+
+        res_line += line.trim_matches('\\').trim();
 
         if !line_continues {
             push_and_init(&mut res, &mut res_line);
