@@ -185,7 +185,7 @@ fn main() {
         "fetch" | "f" => fetch::main(args).map_err(box_err),
         "download" | "d" | "dl" => download::main(args).map_err(box_err),
         "run" | "r" => run::main(args).map_err(box_err),
-        "compile" | "co" => compile::main().map_err(box_err),
+        "compile" | "co" => compile::main(args).map_err(box_err),
         "login" | "l" => login::main(args).map_err(box_err),
         "--help" | "-h" => {
             help();

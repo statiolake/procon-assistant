@@ -16,17 +16,18 @@ define_error_kind! {
     [GettingLanguageFailed; (); "failed to get source file."];
 }
 
-pub fn main() -> Result<()> {
+pub fn main(args: Vec<String>) -> Result<()> {
     let lang = langs::get_lang().chain(ErrorKind::GettingLanguageFailed())?;
-    let success = compile(&lang)?;
+    let force = check_force_paremeter(&args);
+    let success = compile(&lang, force)?;
     match success {
         true => Ok(()),
         false => Err(Error::new(ErrorKind::CompilationError())),
     }
 }
 
-pub fn compile(lang: &Lang) -> Result<bool> {
-    if !compile::is_compile_needed(lang).unwrap_or(true) {
+pub fn compile(lang: &Lang, force: bool) -> Result<bool> {
+    if !force && !compile::is_compile_needed(lang).unwrap_or(true) {
         print_info!(true, "no need to compile.");
         return Ok(true);
     }
@@ -57,4 +58,8 @@ pub fn print_compiler_output(kind: &str, output: Option<String>) {
             }
         }
     }
+}
+
+fn check_force_paremeter(args: &Vec<String>) -> bool {
+    args.iter().any(|x| x == "--force" || x == "-f")
 }

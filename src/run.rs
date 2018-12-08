@@ -27,8 +27,13 @@ define_error_kind! {
 }
 
 pub fn main(args: Vec<String>) -> Result<()> {
+    let force = args.iter().any(|x| x == "--force" || x == "-f");
+    let args = args
+        .into_iter()
+        .filter(|x| x != "--force" && x != "-f")
+        .collect();
     let lang = langs::get_lang().chain(ErrorKind::GettingLanguageFailed())?;
-    let success = compile::compile(&lang).chain(ErrorKind::CompilationFailed())?;
+    let success = compile::compile(&lang, force).chain(ErrorKind::CompilationFailed())?;
     let result = match success {
         true => run_tests(&args).chain(ErrorKind::RunningTestsFailed())?,
         false => JudgeResult::CompilationError,
