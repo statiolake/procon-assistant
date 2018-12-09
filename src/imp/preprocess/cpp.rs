@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use crate::imp::langs;
 
-use super::Result;
+use super::{ChainableToError, ErrorKind, Result};
 use super::{Minified, Preprocessed, RawSource};
 
 lazy_static! {
@@ -80,7 +80,9 @@ fn parse_include(
             Some(caps) => {
                 let inc_file = caps.name("inc_file").unwrap().as_str();
                 let inc_path = lib_dir.join(Path::new(inc_file));
-                inc_path.components().collect()
+                let inc_path: PathBuf = inc_path.components().collect();
+                to_absolute::canonicalize(&inc_path)
+                    .chain(ErrorKind::CanonicalizationFailed(inc_path))?
             }
         };
 

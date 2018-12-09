@@ -1,13 +1,14 @@
 use std::fs::File;
 use std::io::prelude::*;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub mod cpp;
 pub mod rust;
 
 define_error!();
 define_error_kind! {
-    [FileNotFound; (file_name: String); format!("failed to load `{}'; file not found.", file_name)];
+    [FileNotFound; (file_name: String); format!("failed to load '{}'; file not found.", file_name)];
+    [CanonicalizationFailed; (path: PathBuf); format!("failed to canonicalize '{}'", path.display())];
 }
 
 macro_rules! preprocessor_newtype {
