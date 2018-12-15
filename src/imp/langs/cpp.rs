@@ -42,6 +42,8 @@ fn flags_setter(cmd: &mut Command) {
         "-Xclang",
         #[cfg(windows)]
         "-flto-visibility-public-std",
+        #[cfg(windows)]
+        "-fno-delayed-template-parsing",
         "-std=c++14",
         "-Wall",
         "-Wextra",
