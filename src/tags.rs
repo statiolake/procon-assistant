@@ -3,7 +3,7 @@ use colored_print::color::{ConsoleColor, ConsoleColor::*};
 pub const TAGS_COLOR: ConsoleColor = LightGreen;
 pub const TAGS_ERROR_COLOR: ConsoleColor = Red;
 pub const TAGS_WARNING_COLOR: ConsoleColor = Yellow;
-pub const TAGS_INFO_COLOR: ConsoleColor = LightBlue;
+pub const TAGS_INFO_COLOR: ConsoleColor = Cyan;
 
 pub const COMPILING: &str = "  Compiling";
 pub const CREATED: &str = "    Created";
