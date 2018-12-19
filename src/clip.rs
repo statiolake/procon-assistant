@@ -28,7 +28,6 @@ pub fn copy_to_clipboard(lang: &Lang) -> preprocess::Result<()> {
     print_finished!("copying");
 
     print_info!(
-        true,
         "the copied string is as follows. you can pipe it when auto-copying did not function."
     );
     println!("{}", minified);

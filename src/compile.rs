@@ -28,7 +28,7 @@ pub fn main(args: Vec<String>) -> Result<()> {
 
 pub fn compile(lang: &Lang, force: bool) -> Result<bool> {
     if !force && !compile::is_compile_needed(lang).unwrap_or(true) {
-        print_info!(true, "no need to compile.");
+        print_info!("no need to compile.");
         return Ok(true);
     }
     compile_src(lang).chain(ErrorKind::CompilationFailed())
@@ -50,7 +50,7 @@ pub fn compile_src(lang: &Lang) -> compile::Result<bool> {
 pub fn print_compiler_output(kind: &str, output: Option<String>) {
     if let Some(output) = output {
         let output = output.trim().split('\n');
-        print_info!(true, "compiler {}:", kind);
+        print_info!("compiler {}:", kind);
         for line in output {
             colored_eprintln! {
                 common::colorize();

@@ -86,10 +86,9 @@ fn parse_include(
             }
         };
 
-        print_info!(true, "including {}", inc_path.display());
+        print_info!("including {}", inc_path.display());
         let will_be_replaced = if included.contains(&inc_path) {
             print_info!(
-                true,
                 "... skipping previously included file {}",
                 inc_path.display()
             );

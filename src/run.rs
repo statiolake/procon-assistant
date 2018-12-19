@@ -85,7 +85,7 @@ fn enumerate_test_cases(args: &Vec<String>) -> Result<Vec<TestCase>> {
 }
 
 fn print_solution_output(kind: &str, result: &Vec<String>) {
-    print_info!(true, "{}:", kind);
+    print_info!("{}:", kind);
     for line in result.iter() {
         colored_eprintln! {
             common::colorize();
@@ -146,10 +146,10 @@ fn print_result(result: &JudgeResult, duration: &time::Duration, display: String
             print_solution_output("sample case input", &input);
             print_solution_output("expected output", &expected_output);
             print_solution_output("actual output", &actual_output);
-            print_info!(true, "{}", difference.message());
+            print_info!("{}", difference.message());
         }
         JudgeResult::RuntimeError(ref reason) => {
-            print_info!(true, "{}", reason);
+            print_info!("{}", reason);
         }
         _ => {}
     }

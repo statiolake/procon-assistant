@@ -97,7 +97,7 @@ fn create_project_directory(path_project: &Path) -> Result<()> {
 
 fn safe_generate(lang: &Lang, path_project: &Path, path: &Path) -> Result<()> {
     if path_project.join(path).exists() {
-        print_info!(true, "file {} already exists, skipping.", path.display());
+        print_info!("file {} already exists, skipping.", path.display());
         return Ok(());
     }
 
@@ -113,7 +113,7 @@ fn generate(lang: &Lang, path_project: &Path, path: &Path) -> Result<()> {
     let path_project = path_project.join(path);
 
     let path_template_string = path_template.display().to_string();
-    print_info!(true, "loading template from `{}'", path_template_string);
+    print_info!("loading template from `{}'", path_template_string);
     let mut template_file = File::open(path_template)
         .chain(ErrorKind::OpenTemplateFailed(path_template_string.clone()))?;
 

@@ -77,18 +77,12 @@ impl super::TestCaseProvider for Aoj {
     }
 
     fn needs_authenticate(&self) -> bool {
-        print_info!(
-            true,
-            "needs_authenticate() is not implemetented for now, always returns `false'."
-        );
+        print_info!("needs_authenticate() is not implemetented for now, always returns `false'.");
         false
     }
 
     fn authenticate(&self) -> result::Result<(), Box<dyn error::Error + Send>> {
-        print_info!(
-            true,
-            "authenticate() for AOJ is not implemented for now, do nothing."
-        );
+        print_info!("authenticate() for AOJ is not implemented for now, do nothing.");
         Ok(())
     }
 
