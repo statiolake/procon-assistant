@@ -14,8 +14,8 @@ pub fn main(_quiet: bool) -> Result<()> {
     let config: ConfigFile = ConfigFile::get_config().chain(ErrorKind::GettingConfigFailed())?;
     let tsf = TestCaseFile::new_with_idx(
         TestCaseFile::next_unused_idx().chain(ErrorKind::TestCaseFileSettingUpFailed())?,
-        "".as_bytes().into(),
-        "".as_bytes().into(),
+        Vec::new(),
+        Vec::new(),
     );
     tsf.write().chain(ErrorKind::TestCaseFileCreationFailed())?;
 

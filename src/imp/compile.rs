@@ -48,13 +48,14 @@ pub fn is_compile_needed(lang: &Lang) -> Result<bool> {
         .chain(ErrorKind::CheckingMetadataFailed())?
         .modified()
         .chain(ErrorKind::CheckingMetadataFailed())?;
-    return Ok(src_modified > bin_modified);
+    Ok(src_modified > bin_modified)
 }
 
 fn wrap_output_to_option(output: &[u8]) -> Option<(&[u8])> {
-    match output.is_empty() {
-        true => None,
-        false => Some(output),
+    if output.is_empty() {
+        None
+    } else {
+        Some(output)
     }
 }
 
@@ -65,7 +66,7 @@ fn output_to_string(output: &[u8]) -> String {
         use encoding::{DecoderTrap, Encoding};
         WINDOWS_31J
             .decode(output, DecoderTrap::Strict)
-            .unwrap_or("(failed to decode output)".into())
+            .unwrap_or_else(|_| "(failed to decode output)".into())
     } else {
         // otherwise, decode output as utf-8 as usual.
         String::from_utf8_lossy(output).into()

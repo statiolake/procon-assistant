@@ -10,9 +10,9 @@ define_error!();
 define_error_kind! {
     [FetchingProblemFailed; (problem_id: String); format!("failed to fetch the problem `{}'", problem_id)];
     [UnexpectedNumberOfPreTag; (detected: usize); format!("unexpected number of <pre>: {}", detected)];
-    [CouldNotDetermineTestCaseFileName; (); format!("failed to determine test case file name.")];
+    [CouldNotDetermineTestCaseFileName; (); "failed to determine test case file name.".to_string()];
     [AuthenticatedGetFailed; (url: String); format!("failed to get the page at `{}'.", url)];
-    [GettingTextFailed; (); format!("failed to get text from page.")];
+    [GettingTextFailed; (); "failed to get text from page.".to_string()];
 }
 
 #[derive(Debug)]

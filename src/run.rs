@@ -17,26 +17,27 @@ const OUTPUT_COLOR: ConsoleColor = LightMagenta;
 
 define_error!();
 define_error_kind! {
-    [CompilationFailed; (); format!("failed to compile.")];
-    [RunningTestsFailed; (); format!("test running failed.")];
-    [GettingLanguageFailed; (); format!("failed to get source file.")];
-    [CopyingToClipboardFailed; (); format!("failed to copy to clipboard.")];
-    [InvalidArgument; (); format!("failed to parse the passed argument.")];
-    [LoadingTestCaseFailed; (); format!("failed to load some test case.")];
-    [JudgingFailed; (); format!("failed to judge.")];
+    [CompilationFailed; (); "failed to compile.".to_string()];
+    [RunningTestsFailed; (); "test running failed.".to_string()];
+    [GettingLanguageFailed; (); "failed to get source file.".to_string()];
+    [CopyingToClipboardFailed; (); "failed to copy to clipboard.".to_string()];
+    [InvalidArgument; (); "failed to parse the passed argument.".to_string()];
+    [LoadingTestCaseFailed; (); "failed to load some test case.".to_string()];
+    [JudgingFailed; (); "failed to judge.".to_string()];
 }
 
 pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
     let force = args.iter().any(|x| x == "--force" || x == "-f");
-    let args = args
+    let args: Vec<_> = args
         .into_iter()
         .filter(|x| x != "--force" && x != "-f")
         .collect();
     let lang = langs::get_lang().chain(ErrorKind::GettingLanguageFailed())?;
     let success = compile::compile(quiet, &lang, force).chain(ErrorKind::CompilationFailed())?;
-    let result = match success {
-        true => run_tests(quiet, &args).chain(ErrorKind::RunningTestsFailed())?,
-        false => JudgeResult::CompilationError,
+    let result = if success {
+        run_tests(quiet, &args).chain(ErrorKind::RunningTestsFailed())?
+    } else {
+        JudgeResult::CompilationError
     };
 
     let (result_color, result_long_verb, result_long_name) = result.long_name();
@@ -59,11 +60,11 @@ pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
     }
 }
 
-fn run_tests(quiet: bool, args: &Vec<String>) -> Result<JudgeResult> {
+fn run_tests(quiet: bool, args: &[String]) -> Result<JudgeResult> {
     enumerate_test_cases(&args).and_then(|tcs| run(quiet, tcs))
 }
 
-fn parse_argument_cases(args: &Vec<String>) -> Result<Vec<TestCase>> {
+fn parse_argument_cases(args: &[String]) -> Result<Vec<TestCase>> {
     let mut result = vec![];
     for arg in args.iter() {
         let n: i32 = arg.parse().chain(ErrorKind::InvalidArgument())?;
@@ -74,7 +75,7 @@ fn parse_argument_cases(args: &Vec<String>) -> Result<Vec<TestCase>> {
     Ok(result)
 }
 
-fn enumerate_test_cases(args: &Vec<String>) -> Result<Vec<TestCase>> {
+fn enumerate_test_cases(args: &[String]) -> Result<Vec<TestCase>> {
     let test_cases = if args.is_empty() {
         test_case::enumerate_test_cases().chain(ErrorKind::LoadingTestCaseFailed())
     } else {
@@ -84,7 +85,7 @@ fn enumerate_test_cases(args: &Vec<String>) -> Result<Vec<TestCase>> {
     Ok(test_cases)
 }
 
-fn print_solution_output(quiet: bool, kind: &str, result: &Vec<String>) {
+fn print_solution_output(quiet: bool, kind: &str, result: &[String]) {
     print_info!(!quiet, "{}:", kind);
     for line in result.iter() {
         colored_eprintln! {

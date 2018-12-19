@@ -15,14 +15,14 @@ define_error_kind! {
         "{}maybe you are not logged in?"
     ), selector, SPACER)];
     [UnexpectedNumberOfPreTag; (detected: usize); format!("unexpected number of <pre>: {}", detected)];
-    [CouldNotDetermineTestCaseFileName; (); format!("failed to determine test case file name.")];
+    [CouldNotDetermineTestCaseFileName; (); "failed to determine test case file name.".to_string()];
     [AuthenticatedGetFailed; (url: String); format!("failed to get the page at `{}'.", url)];
-    [GettingTextFailed; (); format!("failed to get text from page.")];
+    [GettingTextFailed; (); "failed to get text from page.".to_string()];
     [InvalidFormatForProblemId; (problem: String); format!(concat!(
         "invalid format for problem-id: `{}'\n",
         "{}example: `abc022a' for AtCoder Beginner Contest 022 Problem A"
     ), problem, SPACER)];
-    [LoginFailed; (); format!("logging in failed.")];
+    [LoginFailed; (); "logging in failed.".to_string()];
 }
 
 #[derive(Debug)]
@@ -138,15 +138,13 @@ fn parse_text(text: String) -> Result<Vec<TestCaseFile>> {
     let sel_pre = Selector::parse("pre").unwrap();
 
     let div_task_stmt = document.select(&sel_div_task_stmt).next();
-    let div_task_stmt = div_task_stmt.ok_or(Error::new(ErrorKind::FindingTagFailed(
-        "div#task-statement".into(),
-    )))?;
+    let div_task_stmt = div_task_stmt
+        .ok_or_else(|| Error::new(ErrorKind::FindingTagFailed("div#task-statement".into())))?;
 
     let lang_ja = div_task_stmt.select(&sel_span_ja).next();
-    let lang_ja = lang_ja.or(div_task_stmt.select(&sel_div_task_stmt).next());
-    let lang_ja = lang_ja.ok_or(Error::new(ErrorKind::FindingTagFailed(
-        "span.lang-ja".into(),
-    )))?;
+    let lang_ja = lang_ja.or_else(|| div_task_stmt.select(&sel_div_task_stmt).next());
+    let lang_ja =
+        lang_ja.ok_or_else(|| Error::new(ErrorKind::FindingTagFailed("span.lang-ja".into())))?;
     let pres: Vec<_> = lang_ja.select(&sel_pre).collect();
 
     if pres.len() <= 1 || (pres.len() - 1) % 2 != 0 {

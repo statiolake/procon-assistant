@@ -17,9 +17,9 @@ define_error_kind! {
     [GettingTasksFailed; (); "failed to get tasks.".to_string()];
     [GettingProblemIdFailed; (); "failed to get contest id.".to_string()];
     [EmptyProblemId; (); "contest id was empty.".to_string()];
-    [GettingProviderFailed; (); format!("failed to get provider.")];
+    [GettingProviderFailed; (); "failed to get provider.".to_string()];
     [AuthenticatedGetFailed; (url: String); format!("failed to get the page at `{}'.", url)];
-    [GettingTextFailed; (); format!("failed to get text from page.")];
+    [GettingTextFailed; (); "failed to get text from page.".to_string()];
 }
 
 pub struct AtCoder {
@@ -89,8 +89,8 @@ impl super::ContestProvider for AtCoder {
         let (beginning_char, numof_problems) =
             get_range_of_problems(quiet, id).map_err(error_into_box)?;
 
-        let fetchers = (0..numof_problems).into_iter().map(|problem| {
-            let problem = ('a' as u8 + problem) as char; // hack: atcoder regular contest starts 'a' while it's showed as 'c'
+        let fetchers = (0..numof_problems).map(|problem| {
+            let problem = (b'a' + problem) as char; // hack: atcoder regular contest starts 'a' while it's showed as 'c'
             let problem_id = format!("{}{}", self.contest.contest_id(), problem);
             fetcher_for(problem_id).map(fetcher_into_box)
         });
@@ -100,8 +100,8 @@ impl super::ContestProvider for AtCoder {
 
         let fetchers = super::Fetchers {
             contest_id: self.contest.contest_id().to_string(),
-            fetchers: fetchers,
-            beginning_char: beginning_char,
+            fetchers,
+            beginning_char,
         };
 
         Ok(fetchers)
@@ -131,7 +131,7 @@ fn get_range_of_problems(quiet: bool, contest_id: &str) -> Result<(char, u8)> {
     let rows: Vec<_> = document
         .select(&sel_tbody)
         .next()
-        .ok_or(Error::new(ErrorKind::GettingTasksFailed()))?
+        .ok_or_else(|| Error::new(ErrorKind::GettingTasksFailed()))?
         .select(&sel_tr)
         .collect();
 
@@ -139,11 +139,11 @@ fn get_range_of_problems(quiet: bool, contest_id: &str) -> Result<(char, u8)> {
     let beginning_char_uppercase = rows[0]
         .select(&sel_a)
         .next()
-        .ok_or(Error::new(ErrorKind::GettingProblemIdFailed()))?
+        .ok_or_else(|| Error::new(ErrorKind::GettingProblemIdFailed()))?
         .inner_html()
         .chars()
         .next()
-        .ok_or(Error::new(ErrorKind::EmptyProblemId()))?;
+        .ok_or_else(|| Error::new(ErrorKind::EmptyProblemId()))?;
 
     Ok((
         beginning_char_uppercase.to_lowercase().next().unwrap(),

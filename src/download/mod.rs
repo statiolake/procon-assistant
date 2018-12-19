@@ -121,7 +121,7 @@ pub fn generate_one(
     let curr_actual = (beginning_char as u8 + problem) as char;
     env::set_current_dir(Path::new(&curr_actual.to_string())).unwrap();
 
-    let curr_url = ('a' as u8 + problem) as char;
+    let curr_url = (b'a' + problem) as char;
     contest_id.push(curr_url);
     let tcfs = fetch::fetch_test_case_files(quiet, fetcher).chain(ErrorKind::FetchError())?;
     fetch::write_test_case_files(tcfs).chain(ErrorKind::WritingTestCaseFailed())?;

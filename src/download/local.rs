@@ -11,10 +11,10 @@ use crate::fetch::ProblemDescriptor;
 
 define_error!();
 define_error_kind! {
-    [AnythingNotSpecified; (); format!("problems.txt not found in this directory.")];
+    [AnythingNotSpecified; (); "problems.txt not found in this directory.".to_string()];
     [CouldNotOpenProblemsTxt; (file_path: String); format!("couldn't open `{}'.", file_path)];
     [CouldNotReadProblemsTxt; (file_path: String); format!("couldn't read `{}'.", file_path)];
-    [ParseFailed; (); format!("failed to parse specified problem.")];
+    [ParseFailed; (); "failed to parse specified problem.".to_string()];
 }
 
 pub struct Local {
@@ -79,7 +79,7 @@ fn load_problem_list(file_path: String) -> Result<Vec<String>> {
     let res: Vec<_> = content
         .split('\n')
         .map(|x| x.trim())
-        .filter(|&x| !x.starts_with("#"))
+        .filter(|&x| !x.starts_with('#'))
         .filter(|&x| x != "")
         .map(|x| x.into())
         .collect();

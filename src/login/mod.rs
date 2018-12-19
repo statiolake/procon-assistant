@@ -8,7 +8,7 @@ define_error_kind! {
     [UnknownContestSite; (site: String); format!(
         "contest-site {} is unknown.", site
     )];
-    [LoginError; (); format!("log in failed.")];
+    [LoginError; (); "log in failed.".to_string()];
 }
 
 pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {

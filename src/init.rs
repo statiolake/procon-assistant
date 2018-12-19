@@ -18,14 +18,14 @@ const FILES: &[&str] = &[
 
 define_error!();
 define_error_kind! {
-    [GettingConfigFailed; (); format!("failed to get config.")];
+    [GettingConfigFailed; (); "failed to get config.".to_string()];
     [UnknownFileType; (lang: String); format!("unknown file type: {}", lang)];
     [CreateDestinationDirectoryFailed; (name: String); format!("creating directory `{}' failed.", name)];
     [CreateDestinationFailed; (name: String); format!("creating `{}' failed.", name)];
     [WriteToDestinationFailed; (name: String); format!("writing `{}' failed.", name)];
     [OpenTemplateFailed; (name: String); format!("template file for `{}' not found.", name)];
     [ReadFromTemplateFailed; (name: String); format!("reading from template `{}' failed.", name)];
-    [OpeningEditorFailed; (); format!("failed to open editor.")];
+    [OpeningEditorFailed; (); "failed to open editor.".to_string()];
 }
 
 struct CmdOpt {
@@ -128,18 +128,20 @@ fn generate(quiet: bool, lang: &Lang, path_project: &Path, path: &Path) -> Resul
 }
 
 fn validate_arguments(config: &ConfigFile, cmdopt: CmdOpt) -> Result<Project> {
-    let name = cmdopt.name.unwrap_or(".".into());
+    let name = cmdopt.name.unwrap_or_else(|| ".".into());
 
     // generate source code
-    let specified_lang = cmdopt.lang.unwrap_or(config.init_default_lang.clone());
+    let specified_lang = cmdopt
+        .lang
+        .unwrap_or_else(|| config.init_default_lang.clone());
 
     let lang = langs::FILETYPE_ALIAS
         .get(&*specified_lang)
-        .ok_or(Error::new(ErrorKind::UnknownFileType(specified_lang)))?;
+        .ok_or_else(|| Error::new(ErrorKind::UnknownFileType(specified_lang)))?;
 
     let lang = langs::LANGS_MAP
         .get(lang)
-        .expect(&format!("internal error: unknown file type {}", lang));
+        .unwrap_or_else(|| panic!("internal error: unknown file type {}", lang));
 
     Ok(Project { name, lang })
 }
@@ -160,7 +162,7 @@ fn create_and_write_file(path: &Path, content: &str) -> Result<()> {
 fn gdbpath_escaped() -> String {
     which::which("gdb")
         .map(|path| path.display().to_string().escape_default())
-        .unwrap_or("dummy - could not find GDB in your system".into())
+        .unwrap_or_else(|_| "dummy - could not find GDB in your system".into())
 }
 
 fn libdir_escaped(lang: &Lang) -> String {

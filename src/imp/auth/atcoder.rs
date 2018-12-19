@@ -7,17 +7,17 @@ const SERVICE_NAME: &str = "atcoder";
 
 define_error!();
 define_error_kind! {
-    [InvalidUtf8SessionInfo; (); format!("session info has invalid utf-8.")];
-    [RequestingError; (); format!("failed to send your request.")];
-    [FetchingLoginPageFailed; (); format!("failed to fetch login page.")];
-    [ParsingHtmlFailed; (); format!("failed to parse received HTML.")];
-    [GettingCsrfTokenFailed; (); format!("getting csrf token failed.")];
-    [CsrfTokenMissingValue; (); format!("csrf token has no attribute value!")];
-    [PostingAccountInfoFailed; (); format!("failed to post username and password")];
-    [LoginUnsuccessful; (); format!("logging in failed; check your username and password.")];
-    [InvalidHeaderValue; (); format!("invalid header value.")];
-    [MissingRevelSession; (); format!("failed to find REVEL_SESSION")];
-    [StoringRevelSessionFailed; (); format!("failed to store REVEL_SESSION.")];
+    [InvalidUtf8SessionInfo; (); "session info has invalid utf-8.".to_string()];
+    [RequestingError; (); "failed to send your request.".to_string()];
+    [FetchingLoginPageFailed; (); "failed to fetch login page.".to_string()];
+    [ParsingHtmlFailed; (); "failed to parse received HTML.".to_string()];
+    [GettingCsrfTokenFailed; (); "getting csrf token failed.".to_string()];
+    [CsrfTokenMissingValue; (); "csrf token has no attribute value!".to_string()];
+    [PostingAccountInfoFailed; (); "failed to post username and password".to_string()];
+    [LoginUnsuccessful; (); "logging in failed; check your username and password.".to_string()];
+    [InvalidHeaderValue; (); "invalid header value.".to_string()];
+    [MissingRevelSession; (); "failed to find REVEL_SESSION".to_string()];
+    [StoringRevelSessionFailed; (); "failed to store REVEL_SESSION.".to_string()];
     [HTTPStatusNotOk; (status: StatusCode); format!("HTTP status not OK: {:?}", status)];
 }
 
@@ -102,11 +102,11 @@ fn get_csrf_token_from_response(res: &mut reqwest::Response) -> Result<String> {
     let csrf_token_tag = doc
         .select(&sel_csrf_token)
         .next()
-        .ok_or(Error::new(ErrorKind::GettingCsrfTokenFailed()))?;
+        .ok_or_else(|| Error::new(ErrorKind::GettingCsrfTokenFailed()))?;
     let csrf_token_tag_value = csrf_token_tag
         .value()
         .attr("value")
-        .ok_or(Error::new(ErrorKind::CsrfTokenMissingValue()))?;
+        .ok_or_else(|| Error::new(ErrorKind::CsrfTokenMissingValue()))?;
 
     Ok(csrf_token_tag_value.to_string())
 }
@@ -194,7 +194,7 @@ fn find_revel_session(cookie: Vec<(String, String)>) -> Result<String> {
     cookie
         .into_iter()
         .find(|c| c.0 == "REVEL_SESSION")
-        .ok_or(Error::new(ErrorKind::MissingRevelSession()))
+        .ok_or_else(|| Error::new(ErrorKind::MissingRevelSession()))
         .map(|c| c.1)
 }
 

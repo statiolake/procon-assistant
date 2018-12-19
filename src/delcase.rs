@@ -29,6 +29,7 @@ pub fn main(_quiet: bool, args: Vec<String>) -> Result<()> {
     // remove test case from test cases
     let len = test_cases.len();
     let mut removed = 0;
+    #[allow(clippy::explicit_counter_loop)]
     for idx in indices {
         if idx >= len {
             return Err(Error::new(ErrorKind::IndexOutOfRange(
@@ -73,7 +74,7 @@ fn parse_args(args: Vec<String>) -> Result<Vec<usize>> {
     Ok(res)
 }
 
-fn clean_test_cases(test_cases: &Vec<TestCaseFile>) -> io::Result<()> {
+fn clean_test_cases(test_cases: &[TestCaseFile]) -> io::Result<()> {
     for test_case in test_cases {
         remove_test_case(test_case)?;
     }

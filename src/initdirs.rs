@@ -8,9 +8,7 @@ define_error_kind! {
     [InvalidNumberOfArgument; (n: usize, info: &'static str); format!(
         "invalid number of arguments for initdir command: {}\n{}{}", n, SPACER, info
     )];
-    [ParsingNumberOfProblemsFailed; (); format!(
-        "failed to parse the number of problems."
-    )];
+    [ParsingNumberOfProblemsFailed; (); "failed to parse the number of problems.".to_string()];
 }
 
 pub fn main(_quiet: bool, args: Vec<String>) -> Result<()> {
@@ -24,7 +22,7 @@ pub fn main(_quiet: bool, args: Vec<String>) -> Result<()> {
             "please specify the number of problems.",
         ))),
         2 => Ok('a'),
-        3 if args[2].len() > 0 => Ok(args[2].chars().next().unwrap()),
+        3 if !args[2].is_empty() => Ok(args[2].chars().next().unwrap()),
         n => Err(Error::new(ErrorKind::InvalidNumberOfArgument(
             n,
             "too many arguments",

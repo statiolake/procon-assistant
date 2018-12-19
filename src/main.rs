@@ -123,7 +123,7 @@ use std::process;
 fn help() {
     println!("Procon Assistant");
     println!("Usage: procon-assistant {{command}} [options]");
-    println!("");
+    println!();
     println!("List of commands:");
     println!("    initdirs {{contest-name}} {{numof-problems}} [beginning-char]");
     println!("        initializes directories tree (name/{{a,...,a+num}})");

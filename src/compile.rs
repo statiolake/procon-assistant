@@ -20,9 +20,10 @@ pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
     let lang = langs::get_lang().chain(ErrorKind::GettingLanguageFailed())?;
     let force = check_force_paremeter(&args);
     let success = compile(quiet, &lang, force)?;
-    match success {
-        true => Ok(()),
-        false => Err(Error::new(ErrorKind::CompilationError())),
+    if success {
+        Ok(())
+    } else {
+        Err(Error::new(ErrorKind::CompilationError()))
     }
 }
 
@@ -62,6 +63,6 @@ pub fn print_compiler_output(quiet: bool, kind: &str, output: Option<String>) {
     }
 }
 
-fn check_force_paremeter(args: &Vec<String>) -> bool {
+fn check_force_paremeter(args: &[String]) -> bool {
     args.iter().any(|x| x == "--force" || x == "-f")
 }

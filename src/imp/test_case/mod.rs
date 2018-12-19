@@ -18,7 +18,7 @@ define_error_kind! {
         existing_outfile, inexisting_infile
     )];
     [FileCreationFailed; (name: String); format!("failed to create `{}'", name)];
-    [ExecutionOfMainBinaryFailed; (); format!("failed to execute compiled binary main.")];
+    [ExecutionOfMainBinaryFailed; (); "failed to execute compiled binary main.".to_string()];
 }
 
 #[derive(Debug)]
@@ -86,8 +86,7 @@ impl TestCaseFile {
 
         if Path::new(&of_name).exists() {
             return Err(Error::new(ErrorKind::MismatchingTestCaseFiles(
-                of_name.into(),
-                if_name.into(),
+                of_name, if_name,
             )));
         }
 
@@ -177,7 +176,7 @@ fn spawn_main() -> Result<Child> {
         .chain(ErrorKind::ExecutionOfMainBinaryFailed())
 }
 
-fn input_to_child(child: &mut Child, if_contents: &Vec<u8>) {
+fn input_to_child(child: &mut Child, if_contents: &[u8]) {
     child.stdin.take().unwrap().write_all(if_contents).unwrap()
 }
 
@@ -256,7 +255,8 @@ fn compare_content_in_detail(
     let actual_output = split_lines_to_vec(actual_output);
 
     let difference = judge_result::enumerate_different_lines(&expected_output, &actual_output);
-    return if difference == OutputDifference::NotDifferent {
+
+    if difference == OutputDifference::NotDifferent {
         JudgeResult::PresentationError
     } else {
         JudgeResult::WrongAnswer(Some(judge_result::WrongAnswer {
@@ -265,7 +265,7 @@ fn compare_content_in_detail(
             actual_output,
             difference,
         }))
-    };
+    }
 }
 
 fn split_lines_to_vec(s: String) -> Vec<String> {
@@ -273,5 +273,5 @@ fn split_lines_to_vec(s: String) -> Vec<String> {
 }
 
 fn remove_cr(v: Vec<u8>) -> Vec<u8> {
-    v.into_iter().filter(|&x| x != '\r' as u8).collect()
+    v.into_iter().filter(|&x| x != b'\r').collect()
 }

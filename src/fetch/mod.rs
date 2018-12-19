@@ -21,11 +21,9 @@ define_error_kind! {
     [UnknownContestSite; (site: String); format!(
         "contest-site `{}' is unknown.", site
     )];
-    [ProblemUnspecified; (); format!(
-        "contest-site and problem-id are not specified."
-    )];
-    [FetchFailed; (); format!("failed to fetch.")];
-    [ProviderCreationFailed; (); format!("failed to create provider.")];
+    [ProblemUnspecified; ();  "contest-site and problem-id are not specified.".to_string()];
+    [FetchFailed; (); "failed to fetch.".to_string()];
+    [ProviderCreationFailed; (); "failed to create provider.".to_string()];
     [TestCaseFileWritionFailed; (name: String); format!("failed to write test case file `{}'.", name)];
 }
 

@@ -52,5 +52,5 @@ pub fn get_lang() -> Result<Lang> {
             return Ok(lang.clone());
         }
     }
-    return Err(Error::new(ErrorKind::FileNotFound()));
+    Err(Error::new(ErrorKind::FileNotFound()))
 }

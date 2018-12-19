@@ -101,9 +101,8 @@ fn parse_include(
             let next_lib_dir = inc_path
                 .parent()
                 .expect("internal error: cannot extract parent");
-            let inc_src = super::read_source_file(&inc_path)
-                .and_then(|src| parse_include(quiet, next_lib_dir, included, src))?;
-            inc_src
+            super::read_source_file(&inc_path)
+                .and_then(|src| parse_include(quiet, next_lib_dir, included, src))?
         };
 
         mem::replace(line, will_be_replaced);
@@ -153,10 +152,10 @@ fn concat_safe_lines(lines: Vec<String>) -> Vec<String> {
         let line = line.trim();
         line_continues = true;
 
-        if line.starts_with("#") {
+        if line.starts_with('#') {
             // flush current string
             push_and_init(&mut res, &mut res_line);
-            line_continues = line.ends_with("\\");
+            line_continues = line.ends_with('\\');
         }
 
         if res_line != "" {

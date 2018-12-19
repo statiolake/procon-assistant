@@ -26,7 +26,9 @@ macro_rules! preprocessor_newtype {
         }
         impl ::std::fmt::Display for $name {
             fn fmt(&self, b: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-                write!(b, "{}", ($clos)(self.inner()))
+                // to avoid clippy...
+                let clos = $clos;
+                write!(b, "{}", clos(self.inner()))
             }
         }
     };
@@ -41,9 +43,11 @@ pub fn read_source_file(file_path: &Path) -> Result<RawSource> {
     File::open(file_path)
         .chain(ErrorKind::FileNotFound(file_path.display().to_string()))?
         .read_to_string(&mut src_content)
-        .expect(&format!(
-            "critical error: failed to read `{}' from disk.",
-            file_path.display()
-        ));
+        .unwrap_or_else(|_| {
+            panic!(
+                "critical error: failed to read `{}' from disk.",
+                file_path.display()
+            )
+        });
     Ok(RawSource(src_content))
 }
