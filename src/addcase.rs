@@ -10,7 +10,7 @@ define_error_kind! {
     [FileOpeningFailed; (); "failed to open created file."];
 }
 
-pub fn main() -> Result<()> {
+pub fn main(_quiet: bool) -> Result<()> {
     let config: ConfigFile = ConfigFile::get_config().chain(ErrorKind::GettingConfigFailed())?;
     let tsf = TestCaseFile::new_with_idx(
         TestCaseFile::next_unused_idx().chain(ErrorKind::TestCaseFileSettingUpFailed())?,

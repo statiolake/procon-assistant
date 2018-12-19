@@ -81,9 +81,13 @@ impl super::ContestProvider for AtCoder {
         self.contest.url()
     }
 
-    fn make_fetchers(&self) -> result::Result<super::Fetchers, Box<dyn error::Error + Send>> {
+    fn make_fetchers(
+        &self,
+        quiet: bool,
+    ) -> result::Result<super::Fetchers, Box<dyn error::Error + Send>> {
         let id = self.contest.contest_id();
-        let (beginning_char, numof_problems) = get_range_of_problems(id).map_err(error_into_box)?;
+        let (beginning_char, numof_problems) =
+            get_range_of_problems(quiet, id).map_err(error_into_box)?;
 
         let fetchers = (0..numof_problems).into_iter().map(|problem| {
             let problem = ('a' as u8 + problem) as char; // hack: atcoder regular contest starts 'a' while it's showed as 'c'
@@ -113,10 +117,10 @@ fn fetcher_into_box<T: 'static + TestCaseProvider>(x: T) -> Box<dyn TestCaseProv
 }
 
 // Result<(beginning_char, numof_problems)>
-fn get_range_of_problems(contest_id: &str) -> Result<(char, u8)> {
+fn get_range_of_problems(quiet: bool, contest_id: &str) -> Result<(char, u8)> {
     // fetch the tasks
     let url = format!("https://beta.atcoder.jp/contests/{}/tasks", contest_id);
-    let text = download_text(&url).chain(ErrorKind::GettingProblemPageFailed())?;
+    let text = download_text(quiet, &url).chain(ErrorKind::GettingProblemPageFailed())?;
 
     let document = Html::parse_document(&text);
     let sel_tbody = Selector::parse("tbody").unwrap();
@@ -151,8 +155,8 @@ fn fetcher_for(problem_id: String) -> Result<FetchAtCoder> {
     FetchAtCoder::new(problem_id).chain(ErrorKind::GettingProviderFailed())
 }
 
-fn download_text(url: &str) -> Result<String> {
-    auth::authenticated_get(url)
+fn download_text(quiet: bool, url: &str) -> Result<String> {
+    auth::authenticated_get(quiet, url)
         .chain(ErrorKind::AuthenticatedGetFailed(url.to_string()))?
         .text()
         .chain(ErrorKind::GettingTextFailed())

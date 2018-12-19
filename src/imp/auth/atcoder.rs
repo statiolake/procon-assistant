@@ -21,8 +21,8 @@ define_error_kind! {
     [HTTPStatusNotOk; (status: StatusCode); format!("HTTP status not OK: {:?}", status)];
 }
 
-pub fn login(username: String, password: String) -> Result<()> {
-    let (cookie, csrf_token) = get_cookie_and_csrf_token()?;
+pub fn login(quiet: bool, username: String, password: String) -> Result<()> {
+    let (cookie, csrf_token) = get_cookie_and_csrf_token(quiet)?;
     let cookie = login_get_cookie(cookie, username, password, csrf_token)?;
     let revel_session = find_revel_session(cookie)?;
     super::store_session_info(SERVICE_NAME, revel_session.as_bytes())
@@ -31,28 +31,31 @@ pub fn login(username: String, password: String) -> Result<()> {
     Ok(())
 }
 
-pub fn authenticated_get(url: &str) -> Result<reqwest::Response> {
+pub fn authenticated_get(quiet: bool, url: &str) -> Result<reqwest::Response> {
     let client = reqwest::Client::new();
     let mut builder = client.get(url);
-    builder = add_auth_info_to_builder_if_possible(builder)?;
+    builder = add_auth_info_to_builder_if_possible(quiet, builder)?;
     let mut res = builder.send().chain(ErrorKind::RequestingError())?;
     store_revel_session_from_response(&mut res)?;
     Ok(res)
 }
 
-fn add_auth_info_to_builder_if_possible(mut builder: RequestBuilder) -> Result<RequestBuilder> {
-    fn handle_invalid_utf_8(e: Error) -> Error {
+fn add_auth_info_to_builder_if_possible(
+    quiet: bool,
+    mut builder: RequestBuilder,
+) -> Result<RequestBuilder> {
+    fn handle_invalid_utf_8(quiet: bool, e: Error) -> Error {
         super::clear_session_info(SERVICE_NAME)
             .expect("critical error: failed to clean session info.");
-        print_info!(true, "cleared session info to avoid continuous error.");
+        print_info!(!quiet, "cleared session info to avoid continuous error.");
         e
     }
 
-    if let Ok(revel_session) = super::load_session_info(SERVICE_NAME) {
-        print_info!(true, "found sesion info, try to use it.");
+    if let Ok(revel_session) = super::load_session_info(quiet, SERVICE_NAME) {
+        print_info!(!quiet, "found sesion info, try to use it.");
         let revel_session = String::from_utf8(revel_session)
             .chain(ErrorKind::InvalidUtf8SessionInfo())
-            .map_err(handle_invalid_utf_8)?
+            .map_err(|x| handle_invalid_utf_8(quiet, x))?
             .trim()
             .to_string();
 
@@ -69,8 +72,8 @@ fn store_revel_session_from_response(res: &mut reqwest::Response) -> Result<()> 
         .chain(ErrorKind::StoringRevelSessionFailed())
 }
 
-fn get_cookie_and_csrf_token() -> Result<(Vec<(String, String)>, String)> {
-    print_info!(true, "fetching login page");
+fn get_cookie_and_csrf_token(quiet: bool) -> Result<(Vec<(String, String)>, String)> {
+    print_info!(!quiet, "fetching login page");
     let client = reqwest::Client::new();
     let mut res = client
         .get("https://beta.atcoder.jp/login")

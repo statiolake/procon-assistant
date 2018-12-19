@@ -13,7 +13,7 @@ pub const LANG: Lang = Lang {
     compile_command_maker: compile_command,
     preprocessor: preprocess::rust::preprocess,
     minifier: preprocess::rust::minify,
-    linter: |_| Vec::new(),
+    linter: |_, _| Vec::new(),
 };
 
 fn compile_command() -> Command {

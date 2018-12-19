@@ -25,8 +25,9 @@ lazy_static! {
     static ref RE_LINE_COMMENT: Regex = Regex::new(r#"//.*"#).unwrap();
 }
 
-pub fn preprocess(content: RawSource) -> Result<Preprocessed> {
+pub fn preprocess(quiet: bool, content: RawSource) -> Result<Preprocessed> {
     let content = parse_include(
+        quiet,
         &(langs::cpp::LANG.lib_dir_getter)(),
         &mut HashSet::new(),
         content,
@@ -39,7 +40,7 @@ pub fn preprocess(content: RawSource) -> Result<Preprocessed> {
     Ok(Preprocessed(concat_safe_lines(removed)))
 }
 
-pub fn minify(preprocessed_lines: Preprocessed) -> Minified {
+pub fn minify(_quiet: bool, preprocessed_lines: Preprocessed) -> Minified {
     let mut result = preprocessed_lines.into_inner();
     result = result
         .into_iter()
@@ -65,6 +66,7 @@ pub fn minify(preprocessed_lines: Preprocessed) -> Minified {
 }
 
 fn parse_include(
+    quiet: bool,
     lib_dir: &Path,
     included: &mut HashSet<PathBuf>,
     content: RawSource,
@@ -86,10 +88,10 @@ fn parse_include(
             }
         };
 
-        print_info!(true, "including {}", inc_path.display());
+        print_info!(!quiet, "including {}", inc_path.display());
         let will_be_replaced = if included.contains(&inc_path) {
             print_info!(
-                true,
+                !quiet,
                 "... skipping previously included file {}",
                 inc_path.display()
             );
@@ -100,7 +102,7 @@ fn parse_include(
                 .parent()
                 .expect("internal error: cannot extract parent");
             let inc_src = super::read_source_file(&inc_path)
-                .and_then(|src| parse_include(next_lib_dir, included, src))?;
+                .and_then(|src| parse_include(quiet, next_lib_dir, included, src))?;
             inc_src
         };
 

@@ -18,9 +18,9 @@ pub struct Lang {
     pub compiler: &'static str,
     pub lib_dir_getter: fn() -> PathBuf,
     pub compile_command_maker: fn() -> Command,
-    pub preprocessor: fn(RawSource) -> preprocess::Result<Preprocessed>,
-    pub minifier: fn(Preprocessed) -> Minified,
-    pub linter: fn(&Minified) -> Vec<String>,
+    pub preprocessor: fn(quiet: bool, RawSource) -> preprocess::Result<Preprocessed>,
+    pub minifier: fn(quiet: bool, Preprocessed) -> Minified,
+    pub linter: fn(quiet: bool, &Minified) -> Vec<String>,
 }
 
 lazy_static! {

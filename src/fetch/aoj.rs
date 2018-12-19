@@ -76,17 +76,17 @@ impl super::TestCaseProvider for Aoj {
         self.problem.url()
     }
 
-    fn needs_authenticate(&self) -> bool {
+    fn needs_authenticate(&self, quiet: bool) -> bool {
         print_info!(
-            true,
+            !quiet,
             "needs_authenticate() is not implemetented for now, always returns `false'."
         );
         false
     }
 
-    fn authenticate(&self) -> result::Result<(), Box<dyn error::Error + Send>> {
+    fn authenticate(&self, quiet: bool) -> result::Result<(), Box<dyn error::Error + Send>> {
         print_info!(
-            true,
+            !quiet,
             "authenticate() for AOJ is not implemented for now, do nothing."
         );
         Ok(())
@@ -94,6 +94,7 @@ impl super::TestCaseProvider for Aoj {
 
     fn fetch_test_case_files(
         &self,
+        _quiet: bool,
     ) -> result::Result<Vec<TestCaseFile>, Box<dyn error::Error + Send>> {
         let text = download_text(self.problem.url())
             .chain(ErrorKind::FetchingProblemFailed(

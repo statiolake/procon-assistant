@@ -40,7 +40,10 @@ impl super::ContestProvider for Local {
         &self.file_path
     }
 
-    fn make_fetchers(&self) -> result::Result<Fetchers, Box<dyn error::Error + Send>> {
+    fn make_fetchers(
+        &self,
+        _quiet: bool,
+    ) -> result::Result<Fetchers, Box<dyn error::Error + Send>> {
         let problem_list = load_problem_list(self.file_path.clone()).map_err(error_into_box)?;
         make_fetcher(problem_list).map_err(error_into_box)
     }

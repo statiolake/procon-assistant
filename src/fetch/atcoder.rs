@@ -104,24 +104,25 @@ impl super::TestCaseProvider for AtCoder {
         self.problem.url()
     }
 
-    fn needs_authenticate(&self) -> bool {
+    fn needs_authenticate(&self, quiet: bool) -> bool {
         print_info!(
-            true,
+            !quiet,
             "needs_authenticate() is not implemetented for now, always returns `false'."
         );
         false
     }
 
-    fn authenticate(&self) -> result::Result<(), Box<dyn error::Error + Send>> {
-        login::main()
+    fn authenticate(&self, quiet: bool) -> result::Result<(), Box<dyn error::Error + Send>> {
+        login::main(quiet)
             .chain(ErrorKind::LoginFailed())
             .map_err(error_into_box)
     }
 
     fn fetch_test_case_files(
         &self,
+        quiet: bool,
     ) -> result::Result<Vec<TestCaseFile>, Box<dyn error::Error + Send>> {
-        let text = download_text(self.problem.url()).map_err(error_into_box)?;
+        let text = download_text(quiet, self.problem.url()).map_err(error_into_box)?;
         parse_text(text).map_err(error_into_box)
     }
 }
@@ -167,8 +168,8 @@ fn parse_text(text: String) -> Result<Vec<TestCaseFile>> {
     Ok(result)
 }
 
-fn download_text(url: &str) -> Result<String> {
-    auth::authenticated_get(url)
+fn download_text(quiet: bool, url: &str) -> Result<String> {
+    auth::authenticated_get(quiet, url)
         .chain(ErrorKind::AuthenticatedGetFailed(url.to_string()))?
         .text()
         .chain(ErrorKind::GettingTextFailed())

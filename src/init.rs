@@ -56,7 +56,7 @@ struct Project {
     lang: &'static Lang,
 }
 
-pub fn main(args: Vec<String>) -> Result<()> {
+pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
     let config: ConfigFile = ConfigFile::get_config().chain(ErrorKind::GettingConfigFailed())?;
 
     // parse command line arguments
@@ -67,11 +67,11 @@ pub fn main(args: Vec<String>) -> Result<()> {
     create_project_directory(&path_project)?;
 
     let path_src_file = Path::new(&project.lang.src_file_name);
-    safe_generate(&project.lang, path_project, path_src_file)?;
+    safe_generate(quiet, &project.lang, path_project, path_src_file)?;
 
     for file in FILES {
         let path = Path::new(file);
-        safe_generate(&project.lang, path_project, path)?;
+        safe_generate(quiet, &project.lang, path_project, path)?;
     }
 
     if config.init_auto_open {
@@ -95,25 +95,25 @@ fn create_project_directory(path_project: &Path) -> Result<()> {
     ))
 }
 
-fn safe_generate(lang: &Lang, path_project: &Path, path: &Path) -> Result<()> {
+fn safe_generate(quiet: bool, lang: &Lang, path_project: &Path, path: &Path) -> Result<()> {
     if path_project.join(path).exists() {
-        print_info!(true, "file {} already exists, skipping.", path.display());
+        print_info!(!quiet, "file {} already exists, skipping.", path.display());
         return Ok(());
     }
 
-    generate(lang, path_project, path)?;
+    generate(quiet, lang, path_project, path)?;
     print_generated!("{}", path.display());
     Ok(())
 }
 
-fn generate(lang: &Lang, path_project: &Path, path: &Path) -> Result<()> {
+fn generate(quiet: bool, lang: &Lang, path_project: &Path, path: &Path) -> Result<()> {
     let exe_dir = current_exe::current_exe().unwrap();
     let exe_dir = exe_dir.parent().unwrap();
     let path_template = exe_dir.join("template").join(path);
     let path_project = path_project.join(path);
 
     let path_template_string = path_template.display().to_string();
-    print_info!(true, "loading template from `{}'", path_template_string);
+    print_info!(!quiet, "loading template from `{}'", path_template_string);
     let mut template_file = File::open(path_template)
         .chain(ErrorKind::OpenTemplateFailed(path_template_string.clone()))?;
 

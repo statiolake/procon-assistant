@@ -13,7 +13,7 @@ define_error_kind! {
     [WritingTestCaseFileFailed; (); "failed to write testcase file into file.".into()];
 }
 
-pub fn main(args: Vec<String>) -> Result<()> {
+pub fn main(_quiet: bool, args: Vec<String>) -> Result<()> {
     let indices = parse_args(args)?;
 
     // load all test cases

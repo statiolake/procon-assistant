@@ -11,13 +11,13 @@ define_error_kind! {
     [LoginError; (); format!("log in failed.")];
 }
 
-pub fn main(args: Vec<String>) -> Result<()> {
+pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
     if args.len() != 1 {
         return Err(Error::new(ErrorKind::InvalidNumberOfArgument(args.len())));
     }
 
     match args[0].as_str() {
-        "atcoder" | "at" => atcoder::main().chain(ErrorKind::LoginError()),
+        "atcoder" | "at" => atcoder::main(quiet).chain(ErrorKind::LoginError()),
         _ => Err(Error::new(ErrorKind::UnknownContestSite(args[0].clone()))),
     }
 }

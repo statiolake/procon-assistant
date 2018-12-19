@@ -11,24 +11,24 @@ define_error_kind! {
     [CopyingToClipboardFailed; (); "failed to copy the source file to the clipboard."];
 }
 
-pub fn main() -> Result<()> {
+pub fn main(quiet: bool) -> Result<()> {
     let lang = langs::get_lang().chain(ErrorKind::GettingLanguageFailed())?;
-    copy_to_clipboard(&lang).chain(ErrorKind::CopyingToClipboardFailed())
+    copy_to_clipboard(quiet, &lang).chain(ErrorKind::CopyingToClipboardFailed())
 }
 
-pub fn copy_to_clipboard(lang: &Lang) -> preprocess::Result<()> {
+pub fn copy_to_clipboard(quiet: bool, lang: &Lang) -> preprocess::Result<()> {
     let file_path = Path::new(&lang.src_file_name);
     print_copying!("{} to clipboard", file_path.display());
     let raw = preprocess::read_source_file(file_path)?;
-    let preprocessed = (lang.preprocessor)(raw)?;
-    let minified = (lang.minifier)(preprocessed);
-    let lints = (lang.linter)(&minified);
+    let preprocessed = (lang.preprocessor)(quiet, raw)?;
+    let minified = (lang.minifier)(quiet, preprocessed);
+    let lints = (lang.linter)(quiet, &minified);
     let minified = minified.into_inner() + "\n";
     clip::set_clipboard(minified.clone());
     print_finished!("copying");
 
     print_info!(
-        true,
+        !quiet,
         "the copied string is as follows. you can pipe it when auto-copying did not function."
     );
     println!("{}", minified);

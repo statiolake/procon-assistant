@@ -27,20 +27,21 @@ define_error_kind! {
     [WritingTestCaseFailed; (); "failed to write test case file.".to_string()];
 }
 
-pub fn main(args: Vec<String>) -> Result<()> {
+pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
     let provider = match args.into_iter().next() {
         Some(arg) => get_provider(arg),
         None => handle_empty_arg(),
     }?;
 
     let fetchers = provider
-        .make_fetchers()
+        .make_fetchers(quiet)
         .map_err(|e| Error::with_cause(ErrorKind::MakingFetcherFailed(), e))?;
 
     print_fetching!("{} (at {})", provider.contest_id(), provider.url());
     fetchers.prepare_generate();
     for (problem, fetcher) in fetchers.fetchers.into_iter().enumerate() {
         generate_one(
+            quiet,
             fetchers.contest_id.clone(),
             fetchers.beginning_char,
             problem as u8,
@@ -111,6 +112,7 @@ impl Fetchers {
 }
 
 pub fn generate_one(
+    quiet: bool,
     mut contest_id: String,
     beginning_char: char,
     problem: u8,
@@ -121,7 +123,7 @@ pub fn generate_one(
 
     let curr_url = ('a' as u8 + problem) as char;
     contest_id.push(curr_url);
-    let tcfs = fetch::fetch_test_case_files(fetcher).chain(ErrorKind::FetchError())?;
+    let tcfs = fetch::fetch_test_case_files(quiet, fetcher).chain(ErrorKind::FetchError())?;
     fetch::write_test_case_files(tcfs).chain(ErrorKind::WritingTestCaseFailed())?;
     contest_id.pop();
 
@@ -146,5 +148,5 @@ pub trait ContestProvider {
     fn contest_id(&self) -> &str;
     fn url(&self) -> &str;
 
-    fn make_fetchers(&self) -> result::Result<Fetchers, Box<dyn error::Error + Send>>;
+    fn make_fetchers(&self, quiet: bool) -> result::Result<Fetchers, Box<dyn error::Error + Send>>;
 }

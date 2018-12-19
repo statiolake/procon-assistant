@@ -6,10 +6,10 @@ define_error_kind! {
     [LoginFailed; (); "failed to login."];
 }
 
-pub fn main() -> Result<()> {
+pub fn main(quiet: bool) -> Result<()> {
     let (username, password) = auth::ask_account_info("AtCoder");
     print_logging_in!("to AtCoder");
-    auth_atcoder::login(username, password).chain(ErrorKind::LoginFailed())?;
+    auth_atcoder::login(quiet, username, password).chain(ErrorKind::LoginFailed())?;
     print_finished!("fetching code; successfully saved.");
     Ok(())
 }

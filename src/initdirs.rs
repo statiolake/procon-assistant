@@ -13,7 +13,7 @@ define_error_kind! {
     )];
 }
 
-pub fn main(args: Vec<String>) -> Result<()> {
+pub fn main(_quiet: bool, args: Vec<String>) -> Result<()> {
     let beginning_char = match args.len() {
         0 => Err(Error::new(ErrorKind::InvalidNumberOfArgument(
             0,

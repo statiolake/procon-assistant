@@ -48,7 +48,7 @@ macro_rules! define_error {
                 }
             }
 
-            fn upcast(&self) -> &(dyn ::std::error::Error + Send) {
+            fn upcast(&self) -> &(dyn::std::error::Error + Send) {
                 self
             }
         }
@@ -166,7 +166,10 @@ fn help() {
 }
 
 fn main() {
-    let args: Vec<_> = env::args().collect();
+    let quiet = env::args().any(|x| x == "--quiet" || x == "-q");
+    let args: Vec<_> = env::args()
+        .filter(|x| x != "--quiet" && x != "-q")
+        .collect();
 
     if args.len() < 2 {
         help();
@@ -176,17 +179,17 @@ fn main() {
     let cmd = args[1].clone();
     let args: Vec<_> = args.into_iter().skip(2).collect();
     let result = match cmd.as_str() {
-        "initdirs" | "id" => initdirs::main(args).map_err(box_err),
-        "init" | "i" => init::main(args).map_err(box_err),
-        "addcase" | "a" | "ac" => addcase::main().map_err(box_err),
-        "delcase" | "dc" => delcase::main(args).map_err(box_err),
-        "preprocess" | "si" | "pp" => preprocess::main().map_err(box_err),
-        "clip" | "c" => clip::main().map_err(box_err),
-        "fetch" | "f" => fetch::main(args).map_err(box_err),
-        "download" | "d" | "dl" => download::main(args).map_err(box_err),
-        "run" | "r" => run::main(args).map_err(box_err),
-        "compile" | "co" => compile::main(args).map_err(box_err),
-        "login" | "l" => login::main(args).map_err(box_err),
+        "initdirs" | "id" => initdirs::main(quiet, args).map_err(box_err),
+        "init" | "i" => init::main(quiet, args).map_err(box_err),
+        "addcase" | "a" | "ac" => addcase::main(quiet).map_err(box_err),
+        "delcase" | "dc" => delcase::main(quiet, args).map_err(box_err),
+        "preprocess" | "si" | "pp" => preprocess::main(quiet).map_err(box_err),
+        "clip" | "c" => clip::main(quiet).map_err(box_err),
+        "fetch" | "f" => fetch::main(quiet, args).map_err(box_err),
+        "download" | "d" | "dl" => download::main(quiet, args).map_err(box_err),
+        "run" | "r" => run::main(quiet, args).map_err(box_err),
+        "compile" | "co" => compile::main(quiet, args).map_err(box_err),
+        "login" | "l" => login::main(quiet, args).map_err(box_err),
         "--help" | "-h" => {
             help();
             return;

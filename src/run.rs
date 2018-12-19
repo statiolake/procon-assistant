@@ -26,16 +26,16 @@ define_error_kind! {
     [JudgingFailed; (); format!("failed to judge.")];
 }
 
-pub fn main(args: Vec<String>) -> Result<()> {
+pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
     let force = args.iter().any(|x| x == "--force" || x == "-f");
     let args = args
         .into_iter()
         .filter(|x| x != "--force" && x != "-f")
         .collect();
     let lang = langs::get_lang().chain(ErrorKind::GettingLanguageFailed())?;
-    let success = compile::compile(&lang, force).chain(ErrorKind::CompilationFailed())?;
+    let success = compile::compile(quiet, &lang, force).chain(ErrorKind::CompilationFailed())?;
     let result = match success {
-        true => run_tests(&args).chain(ErrorKind::RunningTestsFailed())?,
+        true => run_tests(quiet, &args).chain(ErrorKind::RunningTestsFailed())?,
         false => JudgeResult::CompilationError,
     };
 
@@ -51,7 +51,7 @@ pub fn main(args: Vec<String>) -> Result<()> {
     // copy the answer to the clipboard
     if let JudgeResult::Passed = result {
         eprintln!("");
-        clip::copy_to_clipboard(&lang).chain(ErrorKind::CopyingToClipboardFailed())?;
+        clip::copy_to_clipboard(quiet, &lang).chain(ErrorKind::CopyingToClipboardFailed())?;
 
         Ok(())
     } else {
@@ -59,8 +59,8 @@ pub fn main(args: Vec<String>) -> Result<()> {
     }
 }
 
-fn run_tests(args: &Vec<String>) -> Result<JudgeResult> {
-    enumerate_test_cases(&args).and_then(|tcs| run(tcs))
+fn run_tests(quiet: bool, args: &Vec<String>) -> Result<JudgeResult> {
+    enumerate_test_cases(&args).and_then(|tcs| run(quiet, tcs))
 }
 
 fn parse_argument_cases(args: &Vec<String>) -> Result<Vec<TestCase>> {
@@ -84,8 +84,8 @@ fn enumerate_test_cases(args: &Vec<String>) -> Result<Vec<TestCase>> {
     Ok(test_cases)
 }
 
-fn print_solution_output(kind: &str, result: &Vec<String>) {
-    print_info!(true, "{}:", kind);
+fn print_solution_output(quiet: bool, kind: &str, result: &Vec<String>) {
+    print_info!(!quiet, "{}:", kind);
     for line in result.iter() {
         colored_eprintln! {
             common::colorize();
@@ -94,7 +94,7 @@ fn print_solution_output(kind: &str, result: &Vec<String>) {
     }
 }
 
-fn run(tcs: Vec<TestCase>) -> Result<JudgeResult> {
+fn run(quiet: bool, tcs: Vec<TestCase>) -> Result<JudgeResult> {
     print_running!(
         "{} test cases (current timeout is {} millisecs)",
         tcs.len(),
@@ -116,7 +116,7 @@ fn run(tcs: Vec<TestCase>) -> Result<JudgeResult> {
     let mut whole_result = JudgeResult::Passed;
     for (display, result) in judge_results.into_iter() {
         let (duration, result) = result.chain(ErrorKind::JudgingFailed())?;
-        print_result(&result, &duration, display);
+        print_result(quiet, &result, &duration, display);
         // update whole result
         if result != JudgeResult::Passed && whole_result == JudgeResult::Passed {
             whole_result = result;
@@ -125,7 +125,7 @@ fn run(tcs: Vec<TestCase>) -> Result<JudgeResult> {
     Ok(whole_result)
 }
 
-fn print_result(result: &JudgeResult, duration: &time::Duration, display: String) {
+fn print_result(quiet: bool, result: &JudgeResult, duration: &time::Duration, display: String) {
     // get color and short result string
     let (color, short_name) = result.short_name();
     colored_eprintln! {
@@ -143,13 +143,13 @@ fn print_result(result: &JudgeResult, duration: &time::Duration, display: String
             ref actual_output,
             ref difference,
         })) => {
-            print_solution_output("sample case input", &input);
-            print_solution_output("expected output", &expected_output);
-            print_solution_output("actual output", &actual_output);
-            print_info!(true, "{}", difference.message());
+            print_solution_output(quiet, "sample case input", &input);
+            print_solution_output(quiet, "expected output", &expected_output);
+            print_solution_output(quiet, "actual output", &actual_output);
+            print_info!(!quiet, "{}", difference.message());
         }
         JudgeResult::RuntimeError(ref reason) => {
-            print_info!(true, "{}", reason);
+            print_info!(!quiet, "{}", reason);
         }
         _ => {}
     }

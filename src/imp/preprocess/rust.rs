@@ -1,6 +1,6 @@
 use super::{Minified, Preprocessed, RawSource, Result};
 
-pub fn preprocess(src: RawSource) -> Result<Preprocessed> {
+pub fn preprocess(_quiet: bool, src: RawSource) -> Result<Preprocessed> {
     Ok(Preprocessed(
         src.into_inner()
             .split('\n')
@@ -9,6 +9,6 @@ pub fn preprocess(src: RawSource) -> Result<Preprocessed> {
     ))
 }
 
-pub fn minify(preprocessed: Preprocessed) -> Minified {
+pub fn minify(_quiet: bool, preprocessed: Preprocessed) -> Minified {
     Minified(preprocessed.into_inner().join("\n"))
 }

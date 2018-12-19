@@ -58,7 +58,7 @@ fn flags_setter(cmd: &mut Command) {
     ]);
 }
 
-fn linter(minified: &preprocess::Minified) -> Vec<String> {
+fn linter(_quiet: bool, minified: &preprocess::Minified) -> Vec<String> {
     let minified = minified.inner();
 
     let mut result = Vec::new();

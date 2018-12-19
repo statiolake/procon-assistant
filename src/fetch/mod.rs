@@ -29,15 +29,18 @@ define_error_kind! {
     [TestCaseFileWritionFailed; (name: String); format!("failed to write test case file `{}'.", name)];
 }
 
-pub fn main(args: Vec<String>) -> Result<()> {
+pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
     let dsc = get_descriptor(args.into_iter().next())?;
     let provider = get_provider(dsc)?;
-    let tcfs = fetch_test_case_files(provider)?;
+    let tcfs = fetch_test_case_files(quiet, provider)?;
     write_test_case_files(tcfs)?;
     Ok(())
 }
 
-pub fn fetch_test_case_files(provider: Box<dyn TestCaseProvider>) -> Result<Vec<TestCaseFile>> {
+pub fn fetch_test_case_files(
+    quiet: bool,
+    provider: Box<dyn TestCaseProvider>,
+) -> Result<Vec<TestCaseFile>> {
     print_fetching!(
         "{} id {} (at {})",
         provider.site_name(),
@@ -45,15 +48,15 @@ pub fn fetch_test_case_files(provider: Box<dyn TestCaseProvider>) -> Result<Vec<
         provider.url()
     );
 
-    if provider.needs_authenticate() {
-        print_info!(true, "authentication is needed.");
+    if provider.needs_authenticate(quiet) {
+        print_info!(!quiet, "authentication is needed.");
         provider
-            .authenticate()
+            .authenticate(quiet)
             .map_err(|e| Error::with_cause(ErrorKind::ProviderCreationFailed(), e))?;
     }
 
     let test_case_files = provider
-        .fetch_test_case_files()
+        .fetch_test_case_files(quiet)
         .map_err(|e| Error::with_cause(ErrorKind::FetchFailed(), e))?;
     Ok(test_case_files)
 }
@@ -157,10 +160,11 @@ pub trait TestCaseProvider: Debug {
     fn problem_id(&self) -> &str;
     fn url(&self) -> &str;
 
-    fn needs_authenticate(&self) -> bool;
-    fn authenticate(&self) -> result::Result<(), Box<dyn error::Error + Send>>;
+    fn needs_authenticate(&self, quiet: bool) -> bool;
+    fn authenticate(&self, quiet: bool) -> result::Result<(), Box<dyn error::Error + Send>>;
 
     fn fetch_test_case_files(
         &self,
+        quiet: bool,
     ) -> result::Result<Vec<TestCaseFile>, Box<dyn error::Error + Send>>;
 }
