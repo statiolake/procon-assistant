@@ -44,12 +44,12 @@ fn add_auth_info_to_builder_if_possible(mut builder: RequestBuilder) -> Result<R
     fn handle_invalid_utf_8(e: Error) -> Error {
         super::clear_session_info(SERVICE_NAME)
             .expect("critical error: failed to clean session info.");
-        print_info!("cleared session info to avoid continuous error.");
+        print_info!(true, "cleared session info to avoid continuous error.");
         e
     }
 
     if let Ok(revel_session) = super::load_session_info(SERVICE_NAME) {
-        print_info!("found sesion info, try to use it.");
+        print_info!(true, "found sesion info, try to use it.");
         let revel_session = String::from_utf8(revel_session)
             .chain(ErrorKind::InvalidUtf8SessionInfo())
             .map_err(handle_invalid_utf_8)?
@@ -70,7 +70,7 @@ fn store_revel_session_from_response(res: &mut reqwest::Response) -> Result<()> 
 }
 
 fn get_cookie_and_csrf_token() -> Result<(Vec<(String, String)>, String)> {
-    print_info!("fetching login page");
+    print_info!(true, "fetching login page");
     let client = reqwest::Client::new();
     let mut res = client
         .get("https://beta.atcoder.jp/login")

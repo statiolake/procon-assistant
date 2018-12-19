@@ -56,12 +56,12 @@ pub fn store_session_info(service_name: &str, contents: &[u8]) -> io::Result<()>
 pub fn load_session_info(service_name: &str) -> io::Result<Vec<u8>> {
     let place = place_to_store(service_name);
     let mut contents = Vec::new();
-    print_debug!(
-        false,
-        "loading session info for {} from {}",
-        service_name,
-        place.display()
-    );
+    // print_info!(
+    //     true,
+    //     "loading session info for {} from {}",
+    //     service_name,
+    //     place.display()
+    // );
     File::open(place)?.read_to_end(&mut contents)?;
 
     Ok(contents)

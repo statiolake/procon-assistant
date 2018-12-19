@@ -105,7 +105,10 @@ impl super::TestCaseProvider for AtCoder {
     }
 
     fn needs_authenticate(&self) -> bool {
-        print_info!("needs_authenticate() is not implemetented for now, always returns `false'.");
+        print_info!(
+            true,
+            "needs_authenticate() is not implemetented for now, always returns `false'."
+        );
         false
     }
 

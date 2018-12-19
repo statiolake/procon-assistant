@@ -46,7 +46,7 @@ pub fn fetch_test_case_files(provider: Box<dyn TestCaseProvider>) -> Result<Vec<
     );
 
     if provider.needs_authenticate() {
-        print_info!("authentication is needed.");
+        print_info!(true, "authentication is needed.");
         provider
             .authenticate()
             .map_err(|e| Error::with_cause(ErrorKind::ProviderCreationFailed(), e))?;
