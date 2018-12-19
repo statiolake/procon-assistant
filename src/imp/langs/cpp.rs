@@ -13,6 +13,7 @@ pub const LANG: Lang = Lang {
     compile_command_maker: compile_command,
     preprocessor: preprocess::cpp::preprocess,
     minifier: preprocess::cpp::minify,
+    linter: linter,
 };
 
 fn compile_command() -> Command {
@@ -55,4 +56,15 @@ fn flags_setter(cmd: &mut Command) {
         "-omain.exe",
         "main.cpp",
     ]);
+}
+
+fn linter(minified: &preprocess::Minified) -> Vec<String> {
+    let minified = minified.inner();
+
+    let mut result = Vec::new();
+    if minified.contains("cerr") {
+        result.push("cerr found.".into());
+    }
+
+    result
 }

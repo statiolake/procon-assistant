@@ -22,13 +22,24 @@ pub fn copy_to_clipboard(lang: &Lang) -> preprocess::Result<()> {
     let raw = preprocess::read_source_file(file_path)?;
     let preprocessed = (lang.preprocessor)(raw)?;
     let minified = (lang.minifier)(preprocessed);
+    let lints = (lang.linter)(&minified);
     let minified = minified.into_inner() + "\n";
     clip::set_clipboard(minified.clone());
     print_finished!("copying");
+
     print_info!(
         true,
         "the copied string is as follows. you can pipe it when auto-copying did not function."
     );
     println!("{}", minified);
+
+    if !lints.is_empty() {
+        print_warning!("linter found {} errors. is this OK?", lints.len());
+
+        for lint in lints {
+            print_lint!("{}", lint);
+        }
+    }
+
     Ok(())
 }

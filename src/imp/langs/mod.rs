@@ -20,6 +20,7 @@ pub struct Lang {
     pub compile_command_maker: fn() -> Command,
     pub preprocessor: fn(RawSource) -> preprocess::Result<Preprocessed>,
     pub minifier: fn(Preprocessed) -> Minified,
+    pub linter: fn(&Minified) -> Vec<String>,
 }
 
 lazy_static! {

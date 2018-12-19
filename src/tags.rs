@@ -2,6 +2,7 @@ use colored_print::color::{ConsoleColor, ConsoleColor::*};
 
 pub const TAGS_COLOR: ConsoleColor = LightGreen;
 pub const TAGS_ERROR_COLOR: ConsoleColor = Red;
+pub const TAGS_WARNING_COLOR: ConsoleColor = Yellow;
 pub const TAGS_INFO_COLOR: ConsoleColor = LightBlue;
 
 pub const COMPILING: &str = "  Compiling";
@@ -13,7 +14,9 @@ pub const GENERATED: &str = "  Generated";
 pub const FINISHED: &str = "   Finished";
 pub const FETCHING: &str = "   Fetching";
 pub const ERROR: &str = "      Error";
+pub const WARNING: &str = "    Warning";
 pub const LOGGING_IN: &str = " Logging in";
+pub const LINT: &str = "       Lint";
 pub const INFO: &str = "       Info";
 pub const DEBUG: &str = "      Debug";
 pub const SPACER: &str = "            "; // to indent next line
@@ -22,6 +25,14 @@ macro_rules! print_error {
     ($($args:expr),*) => (
         print_with_tag! {
             $crate::tags::TAGS_ERROR_COLOR, $crate::tags::ERROR, $($args),*
+        }
+    )
+}
+
+macro_rules! print_warning {
+    ($($args:expr),*) => (
+        print_with_tag! {
+            $crate::tags::TAGS_WARNING_COLOR, $crate::tags::WARNING, $($args),*
         }
     )
 }
@@ -94,6 +105,14 @@ macro_rules! print_logging_in {
     ($($args:expr),*) => (
         print_with_tag! {
             $crate::tags::TAGS_COLOR, $crate::tags::LOGGING_IN, $($args),*
+        }
+    )
+}
+
+macro_rules! print_lint {
+    ($($args:expr),*) => (
+        print_with_tag! {
+            $crate::tags::TAGS_INFO_COLOR, $crate::tags::LINT, $($args),*
         }
     )
 }
