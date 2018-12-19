@@ -21,7 +21,7 @@ pub fn main() -> Result<()> {
 
     print_created!("{}, {}", tsf.if_name, tsf.of_name);
 
-    open(&config, &[&tsf.if_name, &tsf.of_name]).chain(ErrorKind::FileOpeningFailed())?;
+    open(&config, true, &[&tsf.if_name, &tsf.of_name]).chain(ErrorKind::FileOpeningFailed())?;
 
     Ok(())
 }

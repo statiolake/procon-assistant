@@ -83,7 +83,7 @@ pub fn main(args: Vec<String>) -> Result<()> {
                 .display()
                 .to_string()
         };
-        common::open(&config, &[&path_open]).chain(ErrorKind::OpeningEditorFailed())?;
+        common::open(&config, false, &[&path_open]).chain(ErrorKind::OpeningEditorFailed())?;
     }
 
     Ok(())

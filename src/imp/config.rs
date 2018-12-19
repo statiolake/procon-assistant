@@ -20,13 +20,14 @@ define_error_kind! {
 
 #[derive(Deserialize)]
 pub struct ConfigFile {
-    pub editor: String,
+    pub editor_command: Vec<String>,
     // for terminal editor like vim
     pub is_terminal_editor: bool,
     pub init_auto_open: bool,
     pub init_open_directory_instead_of_specific_file: bool,
     pub init_default_lang: String,
     pub addcase_give_argument_once: bool,
+    pub addcase_editor_command: Vec<String>,
 }
 
 impl ConfigFile {
