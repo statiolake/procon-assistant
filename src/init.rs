@@ -161,7 +161,7 @@ fn create_and_write_file(path: &Path, content: &str) -> Result<()> {
 
 fn gdbpath_escaped() -> String {
     which::which("gdb")
-        .map(|path| path.display().to_string().escape_default())
+        .map(|path| path.display().to_string().escape_default().to_string())
         .unwrap_or_else(|_| "dummy - could not find GDB in your system".into())
 }
 
@@ -170,4 +170,5 @@ fn libdir_escaped(lang: &Lang) -> String {
         .display()
         .to_string()
         .escape_default()
+        .to_string()
 }

@@ -29,7 +29,9 @@ fn get_lib_dir() -> PathBuf {
 }
 
 fn flags_setter(cmd: &mut Command) {
-    cmd.arg(format!("-I{}", get_lib_dir().display()).escape_default());
+    let lib_dir_str = get_lib_dir().display().to_string();
+    let lib_dir_str = lib_dir_str.escape_default();
+    cmd.arg(format!("-I{}", lib_dir_str));
     cmd.args(&[
         "-g",
         #[cfg(windows)]

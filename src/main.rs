@@ -1,5 +1,3 @@
-#![feature(str_escape)]
-
 trait ErrorWithSilent: ::std::error::Error + Send {
     fn is_silent(&self) -> bool;
     fn upcast(&self) -> &(dyn error::Error + Send);
@@ -48,7 +46,7 @@ macro_rules! define_error {
                 }
             }
 
-            fn upcast(&self) -> &(dyn::std::error::Error + Send) {
+            fn upcast(&self) -> &(dyn ::std::error::Error + Send) {
                 self
             }
         }
