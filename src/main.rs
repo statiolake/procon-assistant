@@ -33,7 +33,7 @@ macro_rules! define_error {
         }
 
         impl ::std::error::Error for Error {
-            fn cause(&self) -> Option<&::std::error::Error> {
+            fn source(&self) -> Option<&(dyn ::std::error::Error + 'static)> {
                 self.cause.as_ref().map(|e| &**e as &::std::error::Error)
             }
         }
@@ -208,7 +208,7 @@ fn main() {
 }
 
 fn print_causes(e: &dyn error::Error) {
-    if let Some(cause) = e.cause() {
+    if let Some(cause) = e.source() {
         print_info!(true, "due to: {}", cause);
         print_causes(cause);
     }
