@@ -83,11 +83,12 @@ fn parse_arg(arg: &str) -> Result<(&str, &str)> {
 
 fn handle_empty_arg() -> Result<Box<dyn ContestProvider>> {
     fn handle_empty_arg_impl() -> Option<Box<dyn ContestProvider>> {
+        use std::ffi::OsStr;
         let current_dir = env::current_dir().ok()?;
         let file_name = current_dir
             .file_name()
-            .and_then(|name| name.to_str())
-            .map(|name| name.to_string())?;
+            .and_then(OsStr::to_str)
+            .map(ToString::to_string)?;
 
         if ["abc", "arc", "agc"].contains(&&file_name[0..3]) {
             AtCoder::new(file_name).map(provider_into_box).ok()
