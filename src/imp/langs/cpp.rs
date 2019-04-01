@@ -29,7 +29,10 @@ fn get_lib_dir() -> PathBuf {
 }
 
 fn flags_setter(cmd: &mut Command) {
-    cmd.arg(format!("-I{}", get_lib_dir().display()).escape_default());
+    cmd.arg(format!(
+        "-I{}",
+        get_lib_dir().display().to_string().escape_default()
+    ));
     cmd.args(&[
         "-g",
         #[cfg(windows)]

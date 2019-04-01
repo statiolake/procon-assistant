@@ -1,5 +1,3 @@
-#![feature(str_escape)]
-
 trait ErrorWithSilent: ::std::error::Error + Send {
     fn is_silent(&self) -> bool;
     fn upcast(&self) -> &(dyn error::Error + Send);
@@ -210,7 +208,7 @@ fn main() {
 }
 
 fn print_causes(e: &dyn error::Error) {
-    if let Some(cause) = e.cause() {
+    if let Some(cause) = e.source() {
         print_info!(true, "due to: {}", cause);
         print_causes(cause);
     }
