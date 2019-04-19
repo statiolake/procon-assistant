@@ -1,7 +1,15 @@
 [
-    {
-        "directory": ".",
-        "command": "clang++ -std=c++14 -I$LIB_DIR -Wno-old-style-cast",
-        "file": "main.cpp"
-    }
+  {
+    "directory": "$PROJECT_PATH",
+    "arguments": [
+      "clang++",
+      "-o",
+      "main",
+      "-I$LIB_DIR",
+      "-std=c++14",
+      "-Wno-old-style-cast",
+      "main.cpp"
+    ],
+    "file": "main.cpp"
+  }
 ]
