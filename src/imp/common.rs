@@ -6,7 +6,6 @@ use std::process::Command;
 use crate::imp::config::ConfigFile;
 
 pub fn colorize() -> bool {
-    use atty;
     use atty::Stream;
     atty::is(Stream::Stderr)
 }
