@@ -13,7 +13,7 @@ impl OutputDifference {
             OutputDifference::Different(ref different_lines) => {
                 let message = different_lines
                     .iter()
-                    .map(|x| x.to_string())
+                    .map(ToString::to_string)
                     .collect::<Vec<_>>()
                     .join(&", ".to_string());
                 format!("line {} differs.", message)

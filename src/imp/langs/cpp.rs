@@ -29,10 +29,10 @@ fn get_lib_dir() -> PathBuf {
 }
 
 fn flags_setter(cmd: &mut Command) {
-    cmd.arg(format!(
-        "-I{}",
-        get_lib_dir().display().to_string().escape_default()
-    ));
+    let lib_dir_str = get_lib_dir().display().to_string();
+    let lib_dir_str = lib_dir_str.escape_default();
+    cmd.arg(format!("-I{}", lib_dir_str));
+
     cmd.args(&[
         "-g",
         #[cfg(windows)]
@@ -41,7 +41,7 @@ fn flags_setter(cmd: &mut Command) {
         #[cfg(unix)]
         "-fdiagnostics-color=always",
         #[cfg(unix)]
-        "-fsanitize=address,leak,memory,undefined",
+        "-fsanitize=address,leak,undefined",
         #[cfg(windows)]
         "-Xclang",
         #[cfg(windows)]

@@ -33,7 +33,7 @@ macro_rules! define_error {
         }
 
         impl ::std::error::Error for Error {
-            fn cause(&self) -> Option<&::std::error::Error> {
+            fn source(&self) -> Option<&(dyn ::std::error::Error + 'static)> {
                 self.cause.as_ref().map(|e| &**e as &::std::error::Error)
             }
         }
@@ -46,7 +46,7 @@ macro_rules! define_error {
                 }
             }
 
-            fn upcast(&self) -> &(dyn::std::error::Error + Send) {
+            fn upcast(&self) -> &(dyn ::std::error::Error + Send) {
                 self
             }
         }

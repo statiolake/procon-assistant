@@ -74,7 +74,7 @@ fn parse_include(
     let content = content.into_inner();
     assert!(lib_dir.is_absolute());
 
-    let mut lines: Vec<String> = content.split('\n').map(|x| x.to_string()).collect();
+    let mut lines: Vec<String> = content.split('\n').map(ToString::to_string).collect();
 
     for line in lines.iter_mut() {
         let inc_path: PathBuf = match RE_INCLUDE.captures(&line) {

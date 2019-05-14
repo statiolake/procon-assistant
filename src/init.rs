@@ -9,7 +9,6 @@ use crate::imp::langs;
 use crate::imp::langs::Lang;
 
 const FILES: &[&str] = &[
-    ".clang_complete",
     "compile_commands.json",
     ".vscode/c_cpp_properties.json",
     ".vscode/tasks.json",
@@ -24,6 +23,7 @@ define_error_kind! {
     [CreateDestinationFailed; (name: String); format!("creating `{}' failed.", name)];
     [WriteToDestinationFailed; (name: String); format!("writing `{}' failed.", name)];
     [OpenTemplateFailed; (name: String); format!("template file for `{}' not found.", name)];
+    [TemplateVariableSubstitutionFailed; (); format!("template variable substitution failed.")];
     [ReadFromTemplateFailed; (name: String); format!("reading from template `{}' failed.", name)];
     [OpeningEditorFailed; (); "failed to open editor.".to_string()];
 }
@@ -106,11 +106,11 @@ fn safe_generate(quiet: bool, lang: &Lang, path_project: &Path, path: &Path) -> 
     Ok(())
 }
 
-fn generate(quiet: bool, lang: &Lang, path_project: &Path, path: &Path) -> Result<()> {
+fn generate(quiet: bool, lang: &Lang, path_project_root: &Path, path: &Path) -> Result<()> {
     let exe_dir = current_exe::current_exe().unwrap();
     let exe_dir = exe_dir.parent().unwrap();
     let path_template = exe_dir.join("template").join(path);
-    let path_project = path_project.join(path);
+    let path_project = path_project_root.join(path);
 
     let path_template_string = path_template.display().to_string();
     print_info!(!quiet, "loading template from `{}'", path_template_string);
@@ -124,6 +124,11 @@ fn generate(quiet: bool, lang: &Lang, path_project: &Path, path: &Path) -> Resul
 
     let content = content.replace("$LIB_DIR", &libdir_escaped(&lang));
     let content = content.replace("$GDB_PATH", &gdbpath_escaped());
+
+    let abs_path_project_root = to_absolute::to_absolute_from_current_dir(path_project_root)
+        .chain(ErrorKind::TemplateVariableSubstitutionFailed())?;
+    let content = content.replace("$PROJECT_PATH", &escape_path(abs_path_project_root));
+
     create_and_write_file(&path_project, &content)
 }
 
@@ -161,12 +166,17 @@ fn create_and_write_file(path: &Path, content: &str) -> Result<()> {
 
 fn gdbpath_escaped() -> String {
     which::which("gdb")
-        .map(|path| path.display().to_string().escape_default().to_string())
+        .map(escape_path)
         .unwrap_or_else(|_| "dummy - could not find GDB in your system".into())
 }
 
 fn libdir_escaped(lang: &Lang) -> String {
-    (lang.lib_dir_getter)()
+    let libdir = (lang.lib_dir_getter)();
+    escape_path(libdir)
+}
+
+fn escape_path(path: impl AsRef<Path>) -> String {
+    path.as_ref()
         .display()
         .to_string()
         .escape_default()

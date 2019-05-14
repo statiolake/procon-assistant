@@ -32,32 +32,30 @@ pub fn compile(quiet: bool, lang: &Lang, force: bool) -> Result<bool> {
         print_info!(!quiet, "no need to compile.");
         return Ok(true);
     }
-    compile_src(quiet, lang).chain(ErrorKind::CompilationFailed())
+    compile_src(lang).chain(ErrorKind::CompilationFailed())
 }
 
-pub fn compile_src(quiet: bool, lang: &Lang) -> compile::Result<bool> {
+pub fn compile_src(lang: &Lang) -> compile::Result<bool> {
     print_compiling!("{}", lang.src_file_name);
     let CompilerOutput {
         success,
         stdout,
         stderr,
     } = compile::compile(lang)?;
-    print_compiler_output(quiet, "standard output", stdout);
-    print_compiler_output(quiet, "standard error", stderr);
+    print_compiler_output("standard output", stdout);
+    print_compiler_output("standard error", stderr);
 
     Ok(success)
 }
 
-pub fn print_compiler_output(quiet: bool, kind: &str, output: Option<String>) {
+pub fn print_compiler_output(kind: &str, output: Option<String>) {
     if let Some(output) = output {
         let output = output.trim().split('\n');
-        if !quiet {
-            print_info!(!quiet, "compiler {}:", kind);
-            for line in output {
-                colored_eprintln! {
-                    common::colorize();
-                    OUTPUT_COLOR, "        {}", line;
-                }
+        print_info!(true, "compiler {}:", kind);
+        for line in output {
+            colored_eprintln! {
+                common::colorize();
+                OUTPUT_COLOR, "        {}", line;
             }
         }
     }

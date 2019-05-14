@@ -248,7 +248,7 @@ fn compare_content_in_detail(
 ) -> JudgeResult {
     // wrong answer or presentation error
     let input = String::from_utf8_lossy(&if_contents);
-    let input = input.trim().split('\n').map(|x| x.to_string()).collect();
+    let input = input.trim().split('\n').map(ToString::to_string).collect();
     let expected_output = String::from_utf8_lossy(&of_contents).to_string();
     let expected_output = split_lines_to_vec(expected_output);
     let actual_output = String::from_utf8_lossy(&childstdout).to_string();
@@ -269,7 +269,7 @@ fn compare_content_in_detail(
 }
 
 fn split_lines_to_vec(s: String) -> Vec<String> {
-    s.trim().split('\n').map(|x| x.to_string()).collect()
+    s.trim().split('\n').map(ToString::to_string).collect()
 }
 
 fn remove_cr(v: Vec<u8>) -> Vec<u8> {

@@ -2,7 +2,7 @@ use std::fs;
 use std::io;
 
 use crate::imp::test_case;
-use crate::imp::test_case::TestCaseFile;
+use crate::imp::test_case::{TestCase, TestCaseFile};
 
 define_error!();
 define_error_kind! {
@@ -20,7 +20,7 @@ pub fn main(_quiet: bool, args: Vec<String>) -> Result<()> {
     let mut test_cases: Vec<_> = test_case::enumerate_test_cases()
         .chain(ErrorKind::OpeningTestCaseFileFailed())?
         .into_iter()
-        .map(|test_case| test_case.into_test_case_file())
+        .map(TestCase::into_test_case_file)
         .collect();
 
     // once remove all test case file

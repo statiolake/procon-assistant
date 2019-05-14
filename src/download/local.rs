@@ -78,7 +78,7 @@ fn load_problem_list(file_path: String) -> Result<Vec<String>> {
         .chain(ErrorKind::CouldNotReadProblemsTxt(file_path.clone()))?;
     let res: Vec<_> = content
         .split('\n')
-        .map(|x| x.trim())
+        .map(str::trim)
         .filter(|&x| !x.starts_with('#'))
         .filter(|&x| x != "")
         .map(|x| x.into())
