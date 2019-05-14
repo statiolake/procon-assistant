@@ -40,7 +40,7 @@ fn flags_setter(cmd: &mut Command) {
         #[cfg(unix)]
         "-fdiagnostics-color=always",
         #[cfg(unix)]
-        "-fsanitize=address,leak,memory,undefined",
+        "-fsanitize=address,leak,undefined",
         #[cfg(windows)]
         "-Xclang",
         #[cfg(windows)]
