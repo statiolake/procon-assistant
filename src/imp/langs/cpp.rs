@@ -16,9 +16,13 @@ pub const LANG: Lang = Lang {
     linter,
 };
 
-fn compile_command() -> Command {
+fn compile_command(colorize: bool) -> Command {
     let mut cmd = Command::new(LANG.compiler);
     flags_setter(&mut cmd);
+
+    let colorize = if colorize { "always" } else { "never" };
+    cmd.arg(format!("-fdiagnostics-color={}", colorize));
+
     cmd
 }
 

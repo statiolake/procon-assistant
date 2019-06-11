@@ -1,5 +1,6 @@
 use std::fs::File;
 
+use crate::imp::common;
 use crate::imp::langs::Lang;
 
 define_error!();
@@ -25,7 +26,7 @@ impl CompilerOutput {
 }
 
 pub fn compile(lang: &Lang) -> Result<CompilerOutput> {
-    let result = (lang.compile_command_maker)()
+    let result = (lang.compile_command_maker)(common::colorize())
         .output()
         .chain(ErrorKind::SpawningCompilerFailed())?;
 

@@ -17,7 +17,7 @@ pub struct Lang {
     pub src_file_name: &'static str,
     pub compiler: &'static str,
     pub lib_dir_getter: fn() -> PathBuf,
-    pub compile_command_maker: fn() -> Command,
+    pub compile_command_maker: fn(colorize: bool) -> Command,
     pub preprocessor: fn(quiet: bool, RawSource) -> preprocess::Result<Preprocessed>,
     pub minifier: fn(quiet: bool, Preprocessed) -> Minified,
     pub linter: fn(quiet: bool, &Minified) -> Vec<String>,

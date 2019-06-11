@@ -16,9 +16,14 @@ pub const LANG: Lang = Lang {
     linter: |_, _| Vec::new(),
 };
 
-fn compile_command() -> Command {
+fn compile_command(colorize: bool) -> Command {
     let mut cmd = Command::new(LANG.compiler);
+
+    let colorize = if colorize { "always" } else { "never" };
+
     flags_setter(&mut cmd);
+    cmd.arg("--color").arg(colorize);
+
     cmd
 }
 
