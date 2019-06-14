@@ -47,6 +47,8 @@ fn flags_setter(cmd: &mut Command) {
         #[cfg(unix)]
         "-fsanitize=address,leak,undefined",
         #[cfg(windows)]
+        "-fsanitize=address,undefined",
+        #[cfg(windows)]
         "-Xclang",
         #[cfg(windows)]
         "-flto-visibility-public-std",

@@ -23,7 +23,7 @@ define_error_kind! {
     [CreateDestinationFailed; (name: String); format!("creating `{}' failed.", name)];
     [WriteToDestinationFailed; (name: String); format!("writing `{}' failed.", name)];
     [OpenTemplateFailed; (name: String); format!("template file for `{}' not found.", name)];
-    [TemplateVariableSubstitutionFailed; (); format!("template variable substitution failed.")];
+    [TemplateVariableSubstitutionFailed; (); "template variable substitution failed.".to_string()];
     [ReadFromTemplateFailed; (name: String); format!("reading from template `{}' failed.", name)];
     [OpeningEditorFailed; (); "failed to open editor.".to_string()];
 }
