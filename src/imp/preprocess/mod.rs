@@ -24,8 +24,8 @@ macro_rules! preprocessor_newtype {
                 inner
             }
         }
-        impl ::std::fmt::Display for $name {
-            fn fmt(&self, b: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        impl std::fmt::Display for $name {
+            fn fmt(&self, b: &mut std::fmt::Formatter) -> std::fmt::Result {
                 // to avoid clippy...
                 let clos = $clos;
                 write!(b, "{}", clos(self.inner()))
