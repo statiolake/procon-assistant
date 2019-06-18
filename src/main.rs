@@ -1,16 +1,11 @@
-trait ErrorWithSilent: ::std::error::Error + Send {
-    fn is_silent(&self) -> bool;
-    fn upcast(&self) -> &(dyn error::Error + Send);
-}
-
 macro_rules! define_error {
     () => {
-        pub type Result<T> = ::std::result::Result<T, Error>;
+        pub type Result<T> = std::result::Result<T, Error>;
 
         #[derive(Debug)]
         pub struct Error {
             pub kind: ErrorKind,
-            pub cause: Option<Box<::std::error::Error + Send>>,
+            pub cause: Option<Box<std::error::Error + Send>>,
         }
 
         pub trait ChainableToError<T> {
@@ -24,7 +19,7 @@ macro_rules! define_error {
             }
 
             #[allow(dead_code)]
-            pub fn with_cause(kind: ErrorKind, cause: Box<::std::error::Error + Send>) -> Error {
+            pub fn with_cause(kind: ErrorKind, cause: Box<std::error::Error + Send>) -> Error {
                 Error {
                     kind,
                     cause: Some(cause),
@@ -32,9 +27,9 @@ macro_rules! define_error {
             }
         }
 
-        impl ::std::error::Error for Error {
-            fn source(&self) -> Option<&(dyn ::std::error::Error + 'static)> {
-                self.cause.as_ref().map(|e| &**e as &::std::error::Error)
+        impl std::error::Error for Error {
+            fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+                self.cause.as_ref().map(|e| &**e as &std::error::Error)
             }
         }
 
@@ -46,13 +41,13 @@ macro_rules! define_error {
                 }
             }
 
-            fn upcast(&self) -> &(dyn ::std::error::Error + Send) {
+            fn upcast(&self) -> &(dyn std::error::Error + Send) {
                 self
             }
         }
 
-        impl<T, E: 'static + ::std::error::Error + Send> ChainableToError<T>
-            for ::std::result::Result<T, E>
+        impl<T, E: 'static + std::error::Error + Send> ChainableToError<T>
+            for std::result::Result<T, E>
         {
             fn chain(self, kind: ErrorKind) -> Result<T> {
                 self.map_err(|e| Error::with_cause(kind, Box::new(e)))
@@ -67,8 +62,8 @@ macro_rules! define_error_kind {
         pub enum ErrorKind {
             #[allow(dead_code)] SilentError,
         }
-        impl ::std::fmt::Display for ErrorKind {
-            fn fmt(&self, _: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        impl std::fmt::Display for ErrorKind {
+            fn fmt(&self, _: &mut std::fmt::Formatter) -> std::fmt::Result {
                 unreachable!("SilentError must not be formatted.");
             }
         }
@@ -85,8 +80,8 @@ macro_rules! define_error_kind {
             $($id($($ty),*)),*
         }
 
-        impl ::std::fmt::Display for Error {
-            fn fmt(&self, b: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        impl std::fmt::Display for Error {
+            fn fmt(&self, b: &mut std::fmt::Formatter) -> std::fmt::Result {
                 let message = match self.kind {
                     // do nothing when SilentError
                     ErrorKind::SilentError => unreachable!("SilentError must not be formatted."),
@@ -117,6 +112,11 @@ mod run;
 use std::env;
 use std::error;
 use std::process;
+
+trait ErrorWithSilent: error::Error + Send {
+    fn is_silent(&self) -> bool;
+    fn upcast(&self) -> &(dyn error::Error + Send);
+}
 
 fn help() {
     println!("Procon Assistant");
