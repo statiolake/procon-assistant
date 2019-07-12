@@ -1,3 +1,4 @@
+use crate::{print_debug, print_info};
 use reqwest::header;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{RequestBuilder, StatusCode};

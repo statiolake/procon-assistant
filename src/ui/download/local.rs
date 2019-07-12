@@ -6,8 +6,8 @@ use std::result;
 use std::str;
 
 use super::Fetchers;
-use crate::fetch;
-use crate::fetch::ProblemDescriptor;
+use crate::ui::fetch;
+use crate::ui::fetch::ProblemDescriptor;
 
 define_error!();
 define_error_kind! {

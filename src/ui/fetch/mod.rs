@@ -4,10 +4,10 @@ use std::ffi::OsStr;
 use std::fmt::Debug;
 use std::result;
 
-use crate::fetch::aoj::Aoj;
-use crate::fetch::atcoder::AtCoder;
 use crate::imp::test_case::TestCaseFile;
-use crate::tags::SPACER;
+use crate::ui::fetch::aoj::Aoj;
+use crate::ui::fetch::atcoder::AtCoder;
+use crate::ui::tags::SPACER;
 
 pub mod aoj;
 pub mod atcoder;

@@ -2,7 +2,7 @@ use serde_derive::Deserialize;
 
 use std::fs::File;
 
-use crate::tags::SPACER;
+use crate::ui::tags::SPACER;
 
 pub const TIMEOUT_MILLISECOND: i64 = 3000;
 
