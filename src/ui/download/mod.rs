@@ -6,10 +6,10 @@ use std::str;
 
 use self::atcoder::AtCoder;
 use self::local::Local;
-use crate::fetch;
-use crate::fetch::TestCaseProvider;
-use crate::initdirs;
-use crate::tags::SPACER;
+use crate::ui::fetch;
+use crate::ui::fetch::TestCaseProvider;
+use crate::ui::initdirs;
+use crate::ui::tags::SPACER;
 
 pub mod atcoder;
 pub mod local;

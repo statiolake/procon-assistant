@@ -21,122 +21,137 @@ pub const INFO: &str = "       Info";
 pub const DEBUG: &str = "      Debug";
 pub const SPACER: &str = "            "; // to indent next line
 
+#[macro_export]
 macro_rules! print_error {
     ($($args:expr),*) => (
-        print_with_tag! {
-            $crate::tags::TAGS_ERROR_COLOR, $crate::tags::ERROR, $($args),*
+        $crate::print_with_tag! {
+            $crate::ui::tags::TAGS_ERROR_COLOR, $crate::ui::tags::ERROR, $($args),*
         }
     )
 }
 
+#[macro_export]
 macro_rules! print_warning {
     ($($args:expr),*) => (
-        print_with_tag! {
-            $crate::tags::TAGS_WARNING_COLOR, $crate::tags::WARNING, $($args),*
+        $crate::print_with_tag! {
+            $crate::ui::tags::TAGS_WARNING_COLOR, $crate::ui::tags::WARNING, $($args),*
         }
     )
 }
 
+#[macro_export]
 macro_rules! print_created {
     ($($args:expr),*) => (
-        print_with_tag! {
-            $crate::tags::TAGS_COLOR, $crate::tags::CREATED, $($args),*
+        $crate::print_with_tag! {
+            $crate::ui::tags::TAGS_COLOR, $crate::ui::tags::CREATED, $($args),*
         }
     )
 }
 
+#[macro_export]
 macro_rules! print_compiling {
     ($($args:expr),*) => (
-        print_with_tag! {
-            $crate::tags::TAGS_COLOR, $crate::tags::COMPILING, $($args),*
+        $crate::print_with_tag! {
+            $crate::ui::tags::TAGS_COLOR, $crate::ui::tags::COMPILING, $($args),*
         }
     )
 }
 
+#[macro_export]
 macro_rules! print_running {
     ($($args:expr),*) => (
-        print_with_tag! {
-            $crate::tags::TAGS_COLOR, $crate::tags::RUNNING, $($args),*
+        $crate::print_with_tag! {
+            $crate::ui::tags::TAGS_COLOR, $crate::ui::tags::RUNNING, $($args),*
         }
     )
 }
 
+#[macro_export]
 macro_rules! print_copying {
     ($($args:expr),*) => (
-        print_with_tag! {
-            $crate::tags::TAGS_COLOR, $crate::tags::COPYING, $($args),*
+        $crate::print_with_tag! {
+            $crate::ui::tags::TAGS_COLOR, $crate::ui::tags::COPYING, $($args),*
         }
     )
 }
 
+#[macro_export]
 macro_rules! print_generating {
     ($($args:expr),*) => (
-        print_with_tag! {
-            $crate::tags::TAGS_COLOR, $crate::tags::GENERATING, $($args),*
+        $crate::print_with_tag! {
+            $crate::ui::tags::TAGS_COLOR, $crate::ui::tags::GENERATING, $($args),*
         }
     )
 }
 
+#[macro_export]
 macro_rules! print_generated {
     ($($args:expr),*) => (
-        print_with_tag! {
-            $crate::tags::TAGS_COLOR, $crate::tags::GENERATED, $($args),*
+        $crate::print_with_tag! {
+            $crate::ui::tags::TAGS_COLOR, $crate::ui::tags::GENERATED, $($args),*
         }
     )
 }
 
+#[macro_export]
 macro_rules! print_fetching {
     ($($args:expr),*) => (
-        print_with_tag! {
-            $crate::tags::TAGS_COLOR, $crate::tags::FETCHING, $($args),*
+        $crate::print_with_tag! {
+            $crate::ui::tags::TAGS_COLOR, $crate::ui::tags::FETCHING, $($args),*
         }
     )
 }
 
+#[macro_export]
 macro_rules! print_finished {
     ($($args:expr),*) => (
-        print_with_tag! {
-            $crate::tags::TAGS_COLOR, $crate::tags::FINISHED, $($args),*
+        $crate::print_with_tag! {
+            $crate::ui::tags::TAGS_COLOR, $crate::ui::tags::FINISHED, $($args),*
         }
     )
 }
 
+#[macro_export]
 macro_rules! print_logging_in {
     ($($args:expr),*) => (
-        print_with_tag! {
-            $crate::tags::TAGS_COLOR, $crate::tags::LOGGING_IN, $($args),*
+        $crate::print_with_tag! {
+            $crate::ui::tags::TAGS_COLOR, $crate::ui::tags::LOGGING_IN, $($args),*
         }
     )
 }
 
+#[macro_export]
 macro_rules! print_lint {
     ($($args:expr),*) => (
-        print_with_tag! {
-            $crate::tags::TAGS_INFO_COLOR, $crate::tags::LINT, $($args),*
+        $crate::print_with_tag! {
+            $crate::ui::tags::TAGS_INFO_COLOR, $crate::ui::tags::LINT, $($args),*
         }
     )
 }
 
+#[macro_export]
 macro_rules! print_info {
     ($enabled:expr, $($args:expr),*) => (
         if $enabled {
-            print_with_tag! {
-                $crate::tags::TAGS_INFO_COLOR, $crate::tags::INFO, $($args),*
+            $crate::print_with_tag! {
+                $crate::ui::tags::TAGS_INFO_COLOR, $crate::ui::tags::INFO, $($args),*
             }
         }
     )
 }
 
+#[macro_export]
 macro_rules! print_debug {
     ($enabled:expr, $($args:expr),*) => (
         if cfg!(debug_assertions) && $enabled {
-            print_with_tag! {
-                $crate::tags::TAGS_INFO_COLOR, $crate::tags::DEBUG, $($args),*
+            $crate::print_with_tag! {
+                $crate::ui::tags::TAGS_INFO_COLOR, $crate::ui::tags::DEBUG, $($args),*
             }
         }
     )
 }
 
+#[macro_export]
 macro_rules! print_with_tag {
     ($color:expr, $tag:expr, $fmt:expr $(,$args:expr)*) => (
         colored_print::colored_eprintln! {

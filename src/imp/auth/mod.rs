@@ -1,3 +1,4 @@
+use crate::print_info;
 use std::fs;
 use std::fs::File;
 use std::io;

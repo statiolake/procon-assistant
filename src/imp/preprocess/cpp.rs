@@ -6,6 +6,7 @@ use std::mem;
 use std::path::{Path, PathBuf};
 
 use crate::imp::langs;
+use crate::print_info;
 
 use super::{ChainableToError, ErrorKind, Result};
 use super::{Minified, Preprocessed, RawSource};

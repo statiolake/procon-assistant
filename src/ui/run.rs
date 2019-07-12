@@ -4,14 +4,14 @@ use time;
 
 use std::thread;
 
-use crate::clip;
-use crate::compile;
 use crate::imp::common;
 use crate::imp::config;
 use crate::imp::langs;
 use crate::imp::test_case;
 use crate::imp::test_case::judge_result::{JudgeResult, WrongAnswer};
 use crate::imp::test_case::{TestCase, TestCaseFile};
+use crate::ui::clip;
+use crate::ui::compile;
 
 const OUTPUT_COLOR: ConsoleColor = LightMagenta;
 

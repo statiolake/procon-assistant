@@ -5,8 +5,8 @@ use std::result;
 
 use crate::imp::auth::atcoder as auth;
 use crate::imp::test_case::TestCaseFile;
-use crate::login::atcoder as login;
-use crate::tags::SPACER;
+use crate::ui::login::atcoder as login;
+use crate::ui::tags::SPACER;
 
 define_error!();
 define_error_kind! {
