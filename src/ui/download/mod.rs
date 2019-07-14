@@ -1,30 +1,43 @@
-use std::env;
-use std::error;
-use std::path::Path;
-use std::result;
-use std::str;
-
 use self::atcoder::AtCoder;
 use self::local::Local;
 use crate::ui::fetch;
 use crate::ui::fetch::TestCaseProvider;
 use crate::ui::initdirs;
-use crate::ui::tags::SPACER;
+use std::env;
+use std::path::Path;
+use std::result;
+use std::str;
 
 pub mod atcoder;
 pub mod local;
 
-define_error!();
-define_error_kind! {
-    [ArgumentFormatError; (passed_arg: String); format!(concat!(
-        "argument's format is not collect: `{}'.\n",
-        "{}please specify contest-site and problem-id separated by `:' (colon)."
-    ), passed_arg, SPACER)];
-    [UnknownContestSite; (site: String); format!("contest-site `{}' is unknown.", site)];
-    [MakingFetcherFailed; (); "failed to make fetchers.".to_string()];
-    [FetchError; (); "failed to fetch the problem".to_string()];
-    [ProviderCreationFailed; (); "failed to create provider.".to_string()];
-    [WritingTestCaseFailed; (); "failed to write test case file.".to_string()];
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug, thiserror::Error)]
+#[error("failed to download: {0}")]
+pub struct Error(ErrorKind);
+
+#[derive(Debug, thiserror::Error)]
+pub enum ErrorKind {
+    #[error(
+        "argument's format is not collect: `{passed_arg}`.  please specify contest-site and problem-id separated by `:` (colon).",
+    )]
+    ArgumentFormatError { passed_arg: String },
+
+    #[error("contest-site `{site}` is unknown")]
+    UnknownContestSite { site: String },
+
+    #[error("failed to make fetchers.")]
+    MakingFetcherFailed { source: anyhow::Error },
+
+    #[error("failed to fetch the problem.")]
+    FetchError { source: anyhow::Error },
+
+    #[error("failed to create provider.")]
+    ProviderCreationFailed { source: anyhow::Error },
+
+    #[error("failed to write test case file.")]
+    WritingTestCaseFailed { source: anyhow::Error },
 }
 
 pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
@@ -35,7 +48,7 @@ pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
 
     let fetchers = provider
         .make_fetchers(quiet)
-        .map_err(|e| Error::with_cause(ErrorKind::MakingFetcherFailed(), e))?;
+        .map_err(|source| Error(ErrorKind::MakingFetcherFailed { source }))?;
 
     print_fetching!("{} (at {})", provider.contest_id(), provider.url());
     fetchers.prepare_generate();
@@ -59,12 +72,11 @@ fn provider_into_box<T: 'static + ContestProvider>(provider: T) -> Box<dyn Conte
 fn get_provider(arg: String) -> Result<Box<dyn ContestProvider>> {
     let (contest_site, contest_id) = parse_arg(&arg)?;
     match contest_site {
-        "atcoder" | "at" => {
-            AtCoder::new(contest_id.to_string()).chain(ErrorKind::ProviderCreationFailed())
-        }
-        _ => Err(Error::new(ErrorKind::UnknownContestSite(
-            contest_site.to_string(),
-        ))),
+        "atcoder" | "at" => AtCoder::new(contest_id.to_string())
+            .map_err(|e| Error(ErrorKind::ProviderCreationFailed { source: e.into() })),
+        _ => Err(Error(ErrorKind::UnknownContestSite {
+            site: contest_site.to_string(),
+        })),
     }
     .map(provider_into_box)
 }
@@ -76,7 +88,9 @@ fn get_local_provider() -> Result<Box<dyn ContestProvider>> {
 fn parse_arg(arg: &str) -> Result<(&str, &str)> {
     let sp: Vec<_> = arg.split(':').collect();
     if sp.len() != 2 {
-        return Err(Error::new(ErrorKind::ArgumentFormatError(arg.to_string())));
+        return Err(Error(ErrorKind::ArgumentFormatError {
+            passed_arg: arg.to_string(),
+        }));
     }
     Ok((sp[0], sp[1]))
 }
@@ -124,8 +138,10 @@ pub fn generate_one(
 
     let curr_url = (b'a' + problem) as char;
     contest_id.push(curr_url);
-    let tcfs = fetch::fetch_test_case_files(quiet, fetcher).chain(ErrorKind::FetchError())?;
-    fetch::write_test_case_files(tcfs).chain(ErrorKind::WritingTestCaseFailed())?;
+    let tcfs = fetch::fetch_test_case_files(quiet, fetcher)
+        .map_err(|e| Error(ErrorKind::FetchError { source: e.into() }))?;
+    fetch::write_test_case_files(tcfs)
+        .map_err(|e| Error(ErrorKind::WritingTestCaseFailed { source: e.into() }))?;
     contest_id.pop();
 
     env::set_current_dir(Path::new("..")).unwrap();
@@ -149,5 +165,5 @@ pub trait ContestProvider {
     fn contest_id(&self) -> &str;
     fn url(&self) -> &str;
 
-    fn make_fetchers(&self, quiet: bool) -> result::Result<Fetchers, Box<dyn error::Error + Send>>;
+    fn make_fetchers(&self, quiet: bool) -> result::Result<Fetchers, anyhow::Error>;
 }

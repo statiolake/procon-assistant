@@ -22,6 +22,8 @@ atty = "0.2.11"
 which = "2.0.1"
 current_exe = { git = "https://github.com/statiolake/current-exe-rs" }
 to_absolute = { git = "https://github.com/statiolake/to-absolute-rs" }
+anyhow = "1.0.26"
+thiserror = "1.0.11"
 
 [dependencies.colored_print]
 git = "https://github.com/statiolake/colored_print.git"

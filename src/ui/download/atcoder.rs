@@ -1,25 +1,36 @@
-use scraper::{Html, Selector};
-
-use std::error;
-use std::result;
-
 use crate::imp::auth::atcoder as auth;
 use crate::ui::fetch::atcoder::AtCoder as FetchAtCoder;
 use crate::ui::fetch::TestCaseProvider;
+use scraper::{Html, Selector};
+use std::result;
 
-define_error!();
-define_error_kind! {
-    [InvalidFormatForContestId; (contest_id: String); format!(
-        "contest_id `{}' is invalid; the example format for AtCoder Grand Contest 022: agc022",
-        contest_id
-    )];
-    [GettingProblemPageFailed; (); "failed to get contest page text.".to_string()];
-    [GettingTasksFailed; (); "failed to get tasks.".to_string()];
-    [GettingProblemIdFailed; (); "failed to get contest id.".to_string()];
-    [EmptyProblemId; (); "contest id was empty.".to_string()];
-    [GettingProviderFailed; (); "failed to get provider.".to_string()];
-    [AuthenticatedGetFailed; (url: String); format!("failed to get the page at `{}'.", url)];
-    [GettingTextFailed; (); "failed to get text from page.".to_string()];
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("contest_id `{contest_id}` is invalid; the example format for AtCoder Grand Contest 022: agc022")]
+    InvalidFormatForContestId { contest_id: String },
+
+    #[error("failed to get contest page text.")]
+    GettingProblemPageFailed { source: anyhow::Error },
+
+    #[error("failed to get tasks.")]
+    GettingTasksFailed,
+
+    #[error("failed to get contest id.")]
+    GettingProblemIdFailed,
+
+    #[error("contest id was empty.")]
+    EmptyProblemId,
+
+    #[error("failed to get provider.")]
+    GettingProviderFailed { source: anyhow::Error },
+
+    #[error("failed to get the page at `{url}`")]
+    AuthenticatedGetFailed { source: anyhow::Error, url: String },
+
+    #[error("failed to get text from page.")]
+    GettingTextFailed { source: anyhow::Error },
 }
 
 pub struct AtCoder {
@@ -45,7 +56,7 @@ impl Contest {
             Contest::DirectUrl { url: contest_id }
         } else {
             if contest_id.len() != 6 {
-                return Err(Error::new(ErrorKind::InvalidFormatForContestId(contest_id)));
+                return Err(Error::InvalidFormatForContestId { contest_id });
             }
             let url = format!("https://beta.atcoder.jp/contests/{}/tasks", contest_id);
             Contest::ContestId { contest_id, url }
@@ -81,13 +92,9 @@ impl super::ContestProvider for AtCoder {
         self.contest.url()
     }
 
-    fn make_fetchers(
-        &self,
-        quiet: bool,
-    ) -> result::Result<super::Fetchers, Box<dyn error::Error + Send>> {
+    fn make_fetchers(&self, quiet: bool) -> result::Result<super::Fetchers, anyhow::Error> {
         let id = self.contest.contest_id();
-        let (beginning_char, numof_problems) =
-            get_range_of_problems(quiet, id).map_err(error_into_box)?;
+        let (beginning_char, numof_problems) = get_range_of_problems(quiet, id)?;
 
         let fetchers = (0..numof_problems).map(|problem| {
             let problem = (b'a' + problem) as char; // hack: atcoder regular contest starts 'a' while it's showed as 'c'
@@ -96,7 +103,7 @@ impl super::ContestProvider for AtCoder {
         });
 
         let fetchers: Result<Vec<_>> = fetchers.collect();
-        let fetchers = fetchers.map_err(error_into_box)?;
+        let fetchers = fetchers?;
 
         let fetchers = super::Fetchers {
             contest_id: self.contest.contest_id().to_string(),
@@ -108,10 +115,6 @@ impl super::ContestProvider for AtCoder {
     }
 }
 
-fn error_into_box<T: 'static + error::Error + Send>(e: T) -> Box<dyn error::Error + Send> {
-    Box::new(e)
-}
-
 fn fetcher_into_box<T: 'static + TestCaseProvider>(x: T) -> Box<dyn TestCaseProvider> {
     Box::new(x)
 }
@@ -120,7 +123,8 @@ fn fetcher_into_box<T: 'static + TestCaseProvider>(x: T) -> Box<dyn TestCaseProv
 fn get_range_of_problems(quiet: bool, contest_id: &str) -> Result<(char, u8)> {
     // fetch the tasks
     let url = format!("https://beta.atcoder.jp/contests/{}/tasks", contest_id);
-    let text = download_text(quiet, &url).chain(ErrorKind::GettingProblemPageFailed())?;
+    let text = download_text(quiet, &url)
+        .map_err(|e| Error::GettingProblemPageFailed { source: e.into() })?;
 
     let document = Html::parse_document(&text);
     let sel_tbody = Selector::parse("tbody").unwrap();
@@ -131,7 +135,7 @@ fn get_range_of_problems(quiet: bool, contest_id: &str) -> Result<(char, u8)> {
     let rows: Vec<_> = document
         .select(&sel_tbody)
         .next()
-        .ok_or_else(|| Error::new(ErrorKind::GettingTasksFailed()))?
+        .ok_or_else(|| Error::GettingTasksFailed)?
         .select(&sel_tr)
         .collect();
 
@@ -139,11 +143,11 @@ fn get_range_of_problems(quiet: bool, contest_id: &str) -> Result<(char, u8)> {
     let beginning_char_uppercase = rows[0]
         .select(&sel_a)
         .next()
-        .ok_or_else(|| Error::new(ErrorKind::GettingProblemIdFailed()))?
+        .ok_or_else(|| Error::GettingProblemIdFailed)?
         .inner_html()
         .chars()
         .next()
-        .ok_or_else(|| Error::new(ErrorKind::EmptyProblemId()))?;
+        .ok_or_else(|| Error::EmptyProblemId)?;
 
     Ok((
         beginning_char_uppercase.to_lowercase().next().unwrap(),
@@ -152,12 +156,15 @@ fn get_range_of_problems(quiet: bool, contest_id: &str) -> Result<(char, u8)> {
 }
 
 fn fetcher_for(problem_id: String) -> Result<FetchAtCoder> {
-    FetchAtCoder::new(problem_id).chain(ErrorKind::GettingProviderFailed())
+    FetchAtCoder::new(problem_id).map_err(|e| Error::GettingProviderFailed { source: e.into() })
 }
 
 fn download_text(quiet: bool, url: &str) -> Result<String> {
     auth::authenticated_get(quiet, url)
-        .chain(ErrorKind::AuthenticatedGetFailed(url.to_string()))?
+        .map_err(|e| Error::AuthenticatedGetFailed {
+            source: e.into(),
+            url: url.to_string(),
+        })?
         .text()
-        .chain(ErrorKind::GettingTextFailed())
+        .map_err(|e| Error::GettingTextFailed { source: e.into() })
 }

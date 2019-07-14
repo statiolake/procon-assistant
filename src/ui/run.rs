@@ -1,9 +1,3 @@
-use colored_print::color::{ConsoleColor, ConsoleColor::*};
-use colored_print::colored_eprintln;
-use time;
-
-use std::thread;
-
 use crate::imp::common;
 use crate::imp::config;
 use crate::imp::langs;
@@ -12,18 +6,45 @@ use crate::imp::test_case::judge_result::{JudgeResult, WrongAnswer};
 use crate::imp::test_case::{TestCase, TestCaseFile};
 use crate::ui::clip;
 use crate::ui::compile;
+use colored_print::color::{ConsoleColor, ConsoleColor::*};
+use colored_print::colored_eprintln;
+use std::thread;
+use time;
 
 const OUTPUT_COLOR: ConsoleColor = LightMagenta;
 
-define_error!();
-define_error_kind! {
-    [CompilationFailed; (); "failed to compile.".to_string()];
-    [RunningTestsFailed; (); "test running failed.".to_string()];
-    [GettingLanguageFailed; (); "failed to get source file.".to_string()];
-    [CopyingToClipboardFailed; (); "failed to copy to clipboard.".to_string()];
-    [InvalidArgument; (); "failed to parse the passed argument.".to_string()];
-    [LoadingTestCaseFailed; (); "failed to load some test case.".to_string()];
-    [JudgingFailed; (); "failed to judge.".to_string()];
+pub type Result<T> = std::result::Result<T, Error>;
+
+delegate_impl_error_error_kind! {
+    #[error("failed to run some test cases")]
+    pub struct Error(ErrorKind);
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ErrorKind {
+    #[error("failed to compile.")]
+    CompilationFailed { source: anyhow::Error },
+
+    #[error("test running failed.")]
+    RunningTestsFailed { source: anyhow::Error },
+
+    #[error("failed to get source file.")]
+    GettingLanguageFailed { source: anyhow::Error },
+
+    #[error("failed to copy to clipboard.")]
+    CopyingToClipboardFailed { source: anyhow::Error },
+
+    #[error("failed to parse the passed argument.")]
+    InvalidArgument { source: anyhow::Error },
+
+    #[error("failed to load some test case.")]
+    LoadingTestCaseFailed { source: anyhow::Error },
+
+    #[error("failed to judge.")]
+    JudgingFailed { source: anyhow::Error },
+
+    #[error("some of tests didn't pass")]
+    TestCaseNotPass,
 }
 
 pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
@@ -32,10 +53,13 @@ pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
         .into_iter()
         .filter(|x| x != "--force" && x != "-f")
         .collect();
-    let lang = langs::get_lang().chain(ErrorKind::GettingLanguageFailed())?;
-    let success = compile::compile(quiet, &lang, force).chain(ErrorKind::CompilationFailed())?;
+    let lang = langs::get_lang()
+        .map_err(|e| Error(ErrorKind::GettingLanguageFailed { source: e.into() }))?;
+    let success = compile::compile(quiet, &lang, force)
+        .map_err(|e| Error(ErrorKind::CompilationFailed { source: e.into() }))?;
     let result = if success {
-        run_tests(quiet, &args).chain(ErrorKind::RunningTestsFailed())?
+        run_tests(quiet, &args)
+            .map_err(|e| Error(ErrorKind::RunningTestsFailed { source: e.into() }))?
     } else {
         JudgeResult::CompilationError
     };
@@ -52,11 +76,12 @@ pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
     // copy the answer to the clipboard
     if let JudgeResult::Passed = result {
         eprintln!("");
-        clip::copy_to_clipboard(quiet, &lang).chain(ErrorKind::CopyingToClipboardFailed())?;
+        clip::copy_to_clipboard(quiet, &lang)
+            .map_err(|e| Error(ErrorKind::CopyingToClipboardFailed { source: e.into() }))?;
 
         Ok(())
     } else {
-        Err(Error::new(ErrorKind::SilentError))
+        Err(Error(ErrorKind::TestCaseNotPass))
     }
 }
 
@@ -67,8 +92,11 @@ fn run_tests(quiet: bool, args: &[String]) -> Result<JudgeResult> {
 fn parse_argument_cases(args: &[String]) -> Result<Vec<TestCase>> {
     let mut result = vec![];
     for arg in args.iter() {
-        let n: i32 = arg.parse().chain(ErrorKind::InvalidArgument())?;
-        let tcf = TestCaseFile::load_from_index_of(n).chain(ErrorKind::LoadingTestCaseFailed())?;
+        let n: i32 = arg
+            .parse::<i32>()
+            .map_err(|e| Error(ErrorKind::InvalidArgument { source: e.into() }))?;
+        let tcf = TestCaseFile::load_from_index_of(n)
+            .map_err(|e| Error(ErrorKind::LoadingTestCaseFailed { source: e.into() }))?;
         result.push(TestCase::from(tcf));
     }
 
@@ -77,10 +105,11 @@ fn parse_argument_cases(args: &[String]) -> Result<Vec<TestCase>> {
 
 fn enumerate_test_cases(args: &[String]) -> Result<Vec<TestCase>> {
     let test_cases = if args.is_empty() {
-        test_case::enumerate_test_cases().chain(ErrorKind::LoadingTestCaseFailed())
+        test_case::enumerate_test_cases()
+            .map_err(|e| Error(ErrorKind::LoadingTestCaseFailed { source: e.into() }))?
     } else {
-        parse_argument_cases(args)
-    }?;
+        parse_argument_cases(args)?
+    };
 
     Ok(test_cases)
 }
@@ -116,7 +145,8 @@ fn run(quiet: bool, tcs: Vec<TestCase>) -> Result<JudgeResult> {
     eprintln!("");
     let mut whole_result = JudgeResult::Passed;
     for (display, result) in judge_results.into_iter() {
-        let (duration, result) = result.chain(ErrorKind::JudgingFailed())?;
+        let (duration, result) =
+            result.map_err(|e| Error(ErrorKind::JudgingFailed { source: e.into() }))?;
         print_result(quiet, &result, &duration, display);
         // update whole result
         if result != JudgeResult::Passed && whole_result == JudgeResult::Passed {
