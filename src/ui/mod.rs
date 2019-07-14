@@ -13,7 +13,6 @@ mod login;
 mod preprocess;
 mod run;
 
-use crate::ErrorWithSilent;
 use std::env;
 use std::error;
 use std::process;
@@ -77,17 +76,17 @@ pub fn main() {
     let cmd = args[1].clone();
     let args: Vec<_> = args.into_iter().skip(2).collect();
     let result = match cmd.as_str() {
-        "initdirs" | "id" => initdirs::main(quiet, args).map_err(box_err),
-        "init" | "i" => init::main(quiet, args).map_err(box_err),
-        "addcase" | "a" | "ac" => addcase::main(quiet).map_err(box_err),
-        "delcase" | "dc" => delcase::main(quiet, args).map_err(box_err),
-        "preprocess" | "si" | "pp" => preprocess::main(quiet).map_err(box_err),
-        "clip" | "c" => clip::main(quiet).map_err(box_err),
-        "fetch" | "f" => fetch::main(quiet, args).map_err(box_err),
-        "download" | "d" | "dl" => download::main(quiet, args).map_err(box_err),
-        "run" | "r" => run::main(quiet, args).map_err(box_err),
-        "compile" | "co" => compile::main(quiet, args).map_err(box_err),
-        "login" | "l" => login::main(quiet, args).map_err(box_err),
+        "initdirs" | "id" => initdirs::main(quiet, args).map_err(anyhow::Error::from),
+        "init" | "i" => init::main(quiet, args).map_err(anyhow::Error::from),
+        "addcase" | "a" | "ac" => addcase::main(quiet).map_err(anyhow::Error::from),
+        "delcase" | "dc" => delcase::main(quiet, args).map_err(anyhow::Error::from),
+        "preprocess" | "si" | "pp" => preprocess::main(quiet).map_err(anyhow::Error::from),
+        "clip" | "c" => clip::main(quiet).map_err(anyhow::Error::from),
+        "fetch" | "f" => fetch::main(quiet, args).map_err(anyhow::Error::from),
+        "download" | "d" | "dl" => download::main(quiet, args).map_err(anyhow::Error::from),
+        "run" | "r" => run::main(quiet, args).map_err(anyhow::Error::from),
+        "compile" | "co" => compile::main(quiet, args).map_err(anyhow::Error::from),
+        "login" | "l" => login::main(quiet, args).map_err(anyhow::Error::from),
         "--help" | "-h" => {
             help();
             return;
@@ -99,10 +98,8 @@ pub fn main() {
     };
 
     if let Err(e) = result {
-        if !e.is_silent() {
-            print_error!("{}", e);
-            print_causes(e.upcast());
-        }
+        print_error!("{}", e);
+        print_causes(&*e);
         process::exit(1);
     }
 }
@@ -112,8 +109,4 @@ fn print_causes(e: &dyn error::Error) {
         print_info!(true, "due to: {}", cause);
         print_causes(cause);
     }
-}
-
-fn box_err<'a, E: ErrorWithSilent + 'a>(e: E) -> Box<dyn ErrorWithSilent + 'a> {
-    Box::new(e)
 }

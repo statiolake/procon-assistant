@@ -1,3 +1,6 @@
+use self::judge_result::{JudgeResult, OutputDifference};
+use crate::imp::common;
+use crate::imp::config;
 use std::fmt;
 use std::fs::File;
 use std::io;
@@ -5,20 +8,29 @@ use std::io::prelude::*;
 use std::path::Path;
 use std::process::{Child, Command, ExitStatus, Stdio};
 
-use self::judge_result::{JudgeResult, OutputDifference};
-use crate::imp::common;
-use crate::imp::config;
-
 pub mod judge_result;
 
-define_error!();
-define_error_kind! {
-    [MismatchingTestCaseFiles; (existing_outfile: String, inexisting_infile: String); format!(
-        "output file `{}' exists while input file `{}' does not exist.",
-        existing_outfile, inexisting_infile
-    )];
-    [FileCreationFailed; (name: String); format!("failed to create `{}'", name)];
-    [ExecutionOfMainBinaryFailed; (); "failed to execute compiled binary main.".to_string()];
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug, thiserror::Error)]
+#[error("failed to operate with testcase.")]
+pub struct Error(ErrorKind);
+
+#[derive(Debug, thiserror::Error)]
+pub enum ErrorKind {
+    #[error(
+        "output file `{existing_outfile}` exists while input file `{inexisting_infile}` does not exist."
+    )]
+    MismatchingTestCaseFiles {
+        existing_outfile: String,
+        inexisting_infile: String,
+    },
+
+    #[error("failed to create `{name}`")]
+    FileCreationFailed { source: anyhow::Error, name: String },
+
+    #[error("failed to execute compiled binary main.")]
+    ExecutionOfMainBinaryFailed { source: anyhow::Error },
 }
 
 #[derive(Debug)]
@@ -85,9 +97,10 @@ impl TestCaseFile {
         let of_name = make_of_name(idx);
 
         if Path::new(&of_name).exists() {
-            return Err(Error::new(ErrorKind::MismatchingTestCaseFiles(
-                of_name, if_name,
-            )));
+            return Err(Error(ErrorKind::MismatchingTestCaseFiles {
+                existing_outfile: of_name,
+                inexisting_infile: if_name,
+            }));
         }
 
         Ok(idx)
@@ -113,10 +126,12 @@ impl TestCaseFile {
     }
 
     pub fn write(&self) -> Result<()> {
+        let to_err =
+            |source: anyhow::Error, name| Error(ErrorKind::FileCreationFailed { source, name });
         common::ensure_to_create_file(&self.if_name, &self.if_contents)
-            .chain(ErrorKind::FileCreationFailed(self.if_name.clone()))?;
+            .map_err(|e| to_err(e.into(), self.if_name.clone()))?;
         common::ensure_to_create_file(&self.of_name, &self.of_contents)
-            .chain(ErrorKind::FileCreationFailed(self.of_name.clone()))?;
+            .map_err(|e| to_err(e.into(), self.of_name.clone()))?;
         Ok(())
     }
 
@@ -173,7 +188,7 @@ fn spawn_main() -> Result<Child> {
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
-        .chain(ErrorKind::ExecutionOfMainBinaryFailed())
+        .map_err(|e| Error(ErrorKind::ExecutionOfMainBinaryFailed { source: e.into() }))
 }
 
 fn input_to_child(child: &mut Child, if_contents: &[u8]) {

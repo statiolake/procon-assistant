@@ -1,19 +1,30 @@
-use std::path::Path;
-
 use crate::imp::clip;
 use crate::imp::langs;
 use crate::imp::langs::Lang;
 use crate::imp::preprocess;
+use std::path::Path;
 
-define_error!();
-define_error_kind! {
-    [GettingLanguageFailed; (); "failed to get source file."];
-    [CopyingToClipboardFailed; (); "failed to copy the source file to the clipboard."];
+pub type Result<T> = std::result::Result<T, Error>;
+
+delegate_impl_error_error_kind! {
+    #[error("failed to copy to the clipboard")]
+    pub struct Error(ErrorKind);
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ErrorKind {
+    #[error("failed to get source file.")]
+    GettingLanguageFailed { source: anyhow::Error },
+
+    #[error("failed to copy the source file to the clipboard.")]
+    CopyingToClipboardFailed { source: anyhow::Error },
 }
 
 pub fn main(quiet: bool) -> Result<()> {
-    let lang = langs::get_lang().chain(ErrorKind::GettingLanguageFailed())?;
-    copy_to_clipboard(quiet, &lang).chain(ErrorKind::CopyingToClipboardFailed())
+    let lang = langs::get_lang()
+        .map_err(|e| Error(ErrorKind::GettingLanguageFailed { source: e.into() }))?;
+    copy_to_clipboard(quiet, &lang)
+        .map_err(|e| Error(ErrorKind::CopyingToClipboardFailed { source: e.into() }))
 }
 
 pub fn copy_to_clipboard(quiet: bool, lang: &Lang) -> preprocess::Result<()> {
