@@ -22,25 +22,25 @@ delegate_impl_error_error_kind! {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
-    #[error("failed to compile.")]
+    #[error("failed to compile")]
     CompilationFailed { source: anyhow::Error },
 
-    #[error("test running failed.")]
+    #[error("test running failed")]
     RunningTestsFailed { source: anyhow::Error },
 
-    #[error("failed to get source file.")]
+    #[error("failed to get source file")]
     GettingLanguageFailed { source: anyhow::Error },
 
-    #[error("failed to copy to clipboard.")]
+    #[error("failed to copy to clipboard")]
     CopyingToClipboardFailed { source: anyhow::Error },
 
-    #[error("failed to parse the passed argument.")]
+    #[error("failed to parse the passed argument")]
     InvalidArgument { source: anyhow::Error },
 
-    #[error("failed to load some test case.")]
+    #[error("failed to load some test case")]
     LoadingTestCaseFailed { source: anyhow::Error },
 
-    #[error("failed to judge.")]
+    #[error("failed to judge")]
     JudgingFailed { source: anyhow::Error },
 
     #[error("some of tests didn't pass")]
@@ -70,7 +70,7 @@ pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
         common::colorize();
         Reset, "    Your solution {}", result_long_verb;
         result_color, "{}", result_long_name;
-        Reset, ".";
+        Reset, "";
     };
 
     // copy the answer to the clipboard

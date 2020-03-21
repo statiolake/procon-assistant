@@ -2,10 +2,10 @@
 pub fn set_clipboard(content: String) {
     use clipboard::{ClipboardContext, ClipboardProvider};
     let mut provider: ClipboardContext =
-        ClipboardProvider::new().expect("critical error: cannot get clipboard provider.");
+        ClipboardProvider::new().expect("critical error: cannot get clipboard provider");
     provider
         .set_contents(content)
-        .expect("critical error: cannot set contents to clipboard.");
+        .expect("critical error: cannot set contents to clipboard");
 }
 
 #[cfg(unix)]

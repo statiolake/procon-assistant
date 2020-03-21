@@ -8,25 +8,25 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("missing tag: failed to find `{selector}`. maybe you are not logged in?")]
+    #[error("missing tag: failed to find `{selector}`; are you successfully logged in?")]
     FindingTagFailed { selector: String },
 
     #[error("unexpected number of <pre>: {detected}")]
     UnexpectedNumberOfPreTag { detected: usize },
 
-    #[error("failed to determine test case file name.")]
+    #[error("failed to determine test case file name")]
     CouldNotDetermineTestCaseFileName { source: anyhow::Error },
 
-    #[error("failed to get the page at `{url}`.")]
+    #[error("failed to get the page at `{url}`")]
     AuthenticatedGetFailed { source: anyhow::Error, url: String },
 
-    #[error("failed to get text from page.")]
+    #[error("failed to get text from page")]
     GettingTextFailed { source: anyhow::Error },
 
-    #[error("invalid format for problem-id: `{problem}`. example: `abc022a` for AtCoder Beginner Contest 022 Problem A")]
+    #[error("invalid format for problem-id: `{problem}`;  example: `abc022a` for AtCoder Beginner Contest 022 Problem A")]
     InvalidFormatForProblemId { problem: String },
 
-    #[error("logging in failed.")]
+    #[error("logging in failed")]
     LoginFailed { source: anyhow::Error },
 }
 
@@ -114,7 +114,7 @@ impl super::TestCaseProvider for AtCoder {
     fn needs_authenticate(&self, quiet: bool) -> bool {
         print_info!(
             !quiet,
-            "needs_authenticate() is not implemetented for now, always returns `false`."
+            "needs_authenticate() is not implemetented for now, always returns `false`"
         );
         false
     }

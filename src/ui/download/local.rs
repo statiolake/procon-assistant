@@ -11,7 +11,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("problems.txt not found in this directory.")]
+    #[error("problems.txt not found in this directory")]
     AnythingNotSpecified,
 
     #[error("couldn't open `{file_path}`")]
@@ -26,7 +26,7 @@ pub enum Error {
         file_path: String,
     },
 
-    #[error("failed to parse specified problem.")]
+    #[error("failed to parse specified problem")]
     ParseFailed { source: anyhow::Error },
 }
 

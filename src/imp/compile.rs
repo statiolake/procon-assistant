@@ -12,10 +12,10 @@ delegate_impl_error_error_kind! {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
-    #[error("failed to spawn compiler; check your installation.")]
+    #[error("failed to spawn compiler; check your installation")]
     SpawningCompilerFailed { source: anyhow::Error },
 
-    #[error("failed to check the files metadata.")]
+    #[error("failed to check the files metadata")]
     CheckingMetadataFailed { source: anyhow::Error },
 }
 

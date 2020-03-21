@@ -8,7 +8,7 @@ pub enum OutputDifference {
 impl OutputDifference {
     pub fn message(&self) -> String {
         match *self {
-            OutputDifference::SizeDiffers => "the number of output lines is different.".to_string(),
+            OutputDifference::SizeDiffers => "the number of output lines is different".to_string(),
             OutputDifference::NotDifferent => unreachable!(), // this should be treated as Presentation Error.
             OutputDifference::Different(ref different_lines) => {
                 let message = different_lines
@@ -16,7 +16,7 @@ impl OutputDifference {
                     .map(ToString::to_string)
                     .collect::<Vec<_>>()
                     .join(&", ".to_string());
-                format!("line {} differs.", message)
+                format!("line {} differs", message)
             }
         }
     }

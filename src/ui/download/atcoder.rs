@@ -11,25 +11,25 @@ pub enum Error {
     #[error("contest_id `{contest_id}` is invalid; the example format for AtCoder Grand Contest 022: agc022")]
     InvalidFormatForContestId { contest_id: String },
 
-    #[error("failed to get contest page text.")]
+    #[error("failed to get contest page text")]
     GettingProblemPageFailed { source: anyhow::Error },
 
-    #[error("failed to get tasks.")]
+    #[error("failed to get tasks")]
     GettingTasksFailed,
 
-    #[error("failed to get contest id.")]
+    #[error("failed to get contest id")]
     GettingProblemIdFailed,
 
-    #[error("contest id was empty.")]
+    #[error("contest id was empty")]
     EmptyProblemId,
 
-    #[error("failed to get provider.")]
+    #[error("failed to get provider")]
     GettingProviderFailed { source: anyhow::Error },
 
     #[error("failed to get the page at `{url}`")]
     AuthenticatedGetFailed { source: anyhow::Error, url: String },
 
-    #[error("failed to get text from page.")]
+    #[error("failed to get text from page")]
     GettingTextFailed { source: anyhow::Error },
 }
 
