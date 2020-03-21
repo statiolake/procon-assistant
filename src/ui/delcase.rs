@@ -1,16 +1,31 @@
+use crate::imp::test_case;
+use crate::imp::test_case::{TestCase, TestCaseFile};
 use std::fs;
 use std::io;
 
-use crate::imp::test_case;
-use crate::imp::test_case::{TestCase, TestCaseFile};
+pub type Result<T> = std::result::Result<T, Error>;
 
-define_error!();
-define_error_kind! {
-    [ParsingCommandLineArgFailed; (); "failed to parse command line argument.".into()];
-    [OpeningTestCaseFileFailed; (); "failed to open testcase file.".into()];
-    [IndexOutOfRange; (idx: i32, num: usize); format!("the specified test case {} is out-of-range: there're only {} test cases.", idx, num)];
-    [RemovingTestCaseFileFailed; (); "failed to remove testcase file.".into()];
-    [WritingTestCaseFileFailed; (); "failed to write testcase file into file.".into()];
+delegate_impl_error_error_kind! {
+    #[error("failed to delete the testcase")]
+    pub struct Error(ErrorKind);
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ErrorKind {
+    #[error("failed to parse command line argument.")]
+    ParsingCommandLineArgFailed { source: anyhow::Error },
+
+    #[error("failed to open testcase file.")]
+    OpeningTestCaseFileFailed { source: anyhow::Error },
+
+    #[error("the specified test case {idx} is out-of-range: there're only {num} test cases.")]
+    IndexOutOfRange { idx: i32, num: usize },
+
+    #[error("failed to remove testcase file.")]
+    RemovingTestCaseFileFailed { source: anyhow::Error },
+
+    #[error("failed to write testcase file into file.")]
+    WritingTestCaseFileFailed { source: anyhow::Error },
 }
 
 pub fn main(_quiet: bool, args: Vec<String>) -> Result<()> {
@@ -18,13 +33,14 @@ pub fn main(_quiet: bool, args: Vec<String>) -> Result<()> {
 
     // load all test cases
     let mut test_cases: Vec<_> = test_case::enumerate_test_cases()
-        .chain(ErrorKind::OpeningTestCaseFileFailed())?
+        .map_err(|e| Error(ErrorKind::OpeningTestCaseFileFailed { source: e.into() }))?
         .into_iter()
         .map(TestCase::into_test_case_file)
         .collect();
 
     // once remove all test case file
-    clean_test_cases(&test_cases).chain(ErrorKind::RemovingTestCaseFileFailed())?;
+    clean_test_cases(&test_cases)
+        .map_err(|e| Error(ErrorKind::RemovingTestCaseFileFailed { source: e.into() }))?;
 
     // remove test case from test cases
     let len = test_cases.len();
@@ -32,10 +48,10 @@ pub fn main(_quiet: bool, args: Vec<String>) -> Result<()> {
     #[allow(clippy::explicit_counter_loop)]
     for idx in indices {
         if idx >= len {
-            return Err(Error::new(ErrorKind::IndexOutOfRange(
-                (idx + 1) as i32,
-                len,
-            )));
+            return Err(Error(ErrorKind::IndexOutOfRange {
+                idx: (idx + 1) as _,
+                num: len,
+            }));
         }
 
         assert!(idx >= removed);
@@ -52,7 +68,7 @@ pub fn main(_quiet: bool, args: Vec<String>) -> Result<()> {
         );
         new_test_case
             .write()
-            .chain(ErrorKind::WritingTestCaseFileFailed())?;
+            .map_err(|e| Error(ErrorKind::WritingTestCaseFileFailed { source: e.into() }))?;
     }
 
     Ok(())
@@ -65,8 +81,8 @@ fn parse_args(args: Vec<String>) -> Result<Vec<usize>> {
         // be needed. but, since I treat the index of test_case as i32 (refer to
         // TestCaseFile struct), the number should be parsed as i32 here.
         let num: i32 = arg
-            .parse()
-            .chain(ErrorKind::ParsingCommandLineArgFailed())?;
+            .parse::<i32>()
+            .map_err(|e| Error(ErrorKind::ParsingCommandLineArgFailed { source: e.into() }))?;
 
         res.push((num - 1) as usize);
     }

@@ -5,10 +5,27 @@ use std::path::{Path, PathBuf};
 pub mod cpp;
 pub mod rust;
 
-define_error!();
-define_error_kind! {
-    [FileNotFound; (file_name: String); format!("failed to load '{}'; file not found.", file_name)];
-    [CanonicalizationFailed; (path: PathBuf); format!("failed to canonicalize '{}'", path.display())];
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug, thiserror::Error)]
+#[error("failed to preprocess the source code.")]
+pub struct Error(ErrorKind);
+
+#[derive(Debug, thiserror::Error)]
+pub enum ErrorKind {
+    #[error("failed to load `{}`; file not found.", .path.display())]
+    FileNotFound {
+        #[source]
+        source: anyhow::Error,
+        path: PathBuf,
+    },
+
+    #[error("failed to canonicalize the path `{}`", .path.display())]
+    CanonicalizationFailed {
+        #[source]
+        source: anyhow::Error,
+        path: PathBuf,
+    },
 }
 
 macro_rules! preprocessor_newtype {
@@ -41,11 +58,16 @@ preprocessor_newtype!(Minified, String, |x| x);
 pub fn read_source_file(file_path: &Path) -> Result<RawSource> {
     let mut src_content = String::new();
     File::open(file_path)
-        .chain(ErrorKind::FileNotFound(file_path.display().to_string()))?
+        .map_err(|e| {
+            Error(ErrorKind::FileNotFound {
+                source: e.into(),
+                path: file_path.into(),
+            })
+        })?
         .read_to_string(&mut src_content)
         .unwrap_or_else(|_| {
             panic!(
-                "critical error: failed to read `{}' from disk.",
+                "critical error: failed to read `{}` from disk.",
                 file_path.display()
             )
         });

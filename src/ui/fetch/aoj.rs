@@ -1,18 +1,29 @@
-use scraper::{Html, Selector};
-
-use std::error;
-use std::result;
-
 use crate::imp::auth::aoj as auth;
 use crate::imp::test_case::TestCaseFile;
+use scraper::{Html, Selector};
+use std::result;
 
-define_error!();
-define_error_kind! {
-    [FetchingProblemFailed; (problem_id: String); format!("failed to fetch the problem `{}'", problem_id)];
-    [UnexpectedNumberOfPreTag; (detected: usize); format!("unexpected number of <pre>: {}", detected)];
-    [CouldNotDetermineTestCaseFileName; (); "failed to determine test case file name.".to_string()];
-    [AuthenticatedGetFailed; (url: String); format!("failed to get the page at `{}'.", url)];
-    [GettingTextFailed; (); "failed to get text from page.".to_string()];
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("failed to fetch the problem `{problem_id}`")]
+    FetchingProblemFailed {
+        source: anyhow::Error,
+        problem_id: String,
+    },
+
+    #[error("unexpected number of <pre>: {detected}")]
+    UnexpectedNumberOfPreTag { detected: usize },
+
+    #[error("failed to determine test case file name.")]
+    CouldNotDetermineTestCaseFileName { source: anyhow::Error },
+
+    #[error("failed to get the page at `{url}`.")]
+    AuthenticatedGetFailed { source: anyhow::Error, url: String },
+
+    #[error("failed to get text from page.")]
+    GettingTextFailed { source: anyhow::Error },
 }
 
 #[derive(Debug)]
@@ -84,7 +95,7 @@ impl super::TestCaseProvider for Aoj {
         false
     }
 
-    fn authenticate(&self, quiet: bool) -> result::Result<(), Box<dyn error::Error + Send>> {
+    fn authenticate(&self, quiet: bool) -> result::Result<(), anyhow::Error> {
         print_info!(
             !quiet,
             "authenticate() for AOJ is not implemented for now, do nothing."
@@ -95,18 +106,14 @@ impl super::TestCaseProvider for Aoj {
     fn fetch_test_case_files(
         &self,
         _quiet: bool,
-    ) -> result::Result<Vec<TestCaseFile>, Box<dyn error::Error + Send>> {
-        let text = download_text(self.problem.url())
-            .chain(ErrorKind::FetchingProblemFailed(
-                self.problem.problem_id().to_string(),
-            ))
-            .map_err(error_into_box)?;
-        parse_text(text).map_err(error_into_box)
-    }
-}
+    ) -> result::Result<Vec<TestCaseFile>, anyhow::Error> {
+        let text = download_text(self.problem.url()).map_err(|e| Error::FetchingProblemFailed {
+            source: e.into(),
+            problem_id: self.problem.problem_id().to_string(),
+        })?;
 
-fn error_into_box<T: 'static + error::Error + Send>(x: T) -> Box<dyn error::Error + Send> {
-    Box::new(x)
+        parse_text(text).map_err(Into::into)
+    }
 }
 
 pub fn parse_text(text: String) -> Result<Vec<TestCaseFile>> {
@@ -115,7 +122,9 @@ pub fn parse_text(text: String) -> Result<Vec<TestCaseFile>> {
 
     let mut pres: Vec<_> = document.select(&sel_pre).collect();
     if pres.len() <= 1 {
-        return Err(Error::new(ErrorKind::UnexpectedNumberOfPreTag(pres.len())));
+        return Err(Error::UnexpectedNumberOfPreTag {
+            detected: pres.len(),
+        });
     }
 
     if pres.len() % 2 == 1 {
@@ -123,8 +132,8 @@ pub fn parse_text(text: String) -> Result<Vec<TestCaseFile>> {
     }
 
     let mut result = Vec::new();
-    let beginning =
-        TestCaseFile::next_unused_idx().chain(ErrorKind::CouldNotDetermineTestCaseFileName())?;
+    let beginning = TestCaseFile::next_unused_idx()
+        .map_err(|e| Error::CouldNotDetermineTestCaseFileName { source: e.into() })?;
     for i in 0..(pres.len() / 2) {
         let tsf = TestCaseFile::new_with_idx(
             beginning + i as i32,
@@ -139,7 +148,10 @@ pub fn parse_text(text: String) -> Result<Vec<TestCaseFile>> {
 
 fn download_text(url: &str) -> Result<String> {
     auth::authenticated_get(url)
-        .chain(ErrorKind::AuthenticatedGetFailed(url.to_string()))?
+        .map_err(|e| Error::AuthenticatedGetFailed {
+            source: e.into(),
+            url: url.to_string(),
+        })?
         .text()
-        .chain(ErrorKind::GettingTextFailed())
+        .map_err(|e| Error::GettingTextFailed { source: e.into() })
 }

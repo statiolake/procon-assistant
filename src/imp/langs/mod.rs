@@ -1,12 +1,10 @@
+use crate::imp::preprocess;
+use crate::imp::preprocess::{Minified, Preprocessed, RawSource};
 use lazy_static::lazy_static;
-
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
-
-use crate::imp::preprocess;
-use crate::imp::preprocess::{Minified, Preprocessed, RawSource};
 
 pub mod cpp;
 pub mod rust;
@@ -41,9 +39,16 @@ lazy_static! {
 
 pub const LANGS: &[Lang] = &[cpp::LANG, rust::LANG];
 
-define_error!();
-define_error_kind! {
-    [FileNotFound; (); "there seems not to have supported file in current dir."];
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug, thiserror::Error)]
+#[error("failed to get the language for this project.")]
+pub struct Error(ErrorKind);
+
+#[derive(Debug, thiserror::Error)]
+pub enum ErrorKind {
+    #[error("there doesn't seem to have a supported file in the current dir.")]
+    FileNotFound,
 }
 
 pub fn get_lang() -> Result<Lang> {
@@ -52,5 +57,5 @@ pub fn get_lang() -> Result<Lang> {
             return Ok(lang.clone());
         }
     }
-    Err(Error::new(ErrorKind::FileNotFound()))
+    Err(Error(ErrorKind::FileNotFound))
 }

@@ -19,7 +19,6 @@ pub const LOGGING_IN: &str = " Logging in";
 pub const LINT: &str = "       Lint";
 pub const INFO: &str = "       Info";
 pub const DEBUG: &str = "      Debug";
-pub const SPACER: &str = "            "; // to indent next line
 
 #[macro_export]
 macro_rules! print_error {

@@ -1,15 +1,11 @@
+use super::{Error, ErrorKind, Minified, Preprocessed, RawSource, Result};
+use crate::imp::langs;
+use crate::print_info;
 use lazy_static::lazy_static;
 use regex::Regex;
-
 use std::collections::HashSet;
 use std::mem;
 use std::path::{Path, PathBuf};
-
-use crate::imp::langs;
-use crate::print_info;
-
-use super::{ChainableToError, ErrorKind, Result};
-use super::{Minified, Preprocessed, RawSource};
 
 lazy_static! {
     static ref RE_INCLUDE: Regex =
@@ -84,8 +80,12 @@ fn parse_include(
                 let inc_file = caps.name("inc_file").unwrap().as_str();
                 let inc_path = lib_dir.join(Path::new(inc_file));
                 let inc_path: PathBuf = inc_path.components().collect();
-                to_absolute::canonicalize(&inc_path)
-                    .chain(ErrorKind::CanonicalizationFailed(inc_path))?
+                to_absolute::canonicalize(&inc_path).map_err(|e| {
+                    Error(ErrorKind::CanonicalizationFailed {
+                        source: e.into(),
+                        path: inc_path,
+                    })
+                })?
             }
         };
 

@@ -1,21 +1,25 @@
 use serde_derive::Deserialize;
-
 use std::fs::File;
-
-use crate::ui::tags::SPACER;
 
 pub const TIMEOUT_MILLISECOND: i64 = 3000;
 
-define_error!();
-define_error_kind! {
-    [ConfigFileMissing; (); format!(concat!(
-        "`config.json' is missing.\n",
-        "{}please check that file is placed at the same directory where this binary is placed."
-    ), SPACER)];
-    [ErrorInConfigFile; (); format!(concat!(
-        "failed to parse config.json.\n",
-        "{}maybe that file has syntax error, unknown options, or mismatched types."
-    ), SPACER)];
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug, thiserror::Error)]
+#[error("failed to get config.")]
+pub struct Error(ErrorKind);
+
+#[derive(Debug, thiserror::Error)]
+pub enum ErrorKind {
+    #[error(
+        "`config.json` is missing.  please check that file is placed at the same directory where this binary is placed."
+    )]
+    ConfigFileMissing { source: anyhow::Error },
+
+    #[error(
+        "failed to parse `config.json`.  maybe there are some syntax errors, unknown options, or mismatched types in `config.json`."
+    )]
+    ErrorInConfigFile { source: anyhow::Error },
 }
 
 #[derive(Deserialize)]
@@ -36,7 +40,10 @@ impl ConfigFile {
             .unwrap()
             .with_file_name("config.json");
         File::open(&config_path)
-            .chain(ErrorKind::ConfigFileMissing())
-            .and_then(|f| serde_json::from_reader(f).chain(ErrorKind::ErrorInConfigFile()))
+            .map_err(|e| Error(ErrorKind::ConfigFileMissing { source: e.into() }))
+            .and_then(|f| {
+                serde_json::from_reader(f)
+                    .map_err(|e| Error(ErrorKind::ErrorInConfigFile { source: e.into() }))
+            })
     }
 }

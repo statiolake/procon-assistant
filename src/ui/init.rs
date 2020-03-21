@@ -1,12 +1,11 @@
-use std::fs;
-use std::fs::File;
-use std::io::prelude::*;
-use std::path::Path;
-
 use crate::imp::common;
 use crate::imp::config::ConfigFile;
 use crate::imp::langs;
 use crate::imp::langs::Lang;
+use std::fs;
+use std::fs::File;
+use std::io::prelude::*;
+use std::path::Path;
 
 const FILES: &[&str] = &[
     "compile_commands.json",
@@ -15,17 +14,36 @@ const FILES: &[&str] = &[
     ".vscode/launch.json",
 ];
 
-define_error!();
-define_error_kind! {
-    [GettingConfigFailed; (); "failed to get config.".to_string()];
-    [UnknownFileType; (lang: String); format!("unknown file type: {}", lang)];
-    [CreateDestinationDirectoryFailed; (name: String); format!("creating directory `{}' failed.", name)];
-    [CreateDestinationFailed; (name: String); format!("creating `{}' failed.", name)];
-    [WriteToDestinationFailed; (name: String); format!("writing `{}' failed.", name)];
-    [OpenTemplateFailed; (name: String); format!("template file for `{}' not found.", name)];
-    [TemplateVariableSubstitutionFailed; (); "template variable substitution failed.".to_string()];
-    [ReadFromTemplateFailed; (name: String); format!("reading from template `{}' failed.", name)];
-    [OpeningEditorFailed; (); "failed to open editor.".to_string()];
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("failed to get config.")]
+    GettingConfigFailed { source: anyhow::Error },
+
+    #[error("unknown file type: {lang}")]
+    UnknownFileType { lang: String },
+
+    #[error("creating directory `{name}` failed.")]
+    CreateDestinationDirectoryFailed { source: anyhow::Error, name: String },
+
+    #[error("creating `{name}` failed.")]
+    CreateDestinationFailed { source: anyhow::Error, name: String },
+
+    #[error("writing `{name}` failed.")]
+    WriteToDestinationFailed { source: anyhow::Error, name: String },
+
+    #[error("template file for `{name}` not found.")]
+    OpenTemplateFailed { source: anyhow::Error, name: String },
+
+    #[error("template variable substitution failed.")]
+    TemplateVariableSubstitutionFailed { source: anyhow::Error },
+
+    #[error("reading from template `{name}` failed.")]
+    ReadFromTemplateFailed { source: anyhow::Error, name: String },
+
+    #[error("failed to open editor.")]
+    OpeningEditorFailed { source: anyhow::Error },
 }
 
 struct CmdOpt {
@@ -57,7 +75,8 @@ struct Project {
 }
 
 pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
-    let config: ConfigFile = ConfigFile::get_config().chain(ErrorKind::GettingConfigFailed())?;
+    let config: ConfigFile =
+        ConfigFile::get_config().map_err(|e| Error::GettingConfigFailed { source: e.into() })?;
 
     // parse command line arguments
     let cmdopt = CmdOpt::parse(args)?;
@@ -83,16 +102,18 @@ pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
                 .display()
                 .to_string()
         };
-        common::open(&config, false, &[&path_open]).chain(ErrorKind::OpeningEditorFailed())?;
+        common::open(&config, false, &[&path_open])
+            .map_err(|e| Error::OpeningEditorFailed { source: e.into() })?;
     }
 
     Ok(())
 }
 
 fn create_project_directory(path_project: &Path) -> Result<()> {
-    fs::create_dir_all(path_project).chain(ErrorKind::CreateDestinationDirectoryFailed(
-        path_project.display().to_string(),
-    ))
+    fs::create_dir_all(path_project).map_err(|e| Error::CreateDestinationDirectoryFailed {
+        source: e.into(),
+        name: path_project.display().to_string(),
+    })
 }
 
 fn safe_generate(quiet: bool, lang: &Lang, path_project: &Path, path: &Path) -> Result<()> {
@@ -114,19 +135,24 @@ fn generate(quiet: bool, lang: &Lang, path_project_root: &Path, path: &Path) -> 
 
     let path_template_string = path_template.display().to_string();
     print_info!(!quiet, "loading template from `{}'", path_template_string);
-    let mut template_file = File::open(path_template)
-        .chain(ErrorKind::OpenTemplateFailed(path_template_string.clone()))?;
+    let mut template_file = File::open(path_template).map_err(|e| Error::OpenTemplateFailed {
+        source: e.into(),
+        name: path_template_string.clone(),
+    })?;
 
     let mut content = String::new();
     template_file
         .read_to_string(&mut content)
-        .chain(ErrorKind::ReadFromTemplateFailed(path_template_string))?;
+        .map_err(|e| Error::ReadFromTemplateFailed {
+            source: e.into(),
+            name: path_template_string,
+        })?;
 
     let content = content.replace("$LIB_DIR", &libdir_escaped(&lang));
     let content = content.replace("$GDB_PATH", &gdbpath_escaped());
 
     let abs_path_project_root = to_absolute::to_absolute_from_current_dir(path_project_root)
-        .chain(ErrorKind::TemplateVariableSubstitutionFailed())?;
+        .map_err(|e| Error::TemplateVariableSubstitutionFailed { source: e.into() })?;
     let content = content.replace("$PROJECT_PATH", &escape_path(abs_path_project_root));
 
     create_and_write_file(&path_project, &content)
@@ -140,9 +166,12 @@ fn validate_arguments(config: &ConfigFile, cmdopt: CmdOpt) -> Result<Project> {
         .lang
         .unwrap_or_else(|| config.init_default_lang.clone());
 
-    let lang = langs::FILETYPE_ALIAS
-        .get(&*specified_lang)
-        .ok_or_else(|| Error::new(ErrorKind::UnknownFileType(specified_lang)))?;
+    let lang =
+        langs::FILETYPE_ALIAS
+            .get(&*specified_lang)
+            .ok_or_else(|| Error::UnknownFileType {
+                lang: specified_lang,
+            })?;
 
     let lang = langs::LANGS_MAP
         .get(lang)
@@ -153,15 +182,21 @@ fn validate_arguments(config: &ConfigFile, cmdopt: CmdOpt) -> Result<Project> {
 
 fn create_and_write_file(path: &Path, content: &str) -> Result<()> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).chain(ErrorKind::CreateDestinationDirectoryFailed(
-            parent.display().to_string(),
-        ))?;
+        fs::create_dir_all(parent).map_err(|e| Error::CreateDestinationDirectoryFailed {
+            source: e.into(),
+            name: parent.display().to_string(),
+        })?;
     }
     let path_string = path.display().to_string();
-    let mut f =
-        File::create(path).chain(ErrorKind::CreateDestinationFailed(path_string.clone()))?;
+    let mut f = File::create(path).map_err(|e| Error::CreateDestinationFailed {
+        source: e.into(),
+        name: path_string.clone(),
+    })?;
     f.write_all(content.as_bytes())
-        .chain(ErrorKind::WriteToDestinationFailed(path_string))
+        .map_err(|e| Error::WriteToDestinationFailed {
+            source: e.into(),
+            name: path_string,
+        })
 }
 
 fn gdbpath_escaped() -> String {
