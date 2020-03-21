@@ -1,12 +1,11 @@
+use super::Fetchers;
+use crate::ui::fetch;
+use crate::ui::fetch::ProblemDescriptor;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 use std::result;
 use std::str;
-
-use super::Fetchers;
-use crate::ui::fetch;
-use crate::ui::fetch::ProblemDescriptor;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

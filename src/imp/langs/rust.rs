@@ -1,9 +1,8 @@
-use std::path::PathBuf;
-use std::process::Command;
-
 use super::Lang;
 use crate::imp::common;
 use crate::imp::preprocess;
+use std::path::PathBuf;
+use std::process::Command;
 
 pub const LANG: Lang = Lang {
     lang: "rust",

@@ -1,11 +1,10 @@
+use crate::imp::test_case::TestCaseFile;
+use crate::ui::fetch::aoj::Aoj;
+use crate::ui::fetch::atcoder::AtCoder;
 use std::env;
 use std::ffi::OsStr;
 use std::fmt::Debug;
 use std::result;
-
-use crate::imp::test_case::TestCaseFile;
-use crate::ui::fetch::aoj::Aoj;
-use crate::ui::fetch::atcoder::AtCoder;
 
 pub mod aoj;
 pub mod atcoder;
