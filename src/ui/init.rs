@@ -134,7 +134,7 @@ fn generate(quiet: bool, lang: &Lang, path_project_root: &Path, path: &Path) -> 
     let path_project = path_project_root.join(path);
 
     let path_template_string = path_template.display().to_string();
-    print_info!(!quiet, "loading template from `{}'", path_template_string);
+    print_info!(!quiet, "loading template from `{}`", path_template_string);
     let mut template_file = File::open(path_template).map_err(|e| Error::OpenTemplateFailed {
         source: e.into(),
         name: path_template_string.clone(),

@@ -90,7 +90,7 @@ impl super::TestCaseProvider for Aoj {
     fn needs_authenticate(&self, quiet: bool) -> bool {
         print_info!(
             !quiet,
-            "needs_authenticate() is not implemetented for now, always returns `false'."
+            "needs_authenticate() is not implemetented for now, always returns `false`."
         );
         false
     }
