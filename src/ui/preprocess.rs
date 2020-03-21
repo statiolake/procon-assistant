@@ -5,10 +5,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("failed to get source file.")]
+    #[error("failed to get source file")]
     GettingLanguageFailed { source: anyhow::Error },
 
-    #[error("failed to read source file.")]
+    #[error("failed to read source file")]
     ReadingSourceFileFailed { source: anyhow::Error },
 }
 

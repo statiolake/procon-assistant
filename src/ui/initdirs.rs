@@ -8,7 +8,7 @@ pub enum Error {
     #[error("invalid number of arguments for initdir command: {n}: {info}")]
     InvalidNumberOfArgument { n: usize, info: &'static str },
 
-    #[error("failed to parse the number of problems.")]
+    #[error("failed to parse the number of problems")]
     ParsingNumberOfProblemsFailed { source: anyhow::Error },
 }
 
@@ -16,11 +16,11 @@ pub fn main(_quiet: bool, args: Vec<String>) -> Result<()> {
     let beginning_char = match args.len() {
         0 => Err(Error::InvalidNumberOfArgument {
             n: 0,
-            info: "please specify contest-name and the number of problems.",
+            info: "please specify contest-name and the number of problems",
         }),
         1 => Err(Error::InvalidNumberOfArgument {
             n: 1,
-            info: "please specify the number of problems.",
+            info: "please specify the number of problems",
         }),
         2 => Ok('a'),
         3 if !args[2].is_empty() => Ok(args[2].chars().next().unwrap()),

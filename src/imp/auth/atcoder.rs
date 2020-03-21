@@ -9,42 +9,42 @@ const SERVICE_NAME: &str = "atcoder";
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
-#[error("authenticated operation failed.")]
+#[error("authenticated operation failed")]
 pub struct Error(ErrorKind);
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
-    #[error("session info has invalid utf-8.")]
+    #[error("session info has invalid utf-8")]
     InvalidUtf8SessionInfo { source: anyhow::Error },
 
-    #[error("failed to send your request.")]
+    #[error("failed to send your request")]
     RequestingError { source: anyhow::Error },
 
-    #[error("failed to fetch login page.")]
+    #[error("failed to fetch login page")]
     FetchingLoginPageFailed { source: anyhow::Error },
 
-    #[error("failed to parse received HTML.")]
+    #[error("failed to parse received HTML")]
     ParsingHtmlFailed { source: anyhow::Error },
 
-    #[error("getting csrf token failed.")]
+    #[error("getting csrf token failed")]
     GettingCsrfTokenFailed,
 
-    #[error("csrf token has no attribute value!")]
+    #[error("csrf token has no attribute value")]
     CsrfTokenMissingValue,
 
     #[error("failed to post username and password")]
     PostingAccountInfoFailed { source: anyhow::Error },
 
-    #[error("logging in failed; check your username and password.")]
+    #[error("logging in failed; check your username and password")]
     LoginUnsuccessful,
 
-    #[error("invalid header value.")]
+    #[error("invalid header value")]
     InvalidHeaderValue { source: anyhow::Error },
 
     #[error("failed to find REVEL_SESSION")]
     MissingRevelSession,
 
-    #[error("failed to store REVEL_SESSION.")]
+    #[error("failed to store REVEL_SESSION")]
     StoringRevelSessionFailed { source: anyhow::Error },
 
     #[error("HTTP status not OK: {:?}", status)]
@@ -78,12 +78,12 @@ fn add_auth_info_to_builder_if_possible(
 ) -> Result<RequestBuilder> {
     fn cleanup(quiet: bool) {
         super::clear_session_info(SERVICE_NAME)
-            .expect("critical error: failed to clean session info.");
-        print_info!(!quiet, "cleared session info to avoid continuous error.");
+            .expect("critical error: failed to clean session info");
+        print_info!(!quiet, "cleared session info to avoid continuous error");
     }
 
     if let Ok(revel_session) = super::load_session_info(quiet, SERVICE_NAME) {
-        print_info!(!quiet, "found sesion info, try to use it.");
+        print_info!(!quiet, "found sesion info, try to use it");
         let revel_session = match String::from_utf8(revel_session) {
             Ok(v) => v.trim().to_string(),
             Err(e) => {
@@ -152,7 +152,7 @@ fn login_get_cookie(
     password: String,
     csrf_token: String,
 ) -> Result<Vec<(String, String)>> {
-    let client = make_client().expect("critical error: creating client failed.");
+    let client = make_client().expect("critical error: creating client failed");
     let params: [(&str, &str); 3] = [
         ("username", &username),
         ("password", &password),

@@ -13,13 +13,13 @@ pub mod judge_result;
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
-#[error("failed to operate with testcase.")]
+#[error("failed to operate with testcase")]
 pub struct Error(ErrorKind);
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
     #[error(
-        "output file `{existing_outfile}` exists while input file `{inexisting_infile}` does not exist."
+        "output file `{existing_outfile}` exists while input file `{inexisting_infile}` does not exist"
     )]
     MismatchingTestCaseFiles {
         existing_outfile: String,
@@ -29,7 +29,7 @@ pub enum ErrorKind {
     #[error("failed to create `{name}`")]
     FileCreationFailed { source: anyhow::Error, name: String },
 
-    #[error("failed to execute compiled binary main.")]
+    #[error("failed to execute compiled binary main")]
     ExecutionOfMainBinaryFailed { source: anyhow::Error },
 }
 
@@ -226,7 +226,7 @@ fn handle_try_wait_normal(status: ExitStatus) -> Option<JudgeResult> {
     if status.code().is_none() {
         // signal termination. consider it as a runtime error here.
         Some(JudgeResult::RuntimeError(
-            "process was terminated by a signal.".into(),
+            "process was terminated by a signal".into(),
         ))
     } else if status.success() {
         // ok, child succesfully exited in time.
@@ -234,14 +234,14 @@ fn handle_try_wait_normal(status: ExitStatus) -> Option<JudgeResult> {
     } else {
         // some error occurs, returning runtime error.
         Some(JudgeResult::RuntimeError(
-            "exit status was not successful.".into(),
+            "exit status was not successful".into(),
         ))
     }
 }
 
 fn handle_try_wait_error() -> Option<JudgeResult> {
     Some(JudgeResult::RuntimeError(
-        "error occured while waiting process finish.".into(),
+        "error occured while waiting process finish".into(),
     ))
 }
 

@@ -20,23 +20,23 @@ pub struct Error(ErrorKind);
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
     #[error(
-        "argument's format is not collect: `{passed_arg}`.  please specify contest-site and problem-id separated by `:` (colon).",
+        "argument's format is not correct: `{passed_arg}`;  example: `atcoder:abc022a` for AtCoder Beginner Contest 022 Problem A",
     )]
     ArgumentFormatError { passed_arg: String },
 
     #[error("contest-site `{site}` is unknown")]
     UnknownContestSite { site: String },
 
-    #[error("failed to make fetchers.")]
+    #[error("failed to make fetchers")]
     MakingFetcherFailed { source: anyhow::Error },
 
-    #[error("failed to fetch the problem.")]
+    #[error("failed to fetch the problem")]
     FetchError { source: anyhow::Error },
 
-    #[error("failed to create provider.")]
+    #[error("failed to create provider")]
     ProviderCreationFailed { source: anyhow::Error },
 
-    #[error("failed to write test case file.")]
+    #[error("failed to write test case file")]
     WritingTestCaseFailed { source: anyhow::Error },
 }
 

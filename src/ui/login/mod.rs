@@ -7,10 +7,10 @@ pub enum Error {
     #[error("the number of argumets are invalid: got {n} but expected 1")]
     InvalidNumberOfArgument { n: usize },
 
-    #[error("contest-site {site} is unknown.")]
+    #[error("contest-site {site} is unknown")]
     UnknownContestSite { site: String },
 
-    #[error("log in failed.")]
+    #[error("log in failed")]
     LoginError { source: anyhow::Error },
 }
 

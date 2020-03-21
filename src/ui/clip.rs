@@ -13,10 +13,10 @@ delegate_impl_error_error_kind! {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
-    #[error("failed to get source file.")]
+    #[error("failed to get source file")]
     GettingLanguageFailed { source: anyhow::Error },
 
-    #[error("failed to copy the source file to the clipboard.")]
+    #[error("failed to copy the source file to the clipboard")]
     CopyingToClipboardFailed { source: anyhow::Error },
 }
 
@@ -40,12 +40,12 @@ pub fn copy_to_clipboard(quiet: bool, lang: &Lang) -> preprocess::Result<()> {
 
     print_info!(
         !quiet,
-        "the copied string is as follows. you can pipe it when auto-copying did not function."
+        "the copied string is as follows;  you can also pipe this to another program"
     );
     println!("{}", minified);
 
     if !lints.is_empty() {
-        print_warning!("linter found {} errors. is this OK?", lints.len());
+        print_warning!("linter found {} errors, is this OK?", lints.len());
 
         for lint in lints {
             print_lint!("{}", lint);

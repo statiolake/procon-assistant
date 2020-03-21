@@ -17,13 +17,13 @@ delegate_impl_error_error_kind! {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
-    #[error("failed to run compilation task.")]
+    #[error("failed to run compilation task")]
     CompilationFailed { source: anyhow::Error },
 
-    #[error("compilation was not successful: your code may have error.")]
+    #[error("compilation was not successful: your code may have error")]
     CompilationError,
 
-    #[error("failed to get source file.")]
+    #[error("failed to get source file")]
     GettingLanguageFailed { source: anyhow::Error },
 }
 
@@ -41,7 +41,7 @@ pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
 
 pub fn compile(quiet: bool, lang: &Lang, force: bool) -> Result<bool> {
     if !force && !compile::is_compile_needed(lang).unwrap_or(true) {
-        print_info!(!quiet, "no need to compile.");
+        print_info!(!quiet, "no need to compile");
         return Ok(true);
     }
     compile_src(lang).map_err(|e| Error(ErrorKind::CompilationFailed { source: e.into() }))

@@ -18,31 +18,31 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("failed to get config.")]
+    #[error("failed to get config")]
     GettingConfigFailed { source: anyhow::Error },
 
     #[error("unknown file type: {lang}")]
     UnknownFileType { lang: String },
 
-    #[error("creating directory `{name}` failed.")]
+    #[error("creating directory `{name}` failed")]
     CreateDestinationDirectoryFailed { source: anyhow::Error, name: String },
 
-    #[error("creating `{name}` failed.")]
+    #[error("creating `{name}` failed")]
     CreateDestinationFailed { source: anyhow::Error, name: String },
 
-    #[error("writing `{name}` failed.")]
+    #[error("writing `{name}` failed")]
     WriteToDestinationFailed { source: anyhow::Error, name: String },
 
-    #[error("template file for `{name}` not found.")]
+    #[error("template file for `{name}` not found")]
     OpenTemplateFailed { source: anyhow::Error, name: String },
 
-    #[error("template variable substitution failed.")]
+    #[error("template variable substitution failed")]
     TemplateVariableSubstitutionFailed { source: anyhow::Error },
 
-    #[error("reading from template `{name}` failed.")]
+    #[error("reading from template `{name}` failed")]
     ReadFromTemplateFailed { source: anyhow::Error, name: String },
 
-    #[error("failed to open editor.")]
+    #[error("failed to open editor")]
     OpeningEditorFailed { source: anyhow::Error },
 }
 
@@ -118,7 +118,7 @@ fn create_project_directory(path_project: &Path) -> Result<()> {
 
 fn safe_generate(quiet: bool, lang: &Lang, path_project: &Path, path: &Path) -> Result<()> {
     if path_project.join(path).exists() {
-        print_info!(!quiet, "file {} already exists, skipping.", path.display());
+        print_info!(!quiet, "file {} already exists, skipping", path.display());
         return Ok(());
     }
 
