@@ -13,7 +13,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("argument's format is not collect: `{passed_arg}`.  please specify contest-site and problem-id separated by `:' (colon).")]
+    #[error("argument's format is not collect: `{passed_arg}`.  please specify contest-site and problem-id separated by `:` (colon).")]
     ArgumentFormatError { passed_arg: String },
 
     #[error("contest-site `{site}` is unknown.")]
