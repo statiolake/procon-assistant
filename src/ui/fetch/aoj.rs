@@ -1,9 +1,7 @@
-use scraper::{Html, Selector};
-
-use std::result;
-
 use crate::imp::auth::aoj as auth;
 use crate::imp::test_case::TestCaseFile;
+use scraper::{Html, Selector};
+use std::result;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

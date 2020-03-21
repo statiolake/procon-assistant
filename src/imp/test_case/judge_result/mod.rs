@@ -1,6 +1,5 @@
-use colored_print::color::{ConsoleColor, ConsoleColor::*};
-
 pub use self::output_diff::*;
+use colored_print::color::{ConsoleColor, ConsoleColor::*};
 
 pub mod output_diff;
 

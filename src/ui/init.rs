@@ -1,12 +1,11 @@
-use std::fs;
-use std::fs::File;
-use std::io::prelude::*;
-use std::path::Path;
-
 use crate::imp::common;
 use crate::imp::config::ConfigFile;
 use crate::imp::langs;
 use crate::imp::langs::Lang;
+use std::fs;
+use std::fs::File;
+use std::io::prelude::*;
+use std::path::Path;
 
 const FILES: &[&str] = &[
     "compile_commands.json",
