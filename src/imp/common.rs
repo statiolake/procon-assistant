@@ -1,20 +1,35 @@
+use crate::imp::config::ConfigFile;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
-
-use crate::imp::config::ConfigFile;
 
 pub fn colorize() -> bool {
     use atty::Stream;
     atty::is(Stream::Stderr)
 }
 
-define_error!();
-define_error_kind! {
-    [SpawningCommandFailed; (command_name: String); format!("failed to spawn command `{}'", command_name)];
-    [CreatingFailed; (file_name: String); format!("failed to create file `{}'", file_name)];
-    [WritingFailed; (file_name: String); format!("failed to write to file `{}'", file_name)];
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("failed to spawn command `{process_name}`")]
+    SpawningCommandFailed {
+        source: anyhow::Error,
+        process_name: String,
+    },
+
+    #[error("failed to create file `{file_name}`")]
+    CreatingFailed {
+        source: anyhow::Error,
+        file_name: String,
+    },
+
+    #[error("failed to write to file `{file_name}`")]
+    WritingFailed {
+        source: anyhow::Error,
+        file_name: String,
+    },
 }
 
 pub fn open(config: &ConfigFile, addcase: bool, names: &[&str]) -> Result<()> {
@@ -36,8 +51,12 @@ pub fn open(config: &ConfigFile, addcase: bool, names: &[&str]) -> Result<()> {
         } else {
             command.spawn().map(|_| ())
         }
-        .chain(ErrorKind::SpawningCommandFailed(process_name.to_string()))?;
+        .map_err(|e| Error::SpawningCommandFailed {
+            source: e.into(),
+            process_name: process_name.to_string(),
+        })?;
     }
+
     Ok(())
 }
 
@@ -105,12 +124,24 @@ fn make_editor_command<'a, 'b>(
     cmd
 }
 
-pub fn ensure_to_create_file(name: &str, text: &[u8]) -> Result<()> {
-    let mut f = File::create(name).chain(ErrorKind::CreatingFailed(name.to_string()))?;
+pub fn ensure_to_create_file(file_name: &str, text: &[u8]) -> Result<()> {
+    let mut f = File::create(file_name).map_err(|e| {
+        let file_name = file_name.to_string();
+        Error::CreatingFailed {
+            source: e.into(),
+            file_name,
+        }
+    })?;
 
     if !text.is_empty() {
-        f.write_all(text)
-            .chain(ErrorKind::WritingFailed(name.to_string()))?;
+        let file_name = file_name.to_string();
+        f.write_all(text).map_err(|e| {
+            let file_name = file_name.to_string();
+            Error::WritingFailed {
+                source: e.into(),
+                file_name,
+            }
+        })?;
     }
 
     Ok(())

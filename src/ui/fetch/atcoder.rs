@@ -1,28 +1,33 @@
-use scraper::{Html, Selector};
-
-use std::error;
-use std::result;
-
 use crate::imp::auth::atcoder as auth;
 use crate::imp::test_case::TestCaseFile;
 use crate::ui::login::atcoder as login;
-use crate::ui::tags::SPACER;
+use scraper::{Html, Selector};
+use std::result;
 
-define_error!();
-define_error_kind! {
-    [FindingTagFailed; (selector: String); format!(concat!(
-        "missing tag: failed to find `{}'\n",
-        "{}maybe you are not logged in?"
-    ), selector, SPACER)];
-    [UnexpectedNumberOfPreTag; (detected: usize); format!("unexpected number of <pre>: {}", detected)];
-    [CouldNotDetermineTestCaseFileName; (); "failed to determine test case file name.".to_string()];
-    [AuthenticatedGetFailed; (url: String); format!("failed to get the page at `{}'.", url)];
-    [GettingTextFailed; (); "failed to get text from page.".to_string()];
-    [InvalidFormatForProblemId; (problem: String); format!(concat!(
-        "invalid format for problem-id: `{}'\n",
-        "{}example: `abc022a' for AtCoder Beginner Contest 022 Problem A"
-    ), problem, SPACER)];
-    [LoginFailed; (); "logging in failed.".to_string()];
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("missing tag: failed to find `{selector}`. maybe you are not logged in?")]
+    FindingTagFailed { selector: String },
+
+    #[error("unexpected number of <pre>: {detected}")]
+    UnexpectedNumberOfPreTag { detected: usize },
+
+    #[error("failed to determine test case file name.")]
+    CouldNotDetermineTestCaseFileName { source: anyhow::Error },
+
+    #[error("failed to get the page at `{url}`.")]
+    AuthenticatedGetFailed { source: anyhow::Error, url: String },
+
+    #[error("failed to get text from page.")]
+    GettingTextFailed { source: anyhow::Error },
+
+    #[error("invalid format for problem-id: `{problem}`. example: `abc022a` for AtCoder Beginner Contest 022 Problem A")]
+    InvalidFormatForProblemId { problem: String },
+
+    #[error("logging in failed.")]
+    LoginFailed { source: anyhow::Error },
 }
 
 #[derive(Debug)]
@@ -56,7 +61,9 @@ impl Problem {
             Problem::DirectUrl { url: problem_id }
         } else {
             if problem_id.len() != 7 {
-                return Err(Error::new(ErrorKind::InvalidFormatForProblemId(problem_id)));
+                return Err(Error::InvalidFormatForProblemId {
+                    problem: problem_id,
+                });
             }
             let contest_name = problem_id[0..3].to_string();
             let contest_id = problem_id[0..6].to_string();
@@ -112,23 +119,19 @@ impl super::TestCaseProvider for AtCoder {
         false
     }
 
-    fn authenticate(&self, quiet: bool) -> result::Result<(), Box<dyn error::Error + Send>> {
+    fn authenticate(&self, quiet: bool) -> result::Result<(), anyhow::Error> {
         login::main(quiet)
-            .chain(ErrorKind::LoginFailed())
-            .map_err(error_into_box)
+            .map_err(|e| Error::LoginFailed { source: e.into() })
+            .map_err(Into::into)
     }
 
     fn fetch_test_case_files(
         &self,
         quiet: bool,
-    ) -> result::Result<Vec<TestCaseFile>, Box<dyn error::Error + Send>> {
-        let text = download_text(quiet, self.problem.url()).map_err(error_into_box)?;
-        parse_text(text).map_err(error_into_box)
+    ) -> result::Result<Vec<TestCaseFile>, anyhow::Error> {
+        let text = download_text(quiet, self.problem.url())?;
+        parse_text(text).map_err(Into::into)
     }
-}
-
-fn error_into_box<T: 'static + error::Error + Send>(x: T) -> Box<dyn error::Error + Send> {
-    Box::new(x)
 }
 
 fn parse_text(text: String) -> Result<Vec<TestCaseFile>> {
@@ -138,21 +141,25 @@ fn parse_text(text: String) -> Result<Vec<TestCaseFile>> {
     let sel_pre = Selector::parse("pre").unwrap();
 
     let div_task_stmt = document.select(&sel_div_task_stmt).next();
-    let div_task_stmt = div_task_stmt
-        .ok_or_else(|| Error::new(ErrorKind::FindingTagFailed("div#task-statement".into())))?;
+    let div_task_stmt = div_task_stmt.ok_or_else(|| Error::FindingTagFailed {
+        selector: "div#task-statement".into(),
+    })?;
 
     let lang_ja = div_task_stmt.select(&sel_span_ja).next();
     let lang_ja = lang_ja.or_else(|| div_task_stmt.select(&sel_div_task_stmt).next());
-    let lang_ja =
-        lang_ja.ok_or_else(|| Error::new(ErrorKind::FindingTagFailed("span.lang-ja".into())))?;
+    let lang_ja = lang_ja.ok_or_else(|| Error::FindingTagFailed {
+        selector: "span.lang-ja".into(),
+    })?;
     let pres: Vec<_> = lang_ja.select(&sel_pre).collect();
 
     if pres.len() <= 1 || (pres.len() - 1) % 2 != 0 {
-        return Err(Error::new(ErrorKind::UnexpectedNumberOfPreTag(pres.len())));
+        return Err(Error::UnexpectedNumberOfPreTag {
+            detected: pres.len(),
+        });
     }
 
-    let beginning =
-        TestCaseFile::next_unused_idx().chain(ErrorKind::CouldNotDetermineTestCaseFileName())?;
+    let beginning = TestCaseFile::next_unused_idx()
+        .map_err(|e| Error::CouldNotDetermineTestCaseFileName { source: e.into() })?;
     let mut result = Vec::new();
     for i in 0..(pres.len() / 2) {
         let tsf = TestCaseFile::new_with_idx(
@@ -168,7 +175,10 @@ fn parse_text(text: String) -> Result<Vec<TestCaseFile>> {
 
 fn download_text(quiet: bool, url: &str) -> Result<String> {
     auth::authenticated_get(quiet, url)
-        .chain(ErrorKind::AuthenticatedGetFailed(url.to_string()))?
+        .map_err(|e| Error::AuthenticatedGetFailed {
+            source: e.into(),
+            url: url.to_string(),
+        })?
         .text()
-        .chain(ErrorKind::GettingTextFailed())
+        .map_err(|e| Error::GettingTextFailed { source: e.into() })
 }

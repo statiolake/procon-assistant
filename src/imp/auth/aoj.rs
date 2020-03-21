@@ -1,16 +1,24 @@
-define_error!();
-define_error_kind! {
-    [UnsupportedAction; (action: String); format!("sorry, {} is not supported for now.", action)];
-    [RequestFailed; (); "request failed.".to_string()];
+pub type Result<T> = std::result::Result<T, Error>;
+
+delegate_impl_error_error_kind! {
+    #[error("failed to log in to Aizu Online Judge")]
+    pub struct Error(ErrorKind);
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ErrorKind {
+    #[error("sorry, log in to Aizu Online Judge is not supported yet.")]
+    UnsupportedAction,
+
+    #[error("request failed.")]
+    RequestFailed { source: anyhow::Error },
 }
 
 #[allow(dead_code)]
 pub fn login(_username: String, _password: String) -> Result<String> {
-    Err(Error::new(ErrorKind::UnsupportedAction(
-        "login".to_string(),
-    )))
+    Err(Error(ErrorKind::UnsupportedAction))
 }
 
 pub fn authenticated_get(url: &str) -> Result<reqwest::Response> {
-    reqwest::get(url).chain(ErrorKind::RequestFailed())
+    reqwest::get(url).map_err(|e| Error(ErrorKind::RequestFailed { source: e.into() }))
 }

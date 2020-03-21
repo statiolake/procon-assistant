@@ -1,30 +1,35 @@
+use crate::imp::test_case::TestCaseFile;
+use crate::ui::fetch::aoj::Aoj;
+use crate::ui::fetch::atcoder::AtCoder;
 use std::env;
-use std::error;
 use std::ffi::OsStr;
 use std::fmt::Debug;
 use std::result;
 
-use crate::imp::test_case::TestCaseFile;
-use crate::ui::fetch::aoj::Aoj;
-use crate::ui::fetch::atcoder::AtCoder;
-use crate::ui::tags::SPACER;
-
 pub mod aoj;
 pub mod atcoder;
 
-define_error!();
-define_error_kind! {
-    [ArgumentFormatError; (passed_arg: String); format!(concat!(
-        "argument's format is not collect: `{}'.\n",
-        "{}please specify contest-site and problem-id separated by `:' (colon)."
-    ), passed_arg, SPACER)];
-    [UnknownContestSite; (site: String); format!(
-        "contest-site `{}' is unknown.", site
-    )];
-    [ProblemUnspecified; ();  "contest-site and problem-id are not specified.".to_string()];
-    [FetchFailed; (); "failed to fetch.".to_string()];
-    [ProviderCreationFailed; (); "failed to create provider.".to_string()];
-    [TestCaseFileWritionFailed; (name: String); format!("failed to write test case file `{}'.", name)];
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("argument's format is not collect: `{passed_arg}`.  please specify contest-site and problem-id separated by `:' (colon).")]
+    ArgumentFormatError { passed_arg: String },
+
+    #[error("contest-site `{site}` is unknown.")]
+    UnknownContestSite { site: String },
+
+    #[error("contest-site and problem-id are not specified.")]
+    ProblemUnspecified,
+
+    #[error("failed to fetch.")]
+    FetchFailed { source: anyhow::Error },
+
+    #[error("failed to create provider.")]
+    ProviderCreationFailed { source: anyhow::Error },
+
+    #[error("failed to write test case file `{name}`.")]
+    TestCaseFileWritionFailed { source: anyhow::Error, name: String },
 }
 
 pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
@@ -50,37 +55,41 @@ pub fn fetch_test_case_files(
         print_info!(!quiet, "authentication is needed.");
         provider
             .authenticate(quiet)
-            .map_err(|e| Error::with_cause(ErrorKind::ProviderCreationFailed(), e))?;
+            .map_err(|source| Error::ProviderCreationFailed { source })?;
     }
 
     let test_case_files = provider
         .fetch_test_case_files(quiet)
-        .map_err(|e| Error::with_cause(ErrorKind::FetchFailed(), e))?;
+        .map_err(|source| Error::FetchFailed { source })?;
+
     Ok(test_case_files)
 }
 
 pub fn write_test_case_files(tcfs: Vec<TestCaseFile>) -> Result<()> {
-    let n = tcfs
-        .into_iter()
-        .map(|tcf| {
-            print_generating!("Sample Case: {}", tcf);
-            tcf.write()
-                .chain(ErrorKind::TestCaseFileWritionFailed(tcf.to_string()))
-        })
-        .count();
-    print_finished!("generating {} Sample Case(s).", n);
+    let sample_cases = tcfs.len();
+    for tcf in tcfs {
+        print_generating!("Sample Case: {}", tcf);
+        tcf.write().map_err(|e| Error::TestCaseFileWritionFailed {
+            source: e.into(),
+            name: tcf.to_string(),
+        })?;
+    }
+    print_finished!("generating {} Sample Case(s).", sample_cases);
+
     Ok(())
 }
 
 pub fn get_provider(dsc: ProblemDescriptor) -> Result<Box<dyn TestCaseProvider>> {
     match &*dsc.contest_site {
         "aoj" => Aoj::new(dsc.problem_id)
-            .chain(ErrorKind::ProviderCreationFailed())
+            .map_err(|e| Error::ProviderCreationFailed { source: e.into() })
             .map(provider_into_box),
         "atcoder" | "at" => AtCoder::new(dsc.problem_id)
-            .chain(ErrorKind::ProviderCreationFailed())
+            .map_err(|e| Error::ProviderCreationFailed { source: e.into() })
             .map(provider_into_box),
-        _ => Err(Error::new(ErrorKind::UnknownContestSite(dsc.contest_site))),
+        _ => Err(Error::UnknownContestSite {
+            site: dsc.contest_site,
+        }),
     }
 }
 
@@ -116,7 +125,7 @@ fn handle_empty_arg() -> Result<ProblemDescriptor> {
         }
     }
 
-    Err(Error::new(ErrorKind::ProblemUnspecified()))
+    Err(Error::ProblemUnspecified)
 }
 
 // atcoder:abc092a
@@ -144,7 +153,7 @@ impl ProblemDescriptor {
             let sp: Vec<_> = dsc.splitn(2, ':').collect();
 
             if sp.len() != 2 {
-                return Err(Error::new(ErrorKind::ArgumentFormatError(dsc.clone())));
+                return Err(Error::ArgumentFormatError { passed_arg: dsc });
             }
 
             (sp[0].to_string(), sp[1].to_string())
@@ -157,12 +166,10 @@ pub trait TestCaseProvider: Debug {
     fn site_name(&self) -> &str;
     fn problem_id(&self) -> &str;
     fn url(&self) -> &str;
-
     fn needs_authenticate(&self, quiet: bool) -> bool;
-    fn authenticate(&self, quiet: bool) -> result::Result<(), Box<dyn error::Error + Send>>;
-
+    fn authenticate(&self, quiet: bool) -> result::Result<(), anyhow::Error>;
     fn fetch_test_case_files(
         &self,
         quiet: bool,
-    ) -> result::Result<Vec<TestCaseFile>, Box<dyn error::Error + Send>>;
+    ) -> result::Result<Vec<TestCaseFile>, anyhow::Error>;
 }

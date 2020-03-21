@@ -1,12 +1,22 @@
-use std::fs::File;
-
 use crate::imp::common;
 use crate::imp::langs::Lang;
+use std::fs::File;
+use std::io;
 
-define_error!();
-define_error_kind! {
-    [SpawningCompilerFailed; (); "failed to spawn compiler; check your installation."];
-    [CheckingMetadataFailed; (); "failed to check the files metadata."];
+pub type Result<T> = std::result::Result<T, Error>;
+
+delegate_impl_error_error_kind! {
+    #[error("failed to compile")]
+    pub struct Error(ErrorKind);
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ErrorKind {
+    #[error("failed to spawn compiler; check your installation.")]
+    SpawningCompilerFailed { source: anyhow::Error },
+
+    #[error("failed to check the files metadata.")]
+    CheckingMetadataFailed { source: anyhow::Error },
 }
 
 pub struct CompilerOutput {
@@ -28,7 +38,7 @@ impl CompilerOutput {
 pub fn compile(lang: &Lang) -> Result<CompilerOutput> {
     let result = (lang.compile_command_maker)(common::colorize())
         .output()
-        .chain(ErrorKind::SpawningCompilerFailed())?;
+        .map_err(|e| Error(ErrorKind::SpawningCompilerFailed { source: e.into() }))?;
 
     let stdout = wrap_output_to_option(&result.stdout).map(output_to_string);
     let stderr = wrap_output_to_option(&result.stderr).map(output_to_string);
@@ -37,22 +47,15 @@ pub fn compile(lang: &Lang) -> Result<CompilerOutput> {
 }
 
 pub fn is_compile_needed(lang: &Lang) -> Result<bool> {
-    let src = File::open(&lang.src_file_name).chain(ErrorKind::CheckingMetadataFailed())?;
-    let bin = File::open("main.exe").chain(ErrorKind::CheckingMetadataFailed())?;
-    let src_modified = src
-        .metadata()
-        .chain(ErrorKind::CheckingMetadataFailed())?
-        .modified()
-        .chain(ErrorKind::CheckingMetadataFailed())?;
-    let bin_modified = bin
-        .metadata()
-        .chain(ErrorKind::CheckingMetadataFailed())?
-        .modified()
-        .chain(ErrorKind::CheckingMetadataFailed())?;
+    let to_err = |e: io::Error| Error(ErrorKind::CheckingMetadataFailed { source: e.into() });
+    let src = File::open(&lang.src_file_name).map_err(to_err)?;
+    let bin = File::open("main.exe").map_err(to_err)?;
+    let src_modified = src.metadata().map_err(to_err)?.modified().map_err(to_err)?;
+    let bin_modified = bin.metadata().map_err(to_err)?.modified().map_err(to_err)?;
     Ok(src_modified > bin_modified)
 }
 
-fn wrap_output_to_option(output: &[u8]) -> Option<(&[u8])> {
+fn wrap_output_to_option(output: &[u8]) -> Option<&[u8]> {
     if output.is_empty() {
         None
     } else {
