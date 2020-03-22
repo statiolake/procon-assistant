@@ -20,5 +20,6 @@ pub fn login(_username: String, _password: String) -> Result<String> {
 }
 
 pub fn authenticated_get(url: &str) -> Result<reqwest::Response> {
-    reqwest::get(url).map_err(|e| Error(ErrorKind::RequestFailed { source: e.into() }))
+    async_std::task::block_on(reqwest::get(url))
+        .map_err(|e| Error(ErrorKind::RequestFailed { source: e.into() }))
 }
