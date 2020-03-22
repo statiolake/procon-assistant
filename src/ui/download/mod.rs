@@ -1,3 +1,6 @@
+pub mod atcoder;
+pub mod local;
+
 use self::atcoder::AtCoder;
 use self::local::Local;
 use crate::ui::fetch;
@@ -8,8 +11,10 @@ use std::path::Path;
 use std::result;
 use std::str;
 
-pub mod atcoder;
-pub mod local;
+#[derive(clap::Clap)]
+pub struct Download {
+    provider: Option<String>,
+}
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -40,29 +45,31 @@ pub enum ErrorKind {
     WritingTestCaseFailed { source: anyhow::Error },
 }
 
-pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
-    let provider = match args.into_iter().next() {
-        Some(arg) => get_provider(arg),
-        None => handle_empty_arg(),
-    }?;
+impl Download {
+    pub fn run(self, quiet: bool) -> Result<()> {
+        let provider = match self.provider {
+            Some(arg) => get_provider(arg),
+            None => handle_empty_arg(),
+        }?;
 
-    let fetchers = provider
-        .make_fetchers(quiet)
-        .map_err(|source| Error(ErrorKind::MakingFetcherFailed { source }))?;
+        let fetchers = provider
+            .make_fetchers(quiet)
+            .map_err(|source| Error(ErrorKind::MakingFetcherFailed { source }))?;
 
-    print_fetching!("{} (at {})", provider.contest_id(), provider.url());
-    fetchers.prepare_generate();
-    for (problem, fetcher) in fetchers.fetchers.into_iter().enumerate() {
-        generate_one(
-            quiet,
-            fetchers.contest_id.clone(),
-            fetchers.beginning_char,
-            problem as u8,
-            fetcher,
-        )?;
+        print_fetching!("{} (at {})", provider.contest_id(), provider.url());
+        fetchers.prepare_generate();
+        for (problem, fetcher) in fetchers.fetchers.into_iter().enumerate() {
+            generate_one(
+                quiet,
+                fetchers.contest_id.clone(),
+                fetchers.beginning_char,
+                problem as u8,
+                fetcher,
+            )?;
+        }
+
+        Ok(())
     }
-
-    Ok(())
 }
 
 fn provider_into_box<T: 'static + ContestProvider>(provider: T) -> Box<dyn ContestProvider> {
@@ -121,7 +128,7 @@ pub struct Fetchers {
 
 impl Fetchers {
     pub fn prepare_generate(&self) {
-        let numof_problems = self.fetchers.len() as u8;
+        let numof_problems = self.fetchers.len();
         change_current_dir(&self.contest_id, self.beginning_char, numof_problems);
     }
 }
@@ -149,13 +156,14 @@ pub fn generate_one(
     Ok(())
 }
 
-fn change_current_dir(contest_id: &str, beginning_char: char, numof_problems: u8) {
+fn change_current_dir(contest_id: &str, beginning_char: char, numof_problems: usize) {
     let current_dir = env::current_dir().unwrap();
     let file_name = current_dir.file_name();
     let executed_inside_proper_dir = file_name.is_some() && file_name.unwrap() == contest_id;
     if executed_inside_proper_dir {
         env::set_current_dir("..").unwrap();
     }
+
     initdirs::create_directories(contest_id, beginning_char, numof_problems);
     env::set_current_dir(&Path::new(contest_id)).unwrap();
 }

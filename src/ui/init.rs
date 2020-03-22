@@ -7,6 +7,15 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 
+#[derive(clap::Clap)]
+pub struct Init {
+    #[clap(default_value = ".")]
+    dirname: String,
+
+    #[clap(short, long)]
+    lang: Option<String>,
+}
+
 const FILES: &[&str] = &[
     "compile_commands.json",
     ".vscode/c_cpp_properties.json",
@@ -46,67 +55,67 @@ pub enum Error {
     OpeningEditorFailed { source: anyhow::Error },
 }
 
-struct CmdOpt {
-    name: Option<String>,
-    lang: Option<String>,
-}
+impl Init {
+    pub fn run(self, quiet: bool) -> Result<()> {
+        let config: ConfigFile = ConfigFile::get_config()
+            .map_err(|e| Error::GettingConfigFailed { source: e.into() })?;
 
-impl CmdOpt {
-    pub fn parse(args: Vec<String>) -> Result<CmdOpt> {
-        let mut args = args.into_iter();
+        // parse command line arguments
+        let project = self.validate_arguments(&config)?;
 
-        let mut name = None;
-        let mut lang = None;
+        let path_project = Path::new(&project.name);
+        create_project_directory(&path_project)?;
 
-        while let Some(arg) = args.next() {
-            match &*arg {
-                "-t" | "--type" => lang = args.next(),
-                _ => name = Some(arg),
-            }
+        let path_src_file = Path::new(&project.lang.src_file_name);
+        safe_generate(quiet, &project.lang, path_project, path_src_file)?;
+
+        for file in FILES {
+            let path = Path::new(file);
+            safe_generate(quiet, &project.lang, path_project, path)?;
         }
 
-        Ok(CmdOpt { name, lang })
+        if config.init_auto_open {
+            let path_open = if config.init_open_directory_instead_of_specific_file {
+                path_project.display().to_string()
+            } else {
+                path_project
+                    .join(&project.lang.src_file_name)
+                    .display()
+                    .to_string()
+            };
+            common::open(&config, false, &[&path_open])
+                .map_err(|e| Error::OpeningEditorFailed { source: e.into() })?;
+        }
+
+        Ok(())
+    }
+
+    fn validate_arguments(self, config: &ConfigFile) -> Result<Project> {
+        let name = self.dirname.clone();
+
+        // generate source code
+        let specified_lang = self
+            .lang
+            .unwrap_or_else(|| config.init_default_lang.clone());
+
+        let lang =
+            langs::FILETYPE_ALIAS
+                .get(&*specified_lang)
+                .ok_or_else(|| Error::UnknownFileType {
+                    lang: specified_lang,
+                })?;
+
+        let lang = langs::LANGS_MAP
+            .get(lang)
+            .unwrap_or_else(|| panic!("internal error: unknown file type {}", lang));
+
+        Ok(Project { name, lang })
     }
 }
 
 struct Project {
     name: String,
     lang: &'static Lang,
-}
-
-pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
-    let config: ConfigFile =
-        ConfigFile::get_config().map_err(|e| Error::GettingConfigFailed { source: e.into() })?;
-
-    // parse command line arguments
-    let cmdopt = CmdOpt::parse(args)?;
-    let project = validate_arguments(&config, cmdopt)?;
-
-    let path_project = Path::new(&project.name);
-    create_project_directory(&path_project)?;
-
-    let path_src_file = Path::new(&project.lang.src_file_name);
-    safe_generate(quiet, &project.lang, path_project, path_src_file)?;
-
-    for file in FILES {
-        let path = Path::new(file);
-        safe_generate(quiet, &project.lang, path_project, path)?;
-    }
-
-    if config.init_auto_open {
-        let path_open = if config.init_open_directory_instead_of_specific_file {
-            path_project.display().to_string()
-        } else {
-            path_project
-                .join(&project.lang.src_file_name)
-                .display()
-                .to_string()
-        };
-        common::open(&config, false, &[&path_open])
-            .map_err(|e| Error::OpeningEditorFailed { source: e.into() })?;
-    }
-
-    Ok(())
 }
 
 fn create_project_directory(path_project: &Path) -> Result<()> {
@@ -156,28 +165,6 @@ fn generate(quiet: bool, lang: &Lang, path_project_root: &Path, path: &Path) -> 
     let content = content.replace("$PROJECT_PATH", &escape_path(abs_path_project_root));
 
     create_and_write_file(&path_project, &content)
-}
-
-fn validate_arguments(config: &ConfigFile, cmdopt: CmdOpt) -> Result<Project> {
-    let name = cmdopt.name.unwrap_or_else(|| ".".into());
-
-    // generate source code
-    let specified_lang = cmdopt
-        .lang
-        .unwrap_or_else(|| config.init_default_lang.clone());
-
-    let lang =
-        langs::FILETYPE_ALIAS
-            .get(&*specified_lang)
-            .ok_or_else(|| Error::UnknownFileType {
-                lang: specified_lang,
-            })?;
-
-    let lang = langs::LANGS_MAP
-        .get(lang)
-        .unwrap_or_else(|| panic!("internal error: unknown file type {}", lang));
-
-    Ok(Project { name, lang })
 }
 
 fn create_and_write_file(path: &Path, content: &str) -> Result<()> {

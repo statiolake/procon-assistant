@@ -2,6 +2,9 @@ use crate::imp::common::open;
 use crate::imp::config::ConfigFile;
 use crate::imp::test_case::TestCaseFile;
 
+#[derive(clap::Clap)]
+pub struct AddCase;
+
 pub type Result<T> = std::result::Result<T, Error>;
 
 delegate_impl_error_error_kind! {
@@ -24,22 +27,24 @@ pub enum ErrorKind {
     FileOpeningFailed { source: anyhow::Error },
 }
 
-pub fn main(_quiet: bool) -> Result<()> {
-    let config: ConfigFile = ConfigFile::get_config()
-        .map_err(|e| Error(ErrorKind::GettingConfigFailed { source: e.into() }))?;
-    let tsf = TestCaseFile::new_with_idx(
-        TestCaseFile::next_unused_idx()
-            .map_err(|e| Error(ErrorKind::TestCaseFileSettingUpFailed { source: e.into() }))?,
-        Vec::new(),
-        Vec::new(),
-    );
-    tsf.write()
-        .map_err(|e| Error(ErrorKind::TestCaseFileCreationFailed { source: e.into() }))?;
+impl AddCase {
+    pub fn run(self, _quiet: bool) -> Result<()> {
+        let config: ConfigFile = ConfigFile::get_config()
+            .map_err(|e| Error(ErrorKind::GettingConfigFailed { source: e.into() }))?;
+        let tsf = TestCaseFile::new_with_idx(
+            TestCaseFile::next_unused_idx()
+                .map_err(|e| Error(ErrorKind::TestCaseFileSettingUpFailed { source: e.into() }))?,
+            Vec::new(),
+            Vec::new(),
+        );
+        tsf.write()
+            .map_err(|e| Error(ErrorKind::TestCaseFileCreationFailed { source: e.into() }))?;
 
-    print_created!("{}, {}", tsf.if_name, tsf.of_name);
+        print_created!("{}, {}", tsf.if_name, tsf.of_name);
 
-    open(&config, true, &[&tsf.if_name, &tsf.of_name])
-        .map_err(|e| Error(ErrorKind::FileOpeningFailed { source: e.into() }))?;
+        open(&config, true, &[&tsf.if_name, &tsf.of_name])
+            .map_err(|e| Error(ErrorKind::FileOpeningFailed { source: e.into() }))?;
 
-    Ok(())
+        Ok(())
+    }
 }
