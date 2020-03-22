@@ -1,0 +1,43 @@
+name: Build
+on: [push, pull_request]
+jobs:
+  build:
+    strategy:
+      matrix:
+        toolchain:
+          - stable-x86_64-pc-windows-msvc
+          - stable-x86_64-pc-windows-gnu
+          - stable-x86_64-apple-darwin
+          - stable-x86_64-unknown-linux-gnu
+        include:
+          - toolchain: stable-x86_64-pc-windows-msvc
+            os: windows-latest
+          - toolchain: stable-x86_64-pc-windows-gnu
+            os: windows-latest
+          - toolchain: stable-x86_64-apple-darwin
+            os: macOS-latest
+          - toolchain: stable-x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+    name: ${{ matrix.toolchain }}
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: '`git config --global core.autocrlf false`'
+        run: git config --global core.autocrlf false
+        if: matrix.os == 'windows-latest'
+
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup ${{ matrix.toolchain }}
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          override: true
+          profile: default
+
+      - name: '`cargo clippy --all-targets --profile test -- -D warnings`'
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --all-targets --profile test -- -D warnings
