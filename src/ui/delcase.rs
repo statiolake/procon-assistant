@@ -12,19 +12,19 @@ delegate_impl_error_error_kind! {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
-    #[error("failed to parse command line argument.")]
+    #[error("failed to parse command line argument")]
     ParsingCommandLineArgFailed { source: anyhow::Error },
 
-    #[error("failed to open testcase file.")]
+    #[error("failed to open testcase file")]
     OpeningTestCaseFileFailed { source: anyhow::Error },
 
-    #[error("the specified test case {idx} is out-of-range: there're only {num} test cases.")]
+    #[error("the specified test case {idx} is out-of-range: there're only {num} test cases")]
     IndexOutOfRange { idx: i32, num: usize },
 
-    #[error("failed to remove testcase file.")]
+    #[error("failed to remove testcase file")]
     RemovingTestCaseFileFailed { source: anyhow::Error },
 
-    #[error("failed to write testcase file into file.")]
+    #[error("failed to write testcase file into file")]
     WritingTestCaseFileFailed { source: anyhow::Error },
 }
 

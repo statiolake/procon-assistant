@@ -69,7 +69,7 @@ fn linter(_quiet: bool, minified: &preprocess::Minified) -> Vec<String> {
 
     let mut result = Vec::new();
     if minified.contains("cerr") {
-        result.push("cerr found.".into());
+        result.push("cerr found".into());
     }
 
     result

@@ -6,19 +6,15 @@ pub const TIMEOUT_MILLISECOND: i64 = 3000;
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
-#[error("failed to get config.")]
+#[error("failed to get config")]
 pub struct Error(ErrorKind);
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
-    #[error(
-        "`config.json` is missing.  please check that file is placed at the same directory where this binary is placed."
-    )]
+    #[error("`config.json` is not found")]
     ConfigFileMissing { source: anyhow::Error },
 
-    #[error(
-        "failed to parse `config.json`.  maybe there are some syntax errors, unknown options, or mismatched types in `config.json`."
-    )]
+    #[error("failed to parse `config.json`")]
     ErrorInConfigFile { source: anyhow::Error },
 }
 

@@ -14,7 +14,7 @@ pub fn main(quiet: bool) -> Result<()> {
     print_logging_in!("to AtCoder");
     auth_atcoder::login(quiet, username, password)
         .map_err(|e| Error::LoginFailed { source: e.into() })?;
-    print_finished!("fetching code; successfully saved.");
+    print_finished!("fetching code; successfully saved");
 
     Ok(())
 }

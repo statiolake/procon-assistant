@@ -11,16 +11,16 @@ delegate_impl_error_error_kind! {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
-    #[error("failed to get user config.")]
+    #[error("failed to get user config")]
     GettingConfigFailed { source: anyhow::Error },
 
-    #[error("failed to set up test case.")]
+    #[error("failed to set up test case")]
     TestCaseFileSettingUpFailed { source: anyhow::Error },
 
-    #[error("failed to create test case.")]
+    #[error("failed to create test case")]
     TestCaseFileCreationFailed { source: anyhow::Error },
 
-    #[error("failed to open created file.")]
+    #[error("failed to open created file")]
     FileOpeningFailed { source: anyhow::Error },
 }
 
