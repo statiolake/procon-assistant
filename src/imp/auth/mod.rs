@@ -17,16 +17,16 @@ pub fn ask_account_info(service_name: &str) -> (String, String) {
     print!("  {} Password: ", service_name);
     io::stdout().flush().unwrap();
     let password =
-        rpassword::read_password().expect("critical error: failed to read your password input.");
+        rpassword::read_password().expect("critical error: failed to read your password input");
 
     (username.trim().into(), password.trim().into())
 }
 
 pub fn place_to_store(service_name: &str) -> PathBuf {
     let mut place_to_store = current_exe::current_exe()
-        .expect("critical error: failed to get current executable path.")
+        .expect("critical error: failed to get current executable path")
         .parent()
-        .expect("critical error: failed to get parent directory of current executable. ???")
+        .expect("critical error: failed to get parent directory of current executable")
         .to_path_buf();
     place_to_store.push("auth_info");
     place_to_store.push(service_name);
@@ -43,7 +43,7 @@ pub fn clear_session_info(service_name: &str) -> io::Result<()> {
 }
 
 pub fn store_session_info(service_name: &str, contents: &[u8]) -> io::Result<()> {
-    clear_session_info(service_name).expect("critical error: failed to clear session info.");
+    clear_session_info(service_name).expect("critical error: failed to clear session info");
 
     let place = place_to_store(service_name);
     if let Some(parent) = place.parent() {

@@ -16,13 +16,13 @@ pub enum Error {
     #[error("unexpected number of <pre>: {detected}")]
     UnexpectedNumberOfPreTag { detected: usize },
 
-    #[error("failed to determine test case file name.")]
+    #[error("failed to determine test case file name")]
     CouldNotDetermineTestCaseFileName { source: anyhow::Error },
 
-    #[error("failed to get the page at `{url}`.")]
+    #[error("failed to get the page at `{url}`")]
     AuthenticatedGetFailed { source: anyhow::Error, url: String },
 
-    #[error("failed to get text from page.")]
+    #[error("failed to get text from page")]
     GettingTextFailed { source: anyhow::Error },
 }
 
@@ -90,7 +90,7 @@ impl super::TestCaseProvider for Aoj {
     fn needs_authenticate(&self, quiet: bool) -> bool {
         print_info!(
             !quiet,
-            "needs_authenticate() is not implemetented for now, always returns `false'."
+            "needs_authenticate() is not implemetented for now, always returns `false`"
         );
         false
     }
@@ -98,7 +98,7 @@ impl super::TestCaseProvider for Aoj {
     fn authenticate(&self, quiet: bool) -> result::Result<(), anyhow::Error> {
         print_info!(
             !quiet,
-            "authenticate() for AOJ is not implemented for now, do nothing."
+            "authenticate() for AOJ is not implemented for now, do nothing"
         );
         Ok(())
     }

@@ -13,22 +13,22 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("argument's format is not collect: `{passed_arg}`.  please specify contest-site and problem-id separated by `:' (colon).")]
+    #[error("argument's format is not collect: `{passed_arg}`;  example: `atcoder:abc022a` for AtCoder Beginner Contest 022 Problem A")]
     ArgumentFormatError { passed_arg: String },
 
-    #[error("contest-site `{site}` is unknown.")]
+    #[error("contest-site `{site}` is unknown")]
     UnknownContestSite { site: String },
 
-    #[error("contest-site and problem-id are not specified.")]
+    #[error("contest-site and problem-id are not specified")]
     ProblemUnspecified,
 
-    #[error("failed to fetch.")]
+    #[error("failed to fetch")]
     FetchFailed { source: anyhow::Error },
 
-    #[error("failed to create provider.")]
+    #[error("failed to create provider")]
     ProviderCreationFailed { source: anyhow::Error },
 
-    #[error("failed to write test case file `{name}`.")]
+    #[error("failed to write test case file `{name}`")]
     TestCaseFileWritionFailed { source: anyhow::Error, name: String },
 }
 
@@ -52,7 +52,7 @@ pub fn fetch_test_case_files(
     );
 
     if provider.needs_authenticate(quiet) {
-        print_info!(!quiet, "authentication is needed.");
+        print_info!(!quiet, "authentication is needed");
         provider
             .authenticate(quiet)
             .map_err(|source| Error::ProviderCreationFailed { source })?;
@@ -74,7 +74,7 @@ pub fn write_test_case_files(tcfs: Vec<TestCaseFile>) -> Result<()> {
             name: tcf.to_string(),
         })?;
     }
-    print_finished!("generating {} Sample Case(s).", sample_cases);
+    print_finished!("generating {} Sample Case(s)", sample_cases);
 
     Ok(())
 }
@@ -105,7 +105,7 @@ fn get_descriptor(problem_id: Option<String>) -> Result<ProblemDescriptor> {
 }
 
 fn handle_empty_arg() -> Result<ProblemDescriptor> {
-    let current_dir = env::current_dir().expect("critical error: failed to get current directory.");
+    let current_dir = env::current_dir().expect("critical error: failed to get current directory");
 
     // sometimes current directory has no name (for exampple: root directory)
     let maybe_current_dir_name = current_dir

@@ -42,12 +42,12 @@ pub const LANGS: &[Lang] = &[cpp::LANG, rust::LANG];
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
-#[error("failed to get the language for this project.")]
+#[error("failed to get the language for this project")]
 pub struct Error(ErrorKind);
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
-    #[error("there doesn't seem to have a supported file in the current dir.")]
+    #[error("there doesn't seem to have a supported file in the current dir")]
     FileNotFound,
 }
 

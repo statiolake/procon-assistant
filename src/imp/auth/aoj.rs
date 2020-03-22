@@ -7,10 +7,10 @@ delegate_impl_error_error_kind! {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
-    #[error("sorry, log in to Aizu Online Judge is not supported yet.")]
+    #[error("sorry, log in to Aizu Online Judge is not supported yet")]
     UnsupportedAction,
 
-    #[error("request failed.")]
+    #[error("request failed")]
     RequestFailed { source: anyhow::Error },
 }
 

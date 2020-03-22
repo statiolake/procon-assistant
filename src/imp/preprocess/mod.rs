@@ -8,12 +8,12 @@ pub mod rust;
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
-#[error("failed to preprocess the source code.")]
+#[error("failed to preprocess the source code")]
 pub struct Error(ErrorKind);
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
-    #[error("failed to load `{}`; file not found.", .path.display())]
+    #[error("failed to load `{}`; file not found", .path.display())]
     FileNotFound {
         #[source]
         source: anyhow::Error,
@@ -67,7 +67,7 @@ pub fn read_source_file(file_path: &Path) -> Result<RawSource> {
         .read_to_string(&mut src_content)
         .unwrap_or_else(|_| {
             panic!(
-                "critical error: failed to read `{}` from disk.",
+                "critical error: failed to read `{}` from disk",
                 file_path.display()
             )
         });
