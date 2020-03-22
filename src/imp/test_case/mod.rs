@@ -1,3 +1,5 @@
+pub mod judge_result;
+
 use self::judge_result::{JudgeResult, OutputDifference};
 use crate::imp::common;
 use crate::imp::config;
@@ -8,8 +10,6 @@ use std::io::prelude::*;
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::time;
-
-pub mod judge_result;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

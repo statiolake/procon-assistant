@@ -120,7 +120,8 @@ impl super::TestCaseProvider for AtCoder {
     }
 
     fn authenticate(&self, quiet: bool) -> result::Result<(), anyhow::Error> {
-        login::main(quiet)
+        login::AtCoder
+            .run(quiet)
             .map_err(|e| Error::LoginFailed { source: e.into() })
             .map_err(Into::into)
     }
