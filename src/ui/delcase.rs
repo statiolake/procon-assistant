@@ -4,7 +4,11 @@ use std::fs;
 use std::io;
 
 #[derive(clap::Clap)]
+#[clap(
+    about = "Deletes the specified test case;  removes `inX.txt` and `outX.txt`, and decrement the case number of succeeding test cases"
+)]
 pub struct DelCase {
+    #[clap(help = "the list of test case numbers to remove")]
     indices: Vec<usize>,
 }
 

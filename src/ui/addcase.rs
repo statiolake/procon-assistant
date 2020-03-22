@@ -3,6 +3,7 @@ use crate::imp::config::ConfigFile;
 use crate::imp::test_case::TestCaseFile;
 
 #[derive(clap::Clap)]
+#[clap(about = "Adds a new test case;  creates `inX.txt` and `outX.txt` in the current directory")]
 pub struct AddCase;
 
 pub type Result<T> = std::result::Result<T, Error>;

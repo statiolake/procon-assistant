@@ -8,11 +8,15 @@ use std::io::prelude::*;
 use std::path::Path;
 
 #[derive(clap::Clap)]
+#[clap(about = "Generates files in a directory")]
 pub struct Init {
-    #[clap(default_value = ".")]
+    #[clap(
+        default_value = ".",
+        help = "The name of directory;  if `.`, files will be generated in the current directory"
+    )]
     dirname: String,
 
-    #[clap(short, long)]
+    #[clap(short, long, help = "The language to init")]
     lang: Option<String>,
 }
 

@@ -7,8 +7,13 @@ use colored_print::color::{ConsoleColor, ConsoleColor::Reset};
 use colored_print::colored_eprintln;
 
 #[derive(clap::Clap)]
+#[clap(about = "Compiles the current solution;  the produced binary won't be tested automatically")]
 pub struct Compile {
-    #[clap(short, long)]
+    #[clap(
+        short,
+        long,
+        help = "Recompiles even if the compiled binary seems to be up-to-date"
+    )]
     force: bool,
 }
 

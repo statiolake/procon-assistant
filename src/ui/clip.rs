@@ -5,6 +5,7 @@ use crate::imp::preprocess;
 use std::path::Path;
 
 #[derive(clap::Clap)]
+#[clap(about = "Copies the source file to clipboard with your library expanded")]
 pub struct Clip;
 
 pub type Result<T> = std::result::Result<T, Error>;

@@ -12,9 +12,15 @@ use std::thread;
 use std::time;
 
 #[derive(clap::Clap)]
+#[clap(about = "Runs and tests the current solution")]
 pub struct Run {
-    #[clap(short, long)]
-    force: bool,
+    #[clap(
+        short,
+        long,
+        help = "Recompiles even if the compiled binary seems to be up-to-date"
+    )]
+    force_compile: bool,
+    #[clap(help = "Test case IDs to test")]
     to_run: Vec<String>,
 }
 
@@ -58,7 +64,7 @@ impl Run {
     pub fn run(self, quiet: bool) -> Result<()> {
         let lang = langs::get_lang()
             .map_err(|e| Error(ErrorKind::GettingLanguageFailed { source: e.into() }))?;
-        let success = compile::compile(quiet, &lang, self.force)
+        let success = compile::compile(quiet, &lang, self.force_compile)
             .map_err(|e| Error(ErrorKind::CompilationFailed { source: e.into() }))?;
         let result = if success {
             run_tests(quiet, &self.to_run)

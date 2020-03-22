@@ -2,9 +2,15 @@ use std::fs;
 use std::path::PathBuf;
 
 #[derive(clap::Clap)]
+#[clap(about = "Initializes directory tree")]
 pub struct InitDirs {
+    #[clap(help = "The name of contest (the name of created directory)")]
     contest_name: String,
+
+    #[clap(help = "The number of problems")]
     numof_problems: usize,
+
+    #[clap(help = "The first problem character")]
     beginning_char: char,
 }
 
