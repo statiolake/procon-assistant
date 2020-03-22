@@ -12,8 +12,10 @@ use std::result;
 use std::str;
 
 #[derive(clap::Clap)]
+#[clap(about = "Fetches sample cases of all problems in a contest")]
 pub struct Download {
-    provider: Option<String>,
+    #[clap(help = "The contest-id of the target. ex) atcoder:abc012")]
+    contest_id: Option<String>,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -47,7 +49,7 @@ pub enum ErrorKind {
 
 impl Download {
     pub fn run(self, quiet: bool) -> Result<()> {
-        let provider = match self.provider {
+        let provider = match self.contest_id {
             Some(arg) => get_provider(arg),
             None => handle_empty_arg(),
         }?;

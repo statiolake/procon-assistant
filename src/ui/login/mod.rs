@@ -1,6 +1,7 @@
 pub mod atcoder;
 
 #[derive(clap::Clap)]
+#[clap(about = "Logs in to a contest-site")]
 pub struct Login {
     #[clap(subcommand)]
     site: Site,

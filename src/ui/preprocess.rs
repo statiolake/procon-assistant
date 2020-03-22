@@ -2,6 +2,7 @@ use crate::imp::langs;
 use crate::imp::preprocess;
 
 #[derive(clap::Clap)]
+#[clap(about = "Preprocesses current source file and prepares to submit")]
 pub struct Preprocess;
 
 pub type Result<T> = std::result::Result<T, Error>;

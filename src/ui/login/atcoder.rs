@@ -2,6 +2,7 @@ use crate::imp::auth;
 use crate::imp::auth::atcoder as auth_atcoder;
 
 #[derive(clap::Clap)]
+#[clap(about = "Logs in to AtCoder")]
 pub struct AtCoder;
 
 pub type Result<T> = std::result::Result<T, Error>;

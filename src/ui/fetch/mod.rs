@@ -10,7 +10,9 @@ pub mod aoj;
 pub mod atcoder;
 
 #[derive(clap::Clap)]
+#[clap(about = "Fetches sample cases of a problem")]
 pub struct Fetch {
+    #[clap(help = "The problem-id of the target problem.  ex) aoj:0123, atcoder:abc012a")]
     problem_id: Option<String>,
 }
 
