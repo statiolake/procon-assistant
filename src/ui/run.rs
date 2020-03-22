@@ -9,7 +9,7 @@ use crate::ui::compile;
 use colored_print::color::{ConsoleColor, ConsoleColor::*};
 use colored_print::colored_eprintln;
 use std::thread;
-use time;
+use std::time;
 
 const OUTPUT_COLOR: ConsoleColor = LightMagenta;
 
@@ -164,7 +164,7 @@ fn print_result(quiet: bool, result: &JudgeResult, duration: &time::Duration, di
         Reset, "    ";
         color, "{}", short_name;
         Reset, " {}", display;
-        Reset, " (in {} ms)", duration.num_milliseconds();
+        Reset, " (in {} ms)", duration.as_millis();
     }
 
     match result {
