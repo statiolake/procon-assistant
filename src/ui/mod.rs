@@ -1,21 +1,19 @@
-#[macro_use]
-pub(crate) mod tags;
 mod addcase;
-mod delcase;
-
 mod clip;
 mod compile;
+mod delcase;
 mod download;
 mod fetch;
 mod init;
 mod initdirs;
 mod login;
 mod preprocess;
+mod print_macros;
 mod run;
 
+use crate::{eprintln_error, eprintln_info};
 use clap::Clap;
 use std::error;
-use std::process;
 
 #[derive(Clap)]
 #[clap(version = "0.2", author = "statiolake")]
@@ -85,15 +83,19 @@ pub fn main() {
     let opts = Options::parse();
     let result = opts.subcommand.run(opts.quiet);
     if let Err(e) = result {
-        print_error!("{}", e);
-        print_causes(&*e);
-        process::exit(1);
+        eprintln_error!("{}", e);
+        print_causes(opts.quiet, &*e);
+        std::process::exit(1);
     }
 }
 
-fn print_causes(e: &dyn error::Error) {
+fn print_causes(quiet: bool, e: &dyn error::Error) {
+    if quiet {
+        return;
+    }
+
     if let Some(cause) = e.source() {
-        print_info!(true, "due to: {}", cause);
-        print_causes(cause);
+        eprintln_info!("due to: {}", cause);
+        print_causes(quiet, cause);
     }
 }

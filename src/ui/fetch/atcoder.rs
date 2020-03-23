@@ -1,3 +1,4 @@
+use crate::eprintln_info;
 use crate::imp::auth::atcoder as auth;
 use crate::imp::test_case::TestCaseFile;
 use crate::ui::login::atcoder as login;
@@ -112,10 +113,12 @@ impl super::TestCaseProvider for AtCoder {
     }
 
     fn needs_authenticate(&self, quiet: bool) -> bool {
-        print_info!(
-            !quiet,
-            "needs_authenticate() is not implemetented for now, always returns `false`"
-        );
+        if !quiet {
+            eprintln_info!(
+                "needs_authenticate() is not implemetented for now, always returns `false`"
+            );
+        }
+
         false
     }
 

@@ -2,6 +2,7 @@ use crate::imp::common;
 use crate::imp::config::ConfigFile;
 use crate::imp::langs;
 use crate::imp::langs::Lang;
+use crate::{eprintln_info, eprintln_tagged};
 use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
@@ -131,12 +132,14 @@ fn create_project_directory(path_project: &Path) -> Result<()> {
 
 fn safe_generate(quiet: bool, lang: &Lang, path_project: &Path, path: &Path) -> Result<()> {
     if path_project.join(path).exists() {
-        print_info!(!quiet, "file {} already exists, skipping", path.display());
+        if !quiet {
+            eprintln_info!("file {} already exists, skipping", path.display());
+        }
         return Ok(());
     }
 
     generate(quiet, lang, path_project, path)?;
-    print_generated!("{}", path.display());
+    eprintln_tagged!("Generated": "{}", path.display());
     Ok(())
 }
 
@@ -147,7 +150,9 @@ fn generate(quiet: bool, lang: &Lang, path_project_root: &Path, path: &Path) -> 
     let path_project = path_project_root.join(path);
 
     let path_template_string = path_template.display().to_string();
-    print_info!(!quiet, "loading template from `{}`", path_template_string);
+    if !quiet {
+        eprintln_info!("loading template from `{}`", path_template_string);
+    }
     let mut template_file = File::open(path_template).map_err(|e| Error::OpenTemplateFailed {
         source: e.into(),
         name: path_template_string.clone(),

@@ -5,6 +5,7 @@ use crate::imp::test_case::judge_result::{JudgeResult, WrongAnswer};
 use crate::imp::test_case::{TestCase, TestCaseFile};
 use crate::ui::clip;
 use crate::ui::compile;
+use crate::{eprintln_info, eprintln_tagged};
 use console::Style;
 use std::thread;
 use std::time;
@@ -124,16 +125,18 @@ fn enumerate_test_cases(args: &[String]) -> Result<Vec<TestCase>> {
 }
 
 fn print_solution_output(quiet: bool, kind: &str, result: &[String]) {
-    print_info!(!quiet, "{}:", kind);
-    let style = output_style();
-    for line in result.iter() {
-        eprintln!("        {}", style.apply_to(line));
+    if !quiet {
+        eprintln_info!("{}:", kind);
+        let style = output_style();
+        for line in result.iter() {
+            eprintln!("        {}", style.apply_to(line));
+        }
     }
 }
 
 fn run(quiet: bool, tcs: Vec<TestCase>) -> Result<JudgeResult> {
-    print_running!(
-        "{} test cases (current timeout is {} millisecs)",
+    eprintln_tagged!(
+        "Running": "{} test cases (current timeout is {} millisecs)",
         tcs.len(),
         config::TIMEOUT_MILLISECOND
     );
@@ -148,7 +151,7 @@ fn run(quiet: bool, tcs: Vec<TestCase>) -> Result<JudgeResult> {
     // regardless of judging finished or not.
     let judge_results: Vec<_> = handles.into_iter().map(|x| x.join().unwrap()).collect();
 
-    print_finished!("running");
+    eprintln_tagged!("Finished": "running");
     eprintln!("");
     let mut whole_result = JudgeResult::Passed;
     for (display, result) in judge_results.into_iter() {
@@ -183,10 +186,15 @@ fn print_result(quiet: bool, result: &JudgeResult, duration: &time::Duration, di
             print_solution_output(quiet, "sample case input", &input);
             print_solution_output(quiet, "expected output", &expected_output);
             print_solution_output(quiet, "actual output", &actual_output);
-            print_info!(!quiet, "{}", difference.message());
+
+            if !quiet {
+                eprintln_info!("{}", difference.message());
+            }
         }
         JudgeResult::RuntimeError(ref reason) => {
-            print_info!(!quiet, "{}", reason);
+            if !quiet {
+                eprintln_info!("{}", reason);
+            }
         }
         _ => {}
     }

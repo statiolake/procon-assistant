@@ -1,6 +1,6 @@
 use super::{Error, ErrorKind, Minified, Preprocessed, RawSource, Result};
+use crate::eprintln_info;
 use crate::imp::langs;
-use crate::print_info;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::HashSet;
@@ -89,13 +89,16 @@ fn parse_include(
             }
         };
 
-        print_info!(!quiet, "including {}", inc_path.display());
+        if !quiet {
+            eprintln_info!("including {}", inc_path.display());
+        }
         let will_be_replaced = if included.contains(&inc_path) {
-            print_info!(
-                !quiet,
-                "... skipping previously included file {}",
-                inc_path.display()
-            );
+            if !quiet {
+                eprintln_info!(
+                    "... skipping previously included file {}",
+                    inc_path.display()
+                );
+            }
             String::new()
         } else {
             included.insert(inc_path.clone());

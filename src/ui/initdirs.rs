@@ -1,3 +1,4 @@
+use crate::eprintln_tagged;
 use std::fs;
 use std::path::PathBuf;
 
@@ -70,5 +71,5 @@ pub fn create_directories(contest_name: &str, beginning_char: char, numof_proble
         dir_path.pop();
     }
 
-    print_created!("directory tree");
+    eprintln_tagged!("Created": "directory tree");
 }
