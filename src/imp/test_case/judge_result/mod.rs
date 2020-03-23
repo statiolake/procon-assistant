@@ -1,5 +1,5 @@
 pub use self::output_diff::*;
-use colored_print::color::{ConsoleColor, ConsoleColor::*};
+use console::Style;
 
 pub mod output_diff;
 
@@ -22,20 +22,20 @@ pub enum JudgeResult {
 }
 
 impl JudgeResult {
-    pub fn color(&self) -> ConsoleColor {
+    pub fn style(&self) -> Style {
         use self::JudgeResult::*;
         match *self {
-            Passed => LightGreen,
-            WrongAnswer(_) => Yellow,
-            PresentationError => Yellow,
-            TimeLimitExceeded => Yellow,
-            RuntimeError(_) => Red,
-            CompilationError => Yellow,
+            Passed => Style::new().green().bold(),
+            WrongAnswer(_) => Style::new().yellow(),
+            PresentationError => Style::new().yellow(),
+            TimeLimitExceeded => Style::new().yellow(),
+            RuntimeError(_) => Style::new().red(),
+            CompilationError => Style::new().yellow(),
         }
     }
 
-    pub fn long_name(&self) -> (ConsoleColor, &'static str, &'static str) {
-        let color = self.color();
+    pub fn long_name(&self) -> (Style, &'static str, &'static str) {
+        let style = self.style();
         use self::JudgeResult::*;
         let (verb, msg_to_be_colored) = match *self {
             Passed => ("", "Passed all sample case(s)"),
@@ -46,11 +46,11 @@ impl JudgeResult {
             CompilationError => ("was ", "Compilation Error"),
         };
 
-        (color, verb, msg_to_be_colored)
+        (style, verb, msg_to_be_colored)
     }
 
-    pub fn short_name(&self) -> (ConsoleColor, &'static str) {
-        let color = self.color();
+    pub fn short_name(&self) -> (Style, &'static str) {
+        let style = self.style();
         use self::JudgeResult::*;
         let short_name = match *self {
             Passed => "PS ",
@@ -61,6 +61,6 @@ impl JudgeResult {
             CompilationError => "CE ",
         };
 
-        (color, short_name)
+        (style, short_name)
     }
 }

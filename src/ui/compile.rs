@@ -1,10 +1,7 @@
-use crate::imp::common;
 use crate::imp::compile;
 use crate::imp::compile::CompilerOutput;
 use crate::imp::langs;
 use crate::imp::langs::Lang;
-use colored_print::color::{ConsoleColor, ConsoleColor::Reset};
-use colored_print::colored_eprintln;
 
 #[derive(clap::Clap)]
 #[clap(about = "Compiles the current solution;  the produced binary won't be tested automatically")]
@@ -16,8 +13,6 @@ pub struct Compile {
     )]
     force: bool,
 }
-
-const OUTPUT_COLOR: ConsoleColor = Reset;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -77,10 +72,7 @@ pub fn print_compiler_output(kind: &str, output: Option<String>) {
         let output = output.trim().split('\n');
         print_info!(true, "compiler {}:", kind);
         for line in output {
-            colored_eprintln! {
-                common::colorize();
-                OUTPUT_COLOR, "        {}", line;
-            }
+            eprintln!("        {}", line);
         }
     }
 }

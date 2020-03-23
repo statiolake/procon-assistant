@@ -1,4 +1,3 @@
-use crate::imp::common;
 use crate::imp::config;
 use crate::imp::langs;
 use crate::imp::test_case;
@@ -6,8 +5,7 @@ use crate::imp::test_case::judge_result::{JudgeResult, WrongAnswer};
 use crate::imp::test_case::{TestCase, TestCaseFile};
 use crate::ui::clip;
 use crate::ui::compile;
-use colored_print::color::{ConsoleColor, ConsoleColor::*};
-use colored_print::colored_eprintln;
+use console::Style;
 use std::thread;
 use std::time;
 
@@ -24,7 +22,9 @@ pub struct Run {
     to_run: Vec<String>,
 }
 
-const OUTPUT_COLOR: ConsoleColor = LightMagenta;
+fn output_style() -> Style {
+    Style::new().magenta()
+}
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -73,14 +73,13 @@ impl Run {
             JudgeResult::CompilationError
         };
 
-        let (result_color, result_long_verb, result_long_name) = result.long_name();
+        let (result_style, result_long_verb, result_long_name) = result.long_name();
         eprintln!("");
-        colored_eprintln! {
-            common::colorize();
-            Reset, "    Your solution {}", result_long_verb;
-            result_color, "{}", result_long_name;
-            Reset, "";
-        };
+        eprintln!(
+            "    Your solution {}{}",
+            result_long_verb,
+            result_style.apply_to(result_long_name)
+        );
 
         // copy the answer to the clipboard
         if let JudgeResult::Passed = result {
@@ -126,11 +125,9 @@ fn enumerate_test_cases(args: &[String]) -> Result<Vec<TestCase>> {
 
 fn print_solution_output(quiet: bool, kind: &str, result: &[String]) {
     print_info!(!quiet, "{}:", kind);
+    let style = output_style();
     for line in result.iter() {
-        colored_eprintln! {
-            common::colorize();
-            OUTPUT_COLOR, "        {}", line;
-        }
+        eprintln!("        {}", style.apply_to(line));
     }
 }
 
@@ -168,14 +165,13 @@ fn run(quiet: bool, tcs: Vec<TestCase>) -> Result<JudgeResult> {
 
 fn print_result(quiet: bool, result: &JudgeResult, duration: &time::Duration, display: String) {
     // get color and short result string
-    let (color, short_name) = result.short_name();
-    colored_eprintln! {
-        common::colorize();
-        Reset, "    ";
-        color, "{}", short_name;
-        Reset, " {}", display;
-        Reset, " (in {} ms)", duration.as_millis();
-    }
+    let (style, short_name) = result.short_name();
+    eprintln!(
+        "    {} {} (in {} ms)",
+        style.apply_to(short_name),
+        display,
+        duration.as_millis()
+    );
 
     match result {
         JudgeResult::WrongAnswer(Some(WrongAnswer {

@@ -26,6 +26,4 @@ thiserror = "1.0.12"
 clap = { git = "https://github.com/clap-rs/clap" }
 async-std = "1.5.0"
 chrono = "0.4.11"
-
-[dependencies.colored_print]
-git = "https://github.com/statiolake/colored_print.git"
+console = "0.10.0"
