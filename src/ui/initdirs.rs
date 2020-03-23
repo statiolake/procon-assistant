@@ -1,6 +1,5 @@
 use crate::eprintln_tagged;
-use std::fs;
-use std::path::PathBuf;
+use crate::imp;
 
 #[derive(clap::Clap)]
 #[clap(about = "Initializes directory tree")]
@@ -28,6 +27,9 @@ pub enum Error {
         max: usize,
         current: usize,
     },
+
+    #[error("error while creating directories")]
+    CreatingDirectoryError { source: imp::initdirs::Error },
 }
 
 impl InitDirs {
@@ -53,23 +55,15 @@ impl InitDirs {
             });
         }
 
-        create_directories(
-            &*self.contest_name,
-            self.beginning_char,
+        // create directories
+        imp::initdirs::create_directories(
+            &self.contest_name,
             self.numof_problems,
-        );
+            self.beginning_char,
+        )
+        .map_err(|source| Error::CreatingDirectoryError { source })?;
+        eprintln_tagged!("Created": "directory tree");
 
         Ok(())
     }
-}
-
-pub fn create_directories(contest_name: &str, beginning_char: char, numof_problems: usize) {
-    let mut dir_path = PathBuf::from(contest_name);
-    for ch in (0..numof_problems).map(|x| (x as u8 + beginning_char as u8) as char) {
-        dir_path.push(ch.to_string());
-        fs::create_dir_all(&dir_path).unwrap();
-        dir_path.pop();
-    }
-
-    eprintln_tagged!("Created": "directory tree");
 }

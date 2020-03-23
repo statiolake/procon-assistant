@@ -4,9 +4,9 @@ pub mod local;
 use self::atcoder::AtCoder;
 use self::local::Local;
 use crate::eprintln_tagged;
+use crate::imp;
 use crate::ui::fetch;
 use crate::ui::fetch::TestCaseProvider;
-use crate::ui::initdirs;
 use std::env;
 use std::path::Path;
 use std::result;
@@ -46,6 +46,9 @@ pub enum ErrorKind {
 
     #[error("failed to write test case file")]
     WritingTestCaseFailed { source: anyhow::Error },
+
+    #[error("failed to create contest directories")]
+    CreatingContestDirectoriesFailed { source: anyhow::Error },
 }
 
 impl Download {
@@ -60,7 +63,7 @@ impl Download {
             .map_err(|source| Error(ErrorKind::MakingFetcherFailed { source }))?;
 
         eprintln_tagged!("Fetching": "{} (at {})", provider.contest_id(), provider.url());
-        fetchers.prepare_generate();
+        fetchers.prepare_generate()?;
         for (problem, fetcher) in fetchers.fetchers.into_iter().enumerate() {
             generate_one(
                 quiet,
@@ -130,10 +133,28 @@ pub struct Fetchers {
 }
 
 impl Fetchers {
-    pub fn prepare_generate(&self) {
+    pub fn prepare_generate(&self) -> Result<()> {
         let numof_problems = self.fetchers.len();
-        change_current_dir(&self.contest_id, self.beginning_char, numof_problems);
+        adjust_current_dir(&self.contest_id, self.beginning_char, numof_problems)?;
+
+        Ok(())
     }
+}
+
+/// Generates directory tree if needed and ensure that we are in the contest directory.
+fn adjust_current_dir(contest_id: &str, beginning_char: char, numof_problems: usize) -> Result<()> {
+    let current_dir = env::current_dir().unwrap();
+    let execuded_from_inside = matches!(current_dir.file_name(), Some(name) if name == contest_id);
+    if execuded_from_inside {
+        env::set_current_dir("..").unwrap();
+    }
+
+    imp::initdirs::create_directories(contest_id, numof_problems, beginning_char)
+        .map_err(|e| Error(ErrorKind::CreatingContestDirectoriesFailed { source: e.into() }))?;
+
+    env::set_current_dir(&Path::new(contest_id)).unwrap();
+
+    Ok(())
 }
 
 pub fn generate_one(
@@ -157,18 +178,6 @@ pub fn generate_one(
     env::set_current_dir(Path::new("..")).unwrap();
 
     Ok(())
-}
-
-fn change_current_dir(contest_id: &str, beginning_char: char, numof_problems: usize) {
-    let current_dir = env::current_dir().unwrap();
-    let file_name = current_dir.file_name();
-    let executed_inside_proper_dir = file_name.is_some() && file_name.unwrap() == contest_id;
-    if executed_inside_proper_dir {
-        env::set_current_dir("..").unwrap();
-    }
-
-    initdirs::create_directories(contest_id, beginning_char, numof_problems);
-    env::set_current_dir(&Path::new(contest_id)).unwrap();
 }
 
 pub trait ContestProvider {

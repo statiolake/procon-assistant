@@ -4,6 +4,7 @@ pub mod common;
 pub mod compile;
 pub mod config;
 pub mod debug_macros;
+pub mod initdirs;
 pub mod langs;
 pub mod preprocess;
 pub mod test_case;
