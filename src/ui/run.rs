@@ -74,13 +74,9 @@ impl Run {
             JudgeResult::CompilationError
         };
 
-        let (result_style, result_long_verb, result_long_name) = result.long_name();
+        let (result_style, result_long_name) = result.long_name();
         eprintln!("");
-        eprintln!(
-            "    Your solution {}{}",
-            result_long_verb,
-            result_style.apply_to(result_long_name)
-        );
+        eprintln!("    Verdict: {}", result_style.apply_to(result_long_name));
 
         // copy the answer to the clipboard
         if let JudgeResult::Passed = result {
