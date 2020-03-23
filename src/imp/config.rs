@@ -1,7 +1,7 @@
 use serde_derive::Deserialize;
 use std::fs::File;
 
-pub const TIMEOUT_MILLISECOND: i64 = 3000;
+pub const TIMEOUT_MILLISECOND: u64 = 3000;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

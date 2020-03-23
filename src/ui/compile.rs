@@ -6,6 +6,17 @@ use crate::imp::langs::Lang;
 use colored_print::color::{ConsoleColor, ConsoleColor::Reset};
 use colored_print::colored_eprintln;
 
+#[derive(clap::Clap)]
+#[clap(about = "Compiles the current solution;  the produced binary won't be tested automatically")]
+pub struct Compile {
+    #[clap(
+        short,
+        long,
+        help = "Recompiles even if the compiled binary seems to be up-to-date"
+    )]
+    force: bool,
+}
+
 const OUTPUT_COLOR: ConsoleColor = Reset;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -27,15 +38,16 @@ pub enum ErrorKind {
     GettingLanguageFailed { source: anyhow::Error },
 }
 
-pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
-    let lang = langs::get_lang()
-        .map_err(|e| Error(ErrorKind::GettingLanguageFailed { source: e.into() }))?;
-    let force = check_force_paremeter(&args);
-    let success = compile(quiet, &lang, force)?;
-    if success {
-        Ok(())
-    } else {
-        Err(Error(ErrorKind::CompilationError))
+impl Compile {
+    pub fn run(self, quiet: bool) -> Result<()> {
+        let lang = langs::get_lang()
+            .map_err(|e| Error(ErrorKind::GettingLanguageFailed { source: e.into() }))?;
+        let success = compile(quiet, &lang, self.force)?;
+        if success {
+            Ok(())
+        } else {
+            Err(Error(ErrorKind::CompilationError))
+        }
     }
 }
 
@@ -71,8 +83,4 @@ pub fn print_compiler_output(kind: &str, output: Option<String>) {
             }
         }
     }
-}
-
-fn check_force_paremeter(args: &[String]) -> bool {
-    args.iter().any(|x| x == "--force" || x == "-f")
 }

@@ -1,3 +1,5 @@
+pub mod judge_result;
+
 use self::judge_result::{JudgeResult, OutputDifference};
 use crate::imp::common;
 use crate::imp::config;
@@ -6,9 +8,8 @@ use std::fs::File;
 use std::io;
 use std::io::prelude::*;
 use std::path::Path;
-use std::process::{Child, Command, ExitStatus, Stdio};
-
-pub mod judge_result;
+use std::process::{Child, Command, Stdio};
+use std::time;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -196,53 +197,49 @@ fn input_to_child(child: &mut Child, if_contents: &[u8]) {
 }
 
 fn wait_or_timeout(child: &mut Child) -> Result<(time::Duration, Option<JudgeResult>)> {
-    let start = time::now();
-    let timeout_at = start + time::Duration::milliseconds(config::TIMEOUT_MILLISECOND);
+    use JudgeResult::{RuntimeError as RE, TimeLimitExceeded as TLE};
+
+    let timeout = time::Duration::from_millis(config::TIMEOUT_MILLISECOND);
+    let timer = time::Instant::now();
     loop {
-        let now = time::now();
+        // current elapsed time
+        let elapsed = timer.elapsed();
+
+        // check if the binary has finished.
         let try_wait_result = child.try_wait();
-        let res = match try_wait_result {
-            Ok(Some(status)) => (false, handle_try_wait_normal(status)),
-            Ok(None) => (true, None),
-            Err(_) => (false, handle_try_wait_error()),
-        };
-        match res {
-            (_, Some(re)) => return Ok((now - start, Some(re))),
-            (true, _) => {}
-            (false, _) => break,
+        match try_wait_result {
+            // child has somehow finished.  check the reason.
+            Ok(Some(status)) => {
+                let judge_result = if status.success() {
+                    // OK: child succesfully exited in time.
+                    None
+                } else if status.code().is_none() {
+                    // RE: signal termination. consider it as a runtime error here.
+                    Some(RE("process was terminated by a signal".into()))
+                } else {
+                    // RE: some error occurs, returning runtime error.
+                    Some(RE("exit status was not successful".into()))
+                };
+
+                return Ok((elapsed, judge_result));
+            }
+
+            // child hasn't finished.  continue to polling
+            Ok(None) => {}
+
+            // failed to check the child status.  treat this as a runtime error.
+            Err(_) => {
+                let judge_result = Some(RE("error while waiting process finish".into()));
+                return Ok((elapsed, judge_result));
+            }
         }
 
-        if timeout_at < now {
-            // timeout!
+        if elapsed >= timeout {
+            // timeout.
             child.kill().unwrap();
-            return Ok((now - start, Some(JudgeResult::TimeLimitExceeded)));
+            return Ok((elapsed, Some(TLE)));
         }
     }
-    let now = time::now();
-    Ok((now - start, None))
-}
-
-fn handle_try_wait_normal(status: ExitStatus) -> Option<JudgeResult> {
-    if status.code().is_none() {
-        // signal termination. consider it as a runtime error here.
-        Some(JudgeResult::RuntimeError(
-            "process was terminated by a signal".into(),
-        ))
-    } else if status.success() {
-        // ok, child succesfully exited in time.
-        None
-    } else {
-        // some error occurs, returning runtime error.
-        Some(JudgeResult::RuntimeError(
-            "exit status was not successful".into(),
-        ))
-    }
-}
-
-fn handle_try_wait_error() -> Option<JudgeResult> {
-    Some(JudgeResult::RuntimeError(
-        "error occured while waiting process finish".into(),
-    ))
 }
 
 fn read_child_stdout(child: &mut Child) -> Vec<u8> {

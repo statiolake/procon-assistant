@@ -65,8 +65,7 @@ pub fn authenticated_get(quiet: bool, url: &str) -> Result<reqwest::Response> {
     let client = reqwest::Client::new();
     let mut builder = client.get(url);
     builder = add_auth_info_to_builder_if_possible(quiet, builder)?;
-    let mut res = builder
-        .send()
+    let mut res = async_std::task::block_on(builder.send())
         .map_err(|e| Error(ErrorKind::RequestingError { source: e.into() }))?;
     store_revel_session_from_response(&mut res)?;
     Ok(res)
@@ -110,27 +109,19 @@ fn store_revel_session_from_response(res: &mut reqwest::Response) -> Result<()> 
 fn get_cookie_and_csrf_token(quiet: bool) -> Result<(Vec<(String, String)>, String)> {
     print_info!(!quiet, "fetching login page");
     let client = reqwest::Client::new();
-    let mut res = client
-        .get("https://beta.atcoder.jp/login")
-        .send()
+    let res = async_std::task::block_on(client.get("https://beta.atcoder.jp/login").send())
         .map_err(|e| Error(ErrorKind::FetchingLoginPageFailed { source: e.into() }))?;
 
     result_check(&res)?;
 
-    let cookie = get_cookie_from_response(&mut res);
-
-    let csrf_token = get_csrf_token_from_response(&mut res)?;
+    let cookie = extract_setcookie(res.headers());
+    let csrf_token = get_csrf_token_from_response(res)?;
 
     Ok((cookie, csrf_token))
 }
 
-fn get_cookie_from_response(res: &mut reqwest::Response) -> Vec<(String, String)> {
-    extract_setcookie(res.headers())
-}
-
-fn get_csrf_token_from_response(res: &mut reqwest::Response) -> Result<String> {
-    let doc = res
-        .text()
+fn get_csrf_token_from_response(res: reqwest::Response) -> Result<String> {
+    let doc = async_std::task::block_on(res.text())
         .map(|res| Html::parse_document(&res))
         .map_err(|e| Error(ErrorKind::ParsingHtmlFailed { source: e.into() }))?;
     let sel_csrf_token = Selector::parse("input[name=csrf_token]").unwrap();
@@ -176,7 +167,7 @@ fn login_get_cookie(
 
 fn make_client() -> reqwest::Result<reqwest::Client> {
     reqwest::ClientBuilder::new()
-        .redirect(reqwest::RedirectPolicy::none())
+        .redirect(reqwest::redirect::Policy::none())
         .build()
 }
 
@@ -194,11 +185,11 @@ fn post(
     params: &[(&str, &str)],
     post_cookie: HeaderValue,
 ) -> reqwest::Result<reqwest::Response> {
-    client
+    let builder = client
         .post("https://beta.atcoder.jp/login")
         .form(params)
-        .header(header::COOKIE, post_cookie)
-        .send()
+        .header(header::COOKIE, post_cookie);
+    async_std::task::block_on(builder.send())
 }
 
 fn is_login_succeeded(res: &reqwest::Response) -> Result<bool> {

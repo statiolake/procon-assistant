@@ -4,6 +4,10 @@ use crate::imp::langs::Lang;
 use crate::imp::preprocess;
 use std::path::Path;
 
+#[derive(clap::Clap)]
+#[clap(about = "Copies the source file to clipboard with your library expanded")]
+pub struct Clip;
+
 pub type Result<T> = std::result::Result<T, Error>;
 
 delegate_impl_error_error_kind! {
@@ -20,11 +24,13 @@ pub enum ErrorKind {
     CopyingToClipboardFailed { source: anyhow::Error },
 }
 
-pub fn main(quiet: bool) -> Result<()> {
-    let lang = langs::get_lang()
-        .map_err(|e| Error(ErrorKind::GettingLanguageFailed { source: e.into() }))?;
-    copy_to_clipboard(quiet, &lang)
-        .map_err(|e| Error(ErrorKind::CopyingToClipboardFailed { source: e.into() }))
+impl Clip {
+    pub fn run(self, quiet: bool) -> Result<()> {
+        let lang = langs::get_lang()
+            .map_err(|e| Error(ErrorKind::GettingLanguageFailed { source: e.into() }))?;
+        copy_to_clipboard(quiet, &lang)
+            .map_err(|e| Error(ErrorKind::CopyingToClipboardFailed { source: e.into() }))
+    }
 }
 
 pub fn copy_to_clipboard(quiet: bool, lang: &Lang) -> preprocess::Result<()> {
