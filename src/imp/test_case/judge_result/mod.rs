@@ -34,31 +34,29 @@ impl JudgeResult {
         }
     }
 
-    pub fn long_name(&self) -> (Style, &'static str, &'static str) {
+    pub fn long_name(&self) -> (Style, &'static str) {
         let style = self.style();
-        use self::JudgeResult::*;
-        let (verb, msg_to_be_colored) = match *self {
-            Passed => ("", "Passed all sample case(s)"),
-            WrongAnswer(_) => ("was ", "Wrong Answer"),
-            PresentationError => ("was ", "Presentation Error"),
-            TimeLimitExceeded => ("was ", "Time Limit Exceeded"),
-            RuntimeError(_) => ("was ", "Runtime Error"),
-            CompilationError => ("was ", "Compilation Error"),
+        let long_name = match *self {
+            JudgeResult::Passed => "Passed",
+            JudgeResult::WrongAnswer(_) => "Wrong Answer",
+            JudgeResult::PresentationError => "Presentation Error",
+            JudgeResult::TimeLimitExceeded => "Time Limit Exceeded",
+            JudgeResult::RuntimeError(_) => "Runtime Error",
+            JudgeResult::CompilationError => "Compilation Error",
         };
 
-        (style, verb, msg_to_be_colored)
+        (style, long_name)
     }
 
     pub fn short_name(&self) -> (Style, &'static str) {
         let style = self.style();
-        use self::JudgeResult::*;
         let short_name = match *self {
-            Passed => "PS ",
-            WrongAnswer(_) => "WA ",
-            PresentationError => "PE ",
-            TimeLimitExceeded => "TLE",
-            RuntimeError(_) => "RE ",
-            CompilationError => "CE ",
+            JudgeResult::Passed => "PS ",
+            JudgeResult::WrongAnswer(_) => "WA ",
+            JudgeResult::PresentationError => "PE ",
+            JudgeResult::TimeLimitExceeded => "TLE",
+            JudgeResult::RuntimeError(_) => "RE ",
+            JudgeResult::CompilationError => "CE ",
         };
 
         (style, short_name)
