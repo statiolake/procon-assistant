@@ -9,7 +9,20 @@ use crate::ui::compile;
 use colored_print::color::{ConsoleColor, ConsoleColor::*};
 use colored_print::colored_eprintln;
 use std::thread;
-use time;
+use std::time;
+
+#[derive(clap::Clap)]
+#[clap(about = "Runs and tests the current solution")]
+pub struct Run {
+    #[clap(
+        short,
+        long,
+        help = "Recompiles even if the compiled binary seems to be up-to-date"
+    )]
+    force_compile: bool,
+    #[clap(help = "Test case IDs to test")]
+    to_run: Vec<String>,
+}
 
 const OUTPUT_COLOR: ConsoleColor = LightMagenta;
 
@@ -47,41 +60,38 @@ pub enum ErrorKind {
     TestCaseNotPass,
 }
 
-pub fn main(quiet: bool, args: Vec<String>) -> Result<()> {
-    let force = args.iter().any(|x| x == "--force" || x == "-f");
-    let args: Vec<_> = args
-        .into_iter()
-        .filter(|x| x != "--force" && x != "-f")
-        .collect();
-    let lang = langs::get_lang()
-        .map_err(|e| Error(ErrorKind::GettingLanguageFailed { source: e.into() }))?;
-    let success = compile::compile(quiet, &lang, force)
-        .map_err(|e| Error(ErrorKind::CompilationFailed { source: e.into() }))?;
-    let result = if success {
-        run_tests(quiet, &args)
-            .map_err(|e| Error(ErrorKind::RunningTestsFailed { source: e.into() }))?
-    } else {
-        JudgeResult::CompilationError
-    };
+impl Run {
+    pub fn run(self, quiet: bool) -> Result<()> {
+        let lang = langs::get_lang()
+            .map_err(|e| Error(ErrorKind::GettingLanguageFailed { source: e.into() }))?;
+        let success = compile::compile(quiet, &lang, self.force_compile)
+            .map_err(|e| Error(ErrorKind::CompilationFailed { source: e.into() }))?;
+        let result = if success {
+            run_tests(quiet, &self.to_run)
+                .map_err(|e| Error(ErrorKind::RunningTestsFailed { source: e.into() }))?
+        } else {
+            JudgeResult::CompilationError
+        };
 
-    let (result_color, result_long_verb, result_long_name) = result.long_name();
-    eprintln!("");
-    colored_eprintln! {
-        common::colorize();
-        Reset, "    Your solution {}", result_long_verb;
-        result_color, "{}", result_long_name;
-        Reset, "";
-    };
-
-    // copy the answer to the clipboard
-    if let JudgeResult::Passed = result {
+        let (result_color, result_long_verb, result_long_name) = result.long_name();
         eprintln!("");
-        clip::copy_to_clipboard(quiet, &lang)
-            .map_err(|e| Error(ErrorKind::CopyingToClipboardFailed { source: e.into() }))?;
+        colored_eprintln! {
+            common::colorize();
+            Reset, "    Your solution {}", result_long_verb;
+            result_color, "{}", result_long_name;
+            Reset, "";
+        };
 
-        Ok(())
-    } else {
-        Err(Error(ErrorKind::TestCaseNotPass))
+        // copy the answer to the clipboard
+        if let JudgeResult::Passed = result {
+            eprintln!("");
+            clip::copy_to_clipboard(quiet, &lang)
+                .map_err(|e| Error(ErrorKind::CopyingToClipboardFailed { source: e.into() }))?;
+
+            Ok(())
+        } else {
+            Err(Error(ErrorKind::TestCaseNotPass))
+        }
     }
 }
 
@@ -164,7 +174,7 @@ fn print_result(quiet: bool, result: &JudgeResult, duration: &time::Duration, di
         Reset, "    ";
         color, "{}", short_name;
         Reset, " {}", display;
-        Reset, " (in {} ms)", duration.num_milliseconds();
+        Reset, " (in {} ms)", duration.as_millis();
     }
 
     match result {
