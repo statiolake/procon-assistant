@@ -2,6 +2,7 @@ use crate::imp::clip;
 use crate::imp::langs;
 use crate::imp::langs::Lang;
 use crate::imp::preprocess;
+use crate::{eprintln_info, eprintln_tagged, eprintln_warning};
 use std::path::Path;
 
 #[derive(clap::Clap)]
@@ -35,26 +36,27 @@ impl Clip {
 
 pub fn copy_to_clipboard(quiet: bool, lang: &Lang) -> preprocess::Result<()> {
     let file_path = Path::new(&lang.src_file_name);
-    print_copying!("{} to clipboard", file_path.display());
+    eprintln_tagged!("Copying": "{} to clipboard", file_path.display());
     let raw = preprocess::read_source_file(file_path)?;
     let preprocessed = (lang.preprocessor)(quiet, raw)?;
     let minified = (lang.minifier)(quiet, preprocessed);
     let lints = (lang.linter)(quiet, &minified);
     let minified = minified.into_inner() + "\n";
     clip::set_clipboard(minified.clone());
-    print_finished!("copying");
+    eprintln_tagged!("Finished": "copying");
 
-    print_info!(
-        !quiet,
-        "the copied string is as follows;  you can also pipe this to another program"
-    );
-    println!("{}", minified);
+    if !quiet {
+        eprintln_info!(
+            "the copied string is as follows;  you can also pipe this to another program"
+        );
+        println!("{}", minified);
+    }
 
     if !lints.is_empty() {
-        print_warning!("linter found {} errors, is this OK?", lints.len());
+        eprintln_warning!("linter found {} errors, is this OK?", lints.len());
 
         for lint in lints {
-            print_lint!("{}", lint);
+            eprintln_tagged!("Lint": "{}", lint);
         }
     }
 

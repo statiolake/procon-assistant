@@ -1,3 +1,4 @@
+use crate::eprintln_info;
 use crate::imp::auth::aoj as auth;
 use crate::imp::test_case::TestCaseFile;
 use scraper::{Html, Selector};
@@ -88,18 +89,20 @@ impl super::TestCaseProvider for Aoj {
     }
 
     fn needs_authenticate(&self, quiet: bool) -> bool {
-        print_info!(
-            !quiet,
-            "needs_authenticate() is not implemetented for now, always returns `false`"
-        );
+        if !quiet {
+            eprintln_info!(
+                "needs_authenticate() is not implemetented for now, always returns `false`"
+            );
+        }
+
         false
     }
 
     fn authenticate(&self, quiet: bool) -> result::Result<(), anyhow::Error> {
-        print_info!(
-            !quiet,
-            "authenticate() for AOJ is not implemented for now, do nothing"
-        );
+        if !quiet {
+            eprintln_info!("authenticate() for AOJ is not implemented for now, do nothing");
+        }
+
         Ok(())
     }
 

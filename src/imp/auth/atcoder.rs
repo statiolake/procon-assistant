@@ -1,4 +1,4 @@
-use crate::{print_debug, print_info};
+use crate::{eprintln_debug, eprintln_info};
 use reqwest::header;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{RequestBuilder, StatusCode};
@@ -78,11 +78,15 @@ fn add_auth_info_to_builder_if_possible(
     fn cleanup(quiet: bool) {
         super::clear_session_info(SERVICE_NAME)
             .expect("critical error: failed to clean session info");
-        print_info!(!quiet, "cleared session info to avoid continuous error");
+        if !quiet {
+            eprintln_info!("cleared session info to avoid continuous error");
+        }
     }
 
     if let Ok(revel_session) = super::load_session_info(quiet, SERVICE_NAME) {
-        print_info!(!quiet, "found sesion info, try to use it");
+        if !quiet {
+            eprintln_info!("found sesion info, try to use it");
+        }
         let revel_session = match String::from_utf8(revel_session) {
             Ok(v) => v.trim().to_string(),
             Err(e) => {
@@ -107,7 +111,9 @@ fn store_revel_session_from_response(res: &mut reqwest::Response) -> Result<()> 
 }
 
 fn get_cookie_and_csrf_token(quiet: bool) -> Result<(Vec<(String, String)>, String)> {
-    print_info!(!quiet, "fetching login page");
+    if !quiet {
+        eprintln_info!("fetching login page");
+    }
     let client = reqwest::Client::new();
     let res = async_std::task::block_on(client.get("https://beta.atcoder.jp/login").send())
         .map_err(|e| Error(ErrorKind::FetchingLoginPageFailed { source: e.into() }))?;
@@ -150,7 +156,7 @@ fn login_get_cookie(
         ("csrf_token", &csrf_token),
     ];
     let post_cookie = make_post_cookie(cookie)?;
-    print_debug!(true, "post: cookie: {:?}", post_cookie);
+    eprintln_debug!("post: cookie: {:?}", post_cookie);
     let res = post(client, &params, post_cookie)
         .map_err(|e| Error(ErrorKind::PostingAccountInfoFailed { source: e.into() }))?;
 
@@ -209,7 +215,7 @@ fn extract_setcookie(header: &HeaderMap) -> Vec<(String, String)> {
             let mut split = raw_value.splitn(2, '=');
             let name = split.next()?.trim().to_string();
             let value = split.next()?.trim().to_string();
-            print_debug!(true, "set-cookie: {} -> '{}'='{}'", raw_value, name, value);
+            eprintln_debug!("set-cookie: {} -> '{}'='{}'", raw_value, name, value);
             Some((name, value))
         })
         .collect();
@@ -227,7 +233,7 @@ fn find_revel_session(cookie: Vec<(String, String)>) -> Result<String> {
 }
 
 fn result_check(res: &reqwest::Response) -> Result<()> {
-    print_debug!(true, "response: {:?}", res);
+    eprintln_debug!("response: {:?}", res);
     let status = res.status();
     match status {
         StatusCode::OK | StatusCode::FOUND => Ok(()),

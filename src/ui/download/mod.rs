@@ -3,6 +3,7 @@ pub mod local;
 
 use self::atcoder::AtCoder;
 use self::local::Local;
+use crate::eprintln_tagged;
 use crate::ui::fetch;
 use crate::ui::fetch::TestCaseProvider;
 use crate::ui::initdirs;
@@ -58,7 +59,7 @@ impl Download {
             .make_fetchers(quiet)
             .map_err(|source| Error(ErrorKind::MakingFetcherFailed { source }))?;
 
-        print_fetching!("{} (at {})", provider.contest_id(), provider.url());
+        eprintln_tagged!("Fetching": "{} (at {})", provider.contest_id(), provider.url());
         fetchers.prepare_generate();
         for (problem, fetcher) in fetchers.fetchers.into_iter().enumerate() {
             generate_one(

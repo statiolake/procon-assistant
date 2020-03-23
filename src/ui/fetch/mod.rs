@@ -1,6 +1,7 @@
 use crate::imp::test_case::TestCaseFile;
 use crate::ui::fetch::aoj::Aoj;
 use crate::ui::fetch::atcoder::AtCoder;
+use crate::{eprintln_info, eprintln_tagged};
 use std::env;
 use std::ffi::OsStr;
 use std::fmt::Debug;
@@ -53,15 +54,18 @@ pub fn fetch_test_case_files(
     quiet: bool,
     provider: Box<dyn TestCaseProvider>,
 ) -> Result<Vec<TestCaseFile>> {
-    print_fetching!(
-        "{} id {} (at {})",
+    eprintln_tagged!(
+        "Fetching": "{} id {} (at {})",
         provider.site_name(),
         provider.problem_id(),
         provider.url()
     );
 
     if provider.needs_authenticate(quiet) {
-        print_info!(!quiet, "authentication is needed");
+        if !quiet {
+            eprintln_info!("authentication is needed");
+        }
+
         provider
             .authenticate(quiet)
             .map_err(|source| Error::ProviderCreationFailed { source })?;
@@ -77,13 +81,13 @@ pub fn fetch_test_case_files(
 pub fn write_test_case_files(tcfs: Vec<TestCaseFile>) -> Result<()> {
     let sample_cases = tcfs.len();
     for tcf in tcfs {
-        print_generating!("Sample Case: {}", tcf);
+        eprintln_tagged!("Generating": "Sample Case: {}", tcf);
         tcf.write().map_err(|e| Error::TestCaseFileWritionFailed {
             source: e.into(),
             name: tcf.to_string(),
         })?;
     }
-    print_finished!("generating {} Sample Case(s)", sample_cases);
+    eprintln_tagged!("Finished": "generating {} Sample Case(s)", sample_cases);
 
     Ok(())
 }

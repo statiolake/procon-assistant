@@ -1,3 +1,4 @@
+use crate::eprintln_tagged;
 use crate::imp::common::open;
 use crate::imp::config::ConfigFile;
 use crate::imp::test_case::TestCaseFile;
@@ -41,7 +42,7 @@ impl AddCase {
         tsf.write()
             .map_err(|e| Error(ErrorKind::TestCaseFileCreationFailed { source: e.into() }))?;
 
-        print_created!("{}, {}", tsf.if_name, tsf.of_name);
+        eprintln_tagged!("Created": "{}, {}", tsf.if_name, tsf.of_name);
 
         open(&config, true, &[&tsf.if_name, &tsf.of_name])
             .map_err(|e| Error(ErrorKind::FileOpeningFailed { source: e.into() }))?;

@@ -1,3 +1,5 @@
+use crate::eprintln_info;
+use crate::eprintln_tagged;
 use crate::imp::compile;
 use crate::imp::compile::CompilerOutput;
 use crate::imp::langs;
@@ -48,31 +50,35 @@ impl Compile {
 
 pub fn compile(quiet: bool, lang: &Lang, force: bool) -> Result<bool> {
     if !force && !compile::is_compile_needed(lang).unwrap_or(true) {
-        print_info!(!quiet, "no need to compile");
+        if !quiet {
+            eprintln_info!("no need to compile");
+        }
         return Ok(true);
     }
-    compile_src(lang).map_err(|e| Error(ErrorKind::CompilationFailed { source: e.into() }))
+    compile_src(quiet, lang).map_err(|e| Error(ErrorKind::CompilationFailed { source: e.into() }))
 }
 
-pub fn compile_src(lang: &Lang) -> compile::Result<bool> {
-    print_compiling!("{}", lang.src_file_name);
+pub fn compile_src(quiet: bool, lang: &Lang) -> compile::Result<bool> {
+    eprintln_tagged!("Compiling": "{}", lang.src_file_name);
     let CompilerOutput {
         success,
         stdout,
         stderr,
     } = compile::compile(lang)?;
-    print_compiler_output("standard output", stdout);
-    print_compiler_output("standard error", stderr);
+    print_compiler_output(quiet, "standard output", stdout);
+    print_compiler_output(quiet, "standard error", stderr);
 
     Ok(success)
 }
 
-pub fn print_compiler_output(kind: &str, output: Option<String>) {
+pub fn print_compiler_output(quiet: bool, kind: &str, output: Option<String>) {
     if let Some(output) = output {
         let output = output.trim().split('\n');
-        print_info!(true, "compiler {}:", kind);
-        for line in output {
-            eprintln!("        {}", line);
+        if !quiet {
+            eprintln_info!("compiler {}:", kind);
+            for line in output {
+                eprintln!("        {}", line);
+            }
         }
     }
 }
