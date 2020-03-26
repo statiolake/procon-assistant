@@ -1,8 +1,6 @@
 use serde_derive::Deserialize;
 use std::fs::File;
 
-pub const TIMEOUT_MILLISECOND: u64 = 3000;
-
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
@@ -28,6 +26,8 @@ pub struct ConfigFile {
     pub init_default_lang: String,
     pub addcase_give_argument_once: bool,
     pub addcase_editor_command: Vec<String>,
+    pub timeout_milliseconds: u64,
+    pub eps_for_float: f64,
 }
 
 impl ConfigFile {

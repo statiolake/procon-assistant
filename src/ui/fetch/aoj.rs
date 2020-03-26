@@ -1,6 +1,6 @@
 use crate::eprintln_info;
 use crate::imp::auth::aoj as auth;
-use crate::imp::test_case::TestCaseFile;
+use crate::imp::test_case::TestCase;
 use scraper::{Html, Selector};
 use std::result;
 
@@ -18,7 +18,7 @@ pub enum Error {
     UnexpectedNumberOfPreTag { detected: usize },
 
     #[error("failed to determine test case file name")]
-    CouldNotDetermineTestCaseFileName { source: anyhow::Error },
+    CouldNotDetermineTestCaseName { source: anyhow::Error },
 
     #[error("failed to get the page at `{url}`")]
     AuthenticatedGetFailed { source: anyhow::Error, url: String },
@@ -106,10 +106,7 @@ impl super::TestCaseProvider for Aoj {
         Ok(())
     }
 
-    fn fetch_test_case_files(
-        &self,
-        _quiet: bool,
-    ) -> result::Result<Vec<TestCaseFile>, anyhow::Error> {
+    fn fetch_test_case_files(&self, _quiet: bool) -> result::Result<Vec<TestCase>, anyhow::Error> {
         let text = download_text(self.problem.url()).map_err(|e| Error::FetchingProblemFailed {
             source: e.into(),
             problem_id: self.problem.problem_id().to_string(),
@@ -119,7 +116,7 @@ impl super::TestCaseProvider for Aoj {
     }
 }
 
-pub fn parse_text(text: String) -> Result<Vec<TestCaseFile>> {
+pub fn parse_text(text: String) -> Result<Vec<TestCase>> {
     let document = Html::parse_document(&text);
     let sel_pre = Selector::parse("pre").unwrap();
 
@@ -135,13 +132,13 @@ pub fn parse_text(text: String) -> Result<Vec<TestCaseFile>> {
     }
 
     let mut result = Vec::new();
-    let beginning = TestCaseFile::next_unused_idx()
-        .map_err(|e| Error::CouldNotDetermineTestCaseFileName { source: e.into() })?;
+    let beginning = TestCase::next_unused_idx()
+        .map_err(|e| Error::CouldNotDetermineTestCaseName { source: e.into() })?;
     for i in 0..(pres.len() / 2) {
-        let tsf = TestCaseFile::new_with_idx(
+        let tsf = TestCase::new_with_idx(
             beginning + i as i32,
-            pres[i * 2].inner_html().as_bytes().into(),
-            pres[i * 2 + 1].inner_html().as_bytes().into(),
+            pres[i * 2].inner_html(),
+            pres[i * 2 + 1].inner_html(),
         );
         result.push(tsf);
     }

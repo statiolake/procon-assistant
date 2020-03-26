@@ -1,5 +1,5 @@
 use crate::imp::test_case;
-use crate::imp::test_case::{TestCase, TestCaseFile};
+use crate::imp::test_case::TestCase;
 use std::fs;
 use std::io;
 
@@ -22,30 +22,27 @@ delegate_impl_error_error_kind! {
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
     #[error("failed to open testcase file")]
-    OpeningTestCaseFileFailed { source: anyhow::Error },
+    OpeningTestCaseFailed { source: anyhow::Error },
 
     #[error("the specified test case {idx} is out-of-range: there're only {num} test cases")]
     IndexOutOfRange { idx: i32, num: usize },
 
     #[error("failed to remove testcase file")]
-    RemovingTestCaseFileFailed { source: anyhow::Error },
+    RemovingTestCaseFailed { source: anyhow::Error },
 
     #[error("failed to write testcase file into file")]
-    WritingTestCaseFileFailed { source: anyhow::Error },
+    WritingTestCaseFailed { source: anyhow::Error },
 }
 
 impl DelCase {
     pub fn run(self, _quiet: bool) -> Result<()> {
         // load all test cases
-        let mut test_cases: Vec<_> = test_case::enumerate_test_cases()
-            .map_err(|e| Error(ErrorKind::OpeningTestCaseFileFailed { source: e.into() }))?
-            .into_iter()
-            .map(TestCase::into_test_case_file)
-            .collect();
+        let mut test_cases = test_case::enumerate_test_cases()
+            .map_err(|e| Error(ErrorKind::OpeningTestCaseFailed { source: e.into() }))?;
 
         // once remove all test case file
         clean_test_cases(&test_cases)
-            .map_err(|e| Error(ErrorKind::RemovingTestCaseFileFailed { source: e.into() }))?;
+            .map_err(|e| Error(ErrorKind::RemovingTestCaseFailed { source: e.into() }))?;
 
         // remove test case from test cases
         let len = test_cases.len();
@@ -66,21 +63,21 @@ impl DelCase {
 
         // re-generate test cases without removed cases
         for (idx, test_case) in test_cases.into_iter().enumerate() {
-            let new_test_case = TestCaseFile::new_with_idx(
+            let new_test_case = TestCase::new_with_idx(
                 (idx + 1) as i32,
                 test_case.if_contents,
                 test_case.of_contents,
             );
             new_test_case
                 .write()
-                .map_err(|e| Error(ErrorKind::WritingTestCaseFileFailed { source: e.into() }))?;
+                .map_err(|e| Error(ErrorKind::WritingTestCaseFailed { source: e.into() }))?;
         }
 
         Ok(())
     }
 }
 
-fn clean_test_cases(test_cases: &[TestCaseFile]) -> io::Result<()> {
+fn clean_test_cases(test_cases: &[TestCase]) -> io::Result<()> {
     for test_case in test_cases {
         remove_test_case(test_case)?;
     }
@@ -88,7 +85,7 @@ fn clean_test_cases(test_cases: &[TestCaseFile]) -> io::Result<()> {
     Ok(())
 }
 
-fn remove_test_case(test_case: &TestCaseFile) -> io::Result<()> {
+fn remove_test_case(test_case: &TestCase) -> io::Result<()> {
     fs::remove_file(&test_case.if_name)?;
     fs::remove_file(&test_case.of_name)?;
 
