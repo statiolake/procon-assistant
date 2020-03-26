@@ -4,6 +4,7 @@ use crate::imp::compile;
 use crate::imp::compile::CompilerOutput;
 use crate::imp::langs;
 use crate::imp::langs::Lang;
+use crate::ExitStatus;
 
 #[derive(clap::Clap)]
 #[clap(about = "Compiles the current solution;  the produced binary won't be tested automatically")]
@@ -28,22 +29,19 @@ pub enum ErrorKind {
     #[error("failed to run compilation task")]
     CompilationFailed { source: anyhow::Error },
 
-    #[error("compilation was not successful: your code may have error")]
-    CompilationError,
-
     #[error("failed to get source file")]
     GettingLanguageFailed { source: anyhow::Error },
 }
 
 impl Compile {
-    pub fn run(self, quiet: bool) -> Result<()> {
+    pub fn run(self, quiet: bool) -> Result<ExitStatus> {
         let lang = langs::get_lang()
             .map_err(|e| Error(ErrorKind::GettingLanguageFailed { source: e.into() }))?;
         let success = compile(quiet, &lang, self.force)?;
         if success {
-            Ok(())
+            Ok(ExitStatus::Success)
         } else {
-            Err(Error(ErrorKind::CompilationError))
+            Ok(ExitStatus::Failure)
         }
     }
 }

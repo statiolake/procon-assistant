@@ -2,6 +2,7 @@ use crate::imp::clip;
 use crate::imp::langs;
 use crate::imp::langs::Lang;
 use crate::imp::preprocess;
+use crate::ExitStatus;
 use crate::{eprintln_info, eprintln_tagged, eprintln_warning};
 use std::path::Path;
 
@@ -26,11 +27,13 @@ pub enum ErrorKind {
 }
 
 impl Clip {
-    pub fn run(self, quiet: bool) -> Result<()> {
+    pub fn run(self, quiet: bool) -> Result<ExitStatus> {
         let lang = langs::get_lang()
             .map_err(|e| Error(ErrorKind::GettingLanguageFailed { source: e.into() }))?;
         copy_to_clipboard(quiet, &lang)
-            .map_err(|e| Error(ErrorKind::CopyingToClipboardFailed { source: e.into() }))
+            .map_err(|e| Error(ErrorKind::CopyingToClipboardFailed { source: e.into() }))?;
+
+        Ok(ExitStatus::Success)
     }
 }
 

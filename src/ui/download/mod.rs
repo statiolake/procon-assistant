@@ -7,6 +7,7 @@ use crate::eprintln_tagged;
 use crate::imp;
 use crate::ui::fetch;
 use crate::ui::fetch::TestCaseProvider;
+use crate::ExitStatus;
 use std::env;
 use std::path::Path;
 use std::result;
@@ -52,7 +53,7 @@ pub enum ErrorKind {
 }
 
 impl Download {
-    pub fn run(self, quiet: bool) -> Result<()> {
+    pub fn run(self, quiet: bool) -> Result<ExitStatus> {
         let provider = match self.contest_id {
             Some(arg) => get_provider(arg),
             None => handle_empty_arg(),
@@ -74,7 +75,7 @@ impl Download {
             )?;
         }
 
-        Ok(())
+        Ok(ExitStatus::Success)
     }
 }
 

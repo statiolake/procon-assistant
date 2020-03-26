@@ -1,5 +1,6 @@
 use crate::imp::langs;
 use crate::imp::preprocess;
+use crate::ExitStatus;
 
 #[derive(clap::Clap)]
 #[clap(about = "Preprocesses current source file and prepares to submit")]
@@ -17,7 +18,7 @@ pub enum Error {
 }
 
 impl Preprocess {
-    pub fn run(self, quiet: bool) -> Result<()> {
+    pub fn run(self, quiet: bool) -> Result<ExitStatus> {
         let lang =
             langs::get_lang().map_err(|e| Error::GettingLanguageFailed { source: e.into() })?;
         let src = preprocess::read_source_file(lang.src_file_name.as_ref())
@@ -25,6 +26,6 @@ impl Preprocess {
             .map_err(|e| Error::ReadingSourceFileFailed { source: e.into() })?;
         println!("{}", src);
 
-        Ok(())
+        Ok(ExitStatus::Success)
     }
 }

@@ -1,5 +1,6 @@
 use crate::imp::test_case;
 use crate::imp::test_case::TestCase;
+use crate::ExitStatus;
 use std::fs;
 use std::io;
 
@@ -35,7 +36,7 @@ pub enum ErrorKind {
 }
 
 impl DelCase {
-    pub fn run(self, _quiet: bool) -> Result<()> {
+    pub fn run(self, _quiet: bool) -> Result<ExitStatus> {
         // load all test cases
         let mut test_cases = test_case::enumerate_test_cases()
             .map_err(|e| Error(ErrorKind::OpeningTestCaseFailed { source: e.into() }))?;
@@ -73,7 +74,7 @@ impl DelCase {
                 .map_err(|e| Error(ErrorKind::WritingTestCaseFailed { source: e.into() }))?;
         }
 
-        Ok(())
+        Ok(ExitStatus::Success)
     }
 }
 

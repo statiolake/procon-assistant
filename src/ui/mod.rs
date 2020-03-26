@@ -11,6 +11,7 @@ mod preprocess;
 pub mod print_macros;
 mod run;
 
+use crate::ExitStatus;
 use crate::{eprintln_error, eprintln_info};
 use clap::Clap;
 use std::error;
@@ -62,7 +63,7 @@ enum SubCommand {
 }
 
 impl SubCommand {
-    fn run(self, quiet: bool) -> anyhow::Result<()> {
+    fn run(self, quiet: bool) -> anyhow::Result<ExitStatus> {
         match self {
             SubCommand::InitDirs(cmd) => cmd.run(quiet).map_err(Into::into),
             SubCommand::Init(cmd) => cmd.run(quiet).map_err(Into::into),
@@ -79,13 +80,15 @@ impl SubCommand {
     }
 }
 
-pub fn main() {
+pub fn main() -> ExitStatus {
     let opts = Options::parse();
-    let result = opts.subcommand.run(opts.quiet);
-    if let Err(e) = result {
-        eprintln_error!("{}", e);
-        print_causes(opts.quiet, &*e);
-        std::process::exit(1);
+    match opts.subcommand.run(opts.quiet) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln_error!("{}", e);
+            print_causes(opts.quiet, &*e);
+            ExitStatus::Failure
+        }
     }
 }
 
