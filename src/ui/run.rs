@@ -1,14 +1,27 @@
-use crate::imp::config;
+use crate::imp::config::ConfigFile;
 use crate::imp::langs;
 use crate::imp::test_case;
-use crate::imp::test_case::judge_result::{JudgeResult, WrongAnswer};
-use crate::imp::test_case::{TestCase, TestCaseFile};
+use crate::imp::test_case::{
+    Context, JudgeResult, RuntimeErrorKind, Span, TestCase, TestResult, WrongAnswer,
+    WrongAnswerKind,
+};
 use crate::ui::clip;
 use crate::ui::compile;
-use crate::{eprintln_info, eprintln_tagged};
+use crate::ui::print_macros::TAG_WIDTH;
+use crate::{eprintln_debug, eprintln_info, eprintln_more, eprintln_tagged, eprintln_warning};
 use console::Style;
-use std::thread;
-use std::time;
+use futures::future;
+use itertools::Itertools as _;
+use std::cmp;
+use std::process::Command;
+
+const PANE_MINIMUM_SIZE: usize = 3;
+
+const LINE_NO_SEP: &str = " | ";
+const CENTER_SEP: &str = " | ";
+
+const EXPECTED_HEADER: &str = "<expected>";
+const ACTUAL_HEADER: &str = "<actual>";
 
 #[derive(clap::Clap)]
 #[clap(about = "Runs and tests the current solution")]
@@ -23,8 +36,12 @@ pub struct Run {
     to_run: Vec<String>,
 }
 
-fn output_style() -> Style {
-    Style::new().magenta()
+fn style_output() -> Style {
+    Style::new().magenta().bold()
+}
+
+fn style_sep() -> Style {
+    Style::new().black().bold()
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -36,6 +53,9 @@ delegate_impl_error_error_kind! {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
+    #[error("failed to get the config")]
+    GettingConfigFailed { source: anyhow::Error },
+
     #[error("failed to compile")]
     CompilationFailed { source: anyhow::Error },
 
@@ -48,7 +68,7 @@ pub enum ErrorKind {
     #[error("failed to copy to clipboard")]
     CopyingToClipboardFailed { source: anyhow::Error },
 
-    #[error("failed to parse the passed argument")]
+    #[error("failed to parse the Accepted argument")]
     InvalidArgument { source: anyhow::Error },
 
     #[error("failed to load some test case")]
@@ -63,23 +83,29 @@ pub enum ErrorKind {
 
 impl Run {
     pub fn run(self, quiet: bool) -> Result<()> {
+        let config = ConfigFile::get_config()
+            .map_err(|e| Error(ErrorKind::GettingConfigFailed { source: e.into() }))?;
         let lang = langs::get_lang()
             .map_err(|e| Error(ErrorKind::GettingLanguageFailed { source: e.into() }))?;
         let success = compile::compile(quiet, &lang, self.force_compile)
             .map_err(|e| Error(ErrorKind::CompilationFailed { source: e.into() }))?;
         let result = if success {
-            run_tests(quiet, &self.to_run)
-                .map_err(|e| Error(ErrorKind::RunningTestsFailed { source: e.into() }))?
+            async_std::task::block_on(async {
+                run_tests(quiet, &config, &self.to_run)
+                    .await
+                    .map_err(|e| Error(ErrorKind::RunningTestsFailed { source: e.into() }))
+            })?
         } else {
-            JudgeResult::CompilationError
+            TestResult::CompilationError
         };
 
-        let (result_style, result_long_name) = result.long_name();
+        let style = result_to_style(&result);
+        let long_name = result.long_name();
         eprintln!("");
-        eprintln!("    Verdict: {}", result_style.apply_to(result_long_name));
+        eprintln!("    Verdict: {}", style.apply_to(long_name));
 
         // copy the answer to the clipboard
-        if let JudgeResult::Passed = result {
+        if result.is_accepted() {
             eprintln!("");
             clip::copy_to_clipboard(quiet, &lang)
                 .map_err(|e| Error(ErrorKind::CopyingToClipboardFailed { source: e.into() }))?;
@@ -91,8 +117,9 @@ impl Run {
     }
 }
 
-fn run_tests(quiet: bool, args: &[String]) -> Result<JudgeResult> {
-    enumerate_test_cases(&args).and_then(|tcs| run(quiet, tcs))
+async fn run_tests(quiet: bool, config: &ConfigFile, args: &[String]) -> Result<TestResult> {
+    let tcs = enumerate_test_cases(&args)?;
+    run(quiet, config, tcs).await
 }
 
 fn parse_argument_cases(args: &[String]) -> Result<Vec<TestCase>> {
@@ -101,9 +128,9 @@ fn parse_argument_cases(args: &[String]) -> Result<Vec<TestCase>> {
         let n: i32 = arg
             .parse::<i32>()
             .map_err(|e| Error(ErrorKind::InvalidArgument { source: e.into() }))?;
-        let tcf = TestCaseFile::load_from_index_of(n)
+        let tcf = TestCase::load_from_index_of(n)
             .map_err(|e| Error(ErrorKind::LoadingTestCaseFailed { source: e.into() }))?;
-        result.push(TestCase::from(tcf));
+        result.push(tcf);
     }
 
     Ok(result)
@@ -120,78 +147,277 @@ fn enumerate_test_cases(args: &[String]) -> Result<Vec<TestCase>> {
     Ok(test_cases)
 }
 
-fn print_solution_output(quiet: bool, kind: &str, result: &[String]) {
-    if !quiet {
-        eprintln_info!("{}:", kind);
-        let style = output_style();
-        for line in result.iter() {
-            eprintln!("        {}", style.apply_to(line));
-        }
-    }
-}
-
-fn run(quiet: bool, tcs: Vec<TestCase>) -> Result<JudgeResult> {
+async fn run(quiet: bool, config: &ConfigFile, tcs: Vec<TestCase>) -> Result<TestResult> {
     eprintln_tagged!(
         "Running": "{} test cases (current timeout is {} millisecs)",
         tcs.len(),
-        config::TIMEOUT_MILLISECOND
+        config.timeout_milliseconds,
     );
 
-    let handles: Vec<_> = tcs
-        .into_iter()
-        .map(|tc| thread::spawn(move || tc.judge()))
-        .collect();
+    let judge_results = tcs.into_iter().map(|tc| async move {
+        // TODO: do this by language side
+        let cmd = Command::new("./main");
+        (tc.to_string(), tc.judge(config, cmd))
+    });
 
-    // `map` is lazy evaluated so join() is not executed here unless they are
-    // collected to Vec. if not, `Finished running` is instantly displayed
-    // regardless of judging finished or not.
-    let judge_results: Vec<_> = handles.into_iter().map(|x| x.join().unwrap()).collect();
+    // wait for finish of all threads
+    let judge_results = future::join_all(judge_results).await;
 
     eprintln_tagged!("Finished": "running");
     eprintln!("");
-    let mut whole_result = JudgeResult::Passed;
-    for (display, result) in judge_results.into_iter() {
-        let (duration, result) =
-            result.map_err(|e| Error(ErrorKind::JudgingFailed { source: e.into() }))?;
-        print_result(quiet, &result, &duration, display);
-        // update whole result
-        if result != JudgeResult::Passed && whole_result == JudgeResult::Passed {
+    let mut whole_result = TestResult::Accepted;
+    for (display, judge_result) in judge_results {
+        let judge_result =
+            judge_result.map_err(|e| Error(ErrorKind::JudgingFailed { source: e.into() }))?;
+        print_result(quiet, &judge_result, display);
+
+        // update the whole result
+        let result = judge_result.result;
+        if result.is_failed() && whole_result.is_accepted() {
             whole_result = result;
         }
     }
+
     Ok(whole_result)
 }
 
-fn print_result(quiet: bool, result: &JudgeResult, duration: &time::Duration, display: String) {
+fn print_result(quiet: bool, judge_result: &JudgeResult, display: String) {
+    let JudgeResult { result, elapsed } = judge_result;
+
     // get color and short result string
-    let (style, short_name) = result.short_name();
+    let style = result_to_style(&result);
+    let short_name = result.short_name();
+
     eprintln!(
-        "    {} {} (in {} ms)",
+        "    {:<3} {} (in {} ms)",
         style.apply_to(short_name),
         display,
-        duration.as_millis()
+        elapsed.as_millis()
     );
 
     match result {
-        JudgeResult::WrongAnswer(Some(WrongAnswer {
-            ref input,
-            ref expected_output,
-            ref actual_output,
-            ref difference,
-        })) => {
-            print_solution_output(quiet, "sample case input", &input);
-            print_solution_output(quiet, "expected output", &expected_output);
-            print_solution_output(quiet, "actual output", &actual_output);
-
+        TestResult::WrongAnswer(wa) => {
             if !quiet {
-                eprintln_info!("{}", difference.message());
+                print_wa(wa);
             }
         }
-        JudgeResult::RuntimeError(ref reason) => {
+        TestResult::RuntimeError(re) => {
             if !quiet {
-                eprintln_info!("{}", reason);
+                print_re(*re);
             }
         }
         _ => {}
     }
+}
+
+fn result_to_style(result: &TestResult) -> Style {
+    match result {
+        TestResult::Accepted => Style::new().green(),
+        TestResult::WrongAnswer(_) => Style::new().yellow(),
+        TestResult::PresentationError => Style::new().yellow(),
+        TestResult::TimeLimitExceeded => Style::new().yellow(),
+        TestResult::RuntimeError(_) => Style::new().red(),
+        TestResult::CompilationError => Style::new().yellow(),
+    }
+}
+
+fn print_wa(wa: &WrongAnswer) {
+    let style = style_output();
+
+    eprintln_info!("expected stdout:");
+    for l in &wa.context.expected {
+        eprintln_more!("{}", style.apply_to(l));
+    }
+
+    eprintln_info!("actual stdout:");
+    for l in &wa.context.actual {
+        eprintln_more!("{}", style.apply_to(l));
+    }
+
+    eprintln_info!("errors:");
+    print_wa_errors(wa);
+}
+
+fn print_wa_errors(wa: &WrongAnswer) {
+    // print error messages
+    let style = style_output();
+    for d in &wa.errors {
+        eprintln_more!("+ {}", style.apply_to(d));
+    }
+
+    let Context {
+        expected, actual, ..
+    } = &wa.context;
+    let (expected_spans, actual_spans): (Vec<_>, Vec<_>) = wa
+        .errors
+        .iter()
+        .flat_map(|d| match d {
+            WrongAnswerKind::NumOfTokenDiffers {
+                expected_span,
+                actual_span,
+                ..
+            } => Some((*expected_span, *actual_span)),
+            WrongAnswerKind::TokenDiffers {
+                expected, actual, ..
+            } => Some((expected.span, actual.span)),
+            _ => None,
+        })
+        .unzip();
+
+    // format & print diffs
+    print_diffs(expected, actual, &expected_spans, &actual_spans);
+}
+
+fn print_diffs(
+    expected: &[String],
+    actual: &[String],
+    expected_spans: &[Span],
+    actual_spans: &[Span],
+) {
+    use console::Term;
+    use splitv::Pane;
+    use std::iter::{once, repeat};
+
+    let stderr = Term::stdout();
+
+    // calculate minimum required width
+    let max_line_no = cmp::max(expected.len(), actual.len());
+    let line_no_width = max_line_no.to_string().len();
+    let deco_width = TAG_WIDTH + 1 + line_no_width + LINE_NO_SEP.len() + CENTER_SEP.len();
+    let least_width = deco_width + PANE_MINIMUM_SIZE * 2;
+
+    // get terminal width
+    let (_, width) = stderr.size();
+    let width = width as usize;
+    eprintln_debug!("The terminal width is {}", width);
+
+    if least_width > width {
+        eprintln_warning!(
+            "Terminal size is too narrow (at least: {} chars per line, actual: {} chars).  Diff view is disabled.",
+            least_width,
+            width
+        );
+        return;
+    }
+
+    let half = (width - deco_width) / 2;
+
+    let expected_len = expected.iter().map(String::len).collect_vec();
+    let actual_len = actual.iter().map(String::len).collect_vec();
+
+    let expected_len_max = cmp::max(
+        EXPECTED_HEADER.len(),
+        expected_len.iter().max().copied().unwrap_or(0),
+    );
+    let actual_len_max = cmp::max(
+        ACTUAL_HEADER.len(),
+        actual_len.iter().max().copied().unwrap_or(0),
+    );
+
+    let expected_pane_width = cmp::min(half, cmp::max(expected_len_max, PANE_MINIMUM_SIZE));
+    let actual_pane_width = cmp::min(half, cmp::max(actual_len_max, PANE_MINIMUM_SIZE));
+
+    let style_sep = style_sep();
+    let line_no_sep = &style_sep.apply_to(LINE_NO_SEP).to_string();
+    let center_sep = &style_sep.apply_to(CENTER_SEP).to_string();
+    let body = {
+        let line_nos = (1..=max_line_no).map(|x| x.to_string()).collect_vec();
+        let line_no_pane = Pane {
+            lines: &once("")
+                .chain(line_nos.iter().map(String::as_str))
+                .collect_vec(),
+            width: line_no_width,
+        };
+
+        let expected_pane = Pane {
+            lines: &once(EXPECTED_HEADER)
+                .chain(expected.iter().map(String::as_str))
+                .collect_vec(),
+            width: expected_pane_width,
+        };
+
+        let actual_pane = Pane {
+            lines: &once(ACTUAL_HEADER)
+                .chain(actual.iter().map(String::as_str))
+                .collect_vec(),
+            width: actual_pane_width,
+        };
+
+        splitv::splitv(
+            &[line_no_pane, expected_pane, actual_pane],
+            &[line_no_sep, center_sep],
+        )
+    };
+
+    let spans = {
+        let organize_spans = |spans: &[Span]| -> Vec<Vec<Span>> {
+            let mut organized = vec![Vec::new(); max_line_no];
+            for span in spans {
+                organized[span.line].push(*span);
+            }
+
+            organized
+        };
+
+        let span_to_ascii_art = |line_width: usize, spans: Vec<Span>| -> String {
+            let mut line = " ".repeat(line_width);
+            for Span {
+                range: (start, end),
+                ..
+            } in spans
+            {
+                line.replace_range(start..end, &"^".repeat(end - start));
+            }
+
+            line
+        };
+
+        let line_sep = "-".repeat(line_no_width);
+        let line_no_pane = Pane {
+            lines: &once(line_sep.as_str())
+                .chain(repeat("").take(max_line_no))
+                .collect_vec(),
+            width: line_no_width,
+        };
+
+        let expected_lines = organize_spans(expected_spans)
+            .into_iter()
+            .map(|spans| span_to_ascii_art(expected_len_max, spans))
+            .collect_vec();
+        let expected_sep = "-".repeat(expected_pane_width);
+        let expected_pane = Pane {
+            lines: &once(expected_sep.as_str())
+                .chain(expected_lines.iter().map(String::as_str))
+                .collect_vec(),
+            width: expected_pane_width,
+        };
+
+        let actual_lines = organize_spans(actual_spans)
+            .into_iter()
+            .map(|spans| span_to_ascii_art(actual_len_max, spans))
+            .collect_vec();
+        let actual_sep = "-".repeat(actual_pane_width);
+        let actual_pane = Pane {
+            lines: &once(actual_sep.as_str())
+                .chain(actual_lines.iter().map(String::as_str))
+                .collect_vec(),
+            width: actual_pane_width,
+        };
+
+        splitv::splitv(
+            &[line_no_pane, expected_pane, actual_pane],
+            &[LINE_NO_SEP, CENTER_SEP],
+        )
+        .into_iter()
+        .map(|s| style_sep.apply_to(s).to_string())
+        .collect_vec()
+    };
+
+    body.into_iter()
+        .interleave(spans)
+        .for_each(|l| eprintln_more!("{}", l));
+}
+
+fn print_re(re: RuntimeErrorKind) {
+    eprintln_info!("{}", re);
 }

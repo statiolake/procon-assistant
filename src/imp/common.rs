@@ -1,7 +1,4 @@
 use crate::imp::config::ConfigFile;
-use std::fs::File;
-use std::io::Write;
-use std::path::PathBuf;
 use std::process::Command;
 
 pub fn colorize() -> bool {
@@ -17,18 +14,6 @@ pub enum Error {
     SpawningCommandFailed {
         source: anyhow::Error,
         process_name: String,
-    },
-
-    #[error("failed to create file `{file_name}`")]
-    CreatingFailed {
-        source: anyhow::Error,
-        file_name: String,
-    },
-
-    #[error("failed to write to file `{file_name}`")]
-    WritingFailed {
-        source: anyhow::Error,
-        file_name: String,
     },
 }
 
@@ -122,31 +107,4 @@ fn make_editor_command<'a, 'b>(
     cmd.args(arguments);
 
     cmd
-}
-
-pub fn ensure_to_create_file(file_name: &str, text: &[u8]) -> Result<()> {
-    let mut f = File::create(file_name).map_err(|e| {
-        let file_name = file_name.to_string();
-        Error::CreatingFailed {
-            source: e.into(),
-            file_name,
-        }
-    })?;
-
-    if !text.is_empty() {
-        let file_name = file_name.to_string();
-        f.write_all(text).map_err(|e| {
-            let file_name = file_name.to_string();
-            Error::WritingFailed {
-                source: e.into(),
-                file_name,
-            }
-        })?;
-    }
-
-    Ok(())
-}
-
-pub fn get_home_path() -> PathBuf {
-    dirs::home_dir().expect("critical error: failed to get home_dir")
 }

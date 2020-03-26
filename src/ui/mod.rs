@@ -8,7 +8,7 @@ mod init;
 mod initdirs;
 mod login;
 mod preprocess;
-mod print_macros;
+pub mod print_macros;
 mod run;
 
 use crate::{eprintln_error, eprintln_info};

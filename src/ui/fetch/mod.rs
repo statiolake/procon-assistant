@@ -1,4 +1,4 @@
-use crate::imp::test_case::TestCaseFile;
+use crate::imp::test_case::TestCase;
 use crate::ui::fetch::aoj::Aoj;
 use crate::ui::fetch::atcoder::AtCoder;
 use crate::{eprintln_info, eprintln_tagged};
@@ -37,7 +37,7 @@ pub enum Error {
     ProviderCreationFailed { source: anyhow::Error },
 
     #[error("failed to write test case file `{name}`")]
-    TestCaseFileWritionFailed { source: anyhow::Error, name: String },
+    TestCaseWritionFailed { source: anyhow::Error, name: String },
 }
 
 impl Fetch {
@@ -53,7 +53,7 @@ impl Fetch {
 pub fn fetch_test_case_files(
     quiet: bool,
     provider: Box<dyn TestCaseProvider>,
-) -> Result<Vec<TestCaseFile>> {
+) -> Result<Vec<TestCase>> {
     eprintln_tagged!(
         "Fetching": "{} id {} (at {})",
         provider.site_name(),
@@ -78,11 +78,11 @@ pub fn fetch_test_case_files(
     Ok(test_case_files)
 }
 
-pub fn write_test_case_files(tcfs: Vec<TestCaseFile>) -> Result<()> {
+pub fn write_test_case_files(tcfs: Vec<TestCase>) -> Result<()> {
     let sample_cases = tcfs.len();
     for tcf in tcfs {
         eprintln_tagged!("Generating": "Sample Case: {}", tcf);
-        tcf.write().map_err(|e| Error::TestCaseFileWritionFailed {
+        tcf.write().map_err(|e| Error::TestCaseWritionFailed {
             source: e.into(),
             name: tcf.to_string(),
         })?;
@@ -181,8 +181,5 @@ pub trait TestCaseProvider: Debug {
     fn url(&self) -> &str;
     fn needs_authenticate(&self, quiet: bool) -> bool;
     fn authenticate(&self, quiet: bool) -> result::Result<(), anyhow::Error>;
-    fn fetch_test_case_files(
-        &self,
-        quiet: bool,
-    ) -> result::Result<Vec<TestCaseFile>, anyhow::Error>;
+    fn fetch_test_case_files(&self, quiet: bool) -> result::Result<Vec<TestCase>, anyhow::Error>;
 }

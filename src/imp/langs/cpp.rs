@@ -1,5 +1,5 @@
 use super::Lang;
-use crate::imp::common;
+use crate::imp::fs;
 use crate::imp::preprocess;
 use std::path::PathBuf;
 use std::process::Command;
@@ -26,7 +26,7 @@ fn compile_command(colorize: bool) -> Command {
 }
 
 fn get_lib_dir() -> PathBuf {
-    let mut home_dir = common::get_home_path();
+    let mut home_dir = fs::get_home_path();
     home_dir.push("procon-lib");
     home_dir
 }

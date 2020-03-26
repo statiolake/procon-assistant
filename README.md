@@ -57,7 +57,9 @@ An example config is:
   "init_auto_open": true,
   "init_open_directory_instead_of_specific_file": false,
   "init_default_lang": "cpp",
-  "addcase_give_argument_once": false
+  "addcase_give_argument_once": false,
+  "timeout_milliseconds": 3000,
+  "eps_for_float": 1e-8,
 }
 ```
 
@@ -70,7 +72,9 @@ Short description for each variable is as follows:
 | init_auto_open | boolean | If true, open initialized file or project with the editor to start coding. |
 | init_open_directory_instead_of_specific_file | boolean | If true, the project directory name is specified instead of the `main.cpp`. This is useful for Visual Studio Code, which treat one directory as a workspace. |
 | init_default_lang | string | The default language to be initialized if the language is not specified by the command-line argument. currently, `cpp` and `rust` are supported. |
-| addcase_give_argument_once | boolean | If true, two filenames (`inX.txt`, `outX.txt`) will be passed to the editor at once.  |
+| addcase_give_argument_once | boolean | If true, two filenames (`inX.txt`, `outX.txt`) will be passed to the editor at once. |
+| timeout_milliseconds | u64 | The timeout milliseconds to treat the solution Time Limit Exceeded (TLE). |
+| eps_for_float | f64 | The amount of error allowed for floating point numbers. |
 
 ### Copy or create symlink (or junction in Windows) to `template` directory
 
