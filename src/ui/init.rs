@@ -2,6 +2,7 @@ use crate::imp::common;
 use crate::imp::config::ConfigFile;
 use crate::imp::langs;
 use crate::imp::langs::Lang;
+use crate::ExitStatus;
 use crate::{eprintln_info, eprintln_tagged};
 use std::fs;
 use std::fs::File;
@@ -61,7 +62,7 @@ pub enum Error {
 }
 
 impl Init {
-    pub fn run(self, quiet: bool) -> Result<()> {
+    pub fn run(self, quiet: bool) -> Result<ExitStatus> {
         let config: ConfigFile = ConfigFile::get_config()
             .map_err(|e| Error::GettingConfigFailed { source: e.into() })?;
 
@@ -92,7 +93,7 @@ impl Init {
                 .map_err(|e| Error::OpeningEditorFailed { source: e.into() })?;
         }
 
-        Ok(())
+        Ok(ExitStatus::Success)
     }
 
     fn validate_arguments(self, config: &ConfigFile) -> Result<Project> {

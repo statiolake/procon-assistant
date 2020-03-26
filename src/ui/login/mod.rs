@@ -1,5 +1,7 @@
 pub mod atcoder;
 
+use crate::ExitStatus;
+
 #[derive(clap::Clap)]
 #[clap(about = "Logs in to a contest-site")]
 pub struct Login {
@@ -32,7 +34,9 @@ impl Site {
 }
 
 impl Login {
-    pub fn run(self, quiet: bool) -> Result<()> {
-        self.site.run(quiet)
+    pub fn run(self, quiet: bool) -> Result<ExitStatus> {
+        self.site.run(quiet)?;
+
+        Ok(ExitStatus::Success)
     }
 }

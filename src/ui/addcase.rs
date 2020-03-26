@@ -2,6 +2,7 @@ use crate::eprintln_tagged;
 use crate::imp;
 use crate::imp::config::ConfigFile;
 use crate::imp::test_case::TestCase;
+use crate::ExitStatus;
 
 #[derive(clap::Clap)]
 #[clap(about = "Adds a new test case;  creates `inX.txt` and `outX.txt` in the current directory")]
@@ -30,7 +31,7 @@ pub enum ErrorKind {
 }
 
 impl AddCase {
-    pub fn run(self, _quiet: bool) -> Result<()> {
+    pub fn run(self, _quiet: bool) -> Result<ExitStatus> {
         let config: ConfigFile = ConfigFile::get_config()
             .map_err(|e| Error(ErrorKind::GettingConfigFailed { source: e.into() }))?;
 
@@ -48,6 +49,6 @@ impl AddCase {
         imp::common::open(&config, true, &[&tsf.if_name, &tsf.of_name])
             .map_err(|e| Error(ErrorKind::FileOpeningFailed { source: e.into() }))?;
 
-        Ok(())
+        Ok(ExitStatus::Success)
     }
 }

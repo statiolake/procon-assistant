@@ -1,6 +1,7 @@
 use crate::imp::test_case::TestCase;
 use crate::ui::fetch::aoj::Aoj;
 use crate::ui::fetch::atcoder::AtCoder;
+use crate::ExitStatus;
 use crate::{eprintln_info, eprintln_tagged};
 use std::env;
 use std::ffi::OsStr;
@@ -41,12 +42,13 @@ pub enum Error {
 }
 
 impl Fetch {
-    pub fn run(self, quiet: bool) -> Result<()> {
+    pub fn run(self, quiet: bool) -> Result<ExitStatus> {
         let dsc = get_descriptor(self.problem_id)?;
         let provider = get_provider(dsc)?;
         let tcfs = fetch_test_case_files(quiet, provider)?;
         write_test_case_files(tcfs)?;
-        Ok(())
+
+        Ok(ExitStatus::Success)
     }
 }
 

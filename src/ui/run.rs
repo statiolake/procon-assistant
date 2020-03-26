@@ -8,6 +8,7 @@ use crate::imp::test_case::{
 use crate::ui::clip;
 use crate::ui::compile;
 use crate::ui::print_macros::TAG_WIDTH;
+use crate::ExitStatus;
 use crate::{eprintln_debug, eprintln_info, eprintln_more, eprintln_tagged, eprintln_warning};
 use console::Style;
 use futures::future;
@@ -76,13 +77,10 @@ pub enum ErrorKind {
 
     #[error("failed to judge")]
     JudgingFailed { source: anyhow::Error },
-
-    #[error("some of tests didn't pass")]
-    TestCaseNotPass,
 }
 
 impl Run {
-    pub fn run(self, quiet: bool) -> Result<()> {
+    pub fn run(self, quiet: bool) -> Result<ExitStatus> {
         let config = ConfigFile::get_config()
             .map_err(|e| Error(ErrorKind::GettingConfigFailed { source: e.into() }))?;
         let lang = langs::get_lang()
@@ -110,9 +108,9 @@ impl Run {
             clip::copy_to_clipboard(quiet, &lang)
                 .map_err(|e| Error(ErrorKind::CopyingToClipboardFailed { source: e.into() }))?;
 
-            Ok(())
+            Ok(ExitStatus::Success)
         } else {
-            Err(Error(ErrorKind::TestCaseNotPass))
+            Ok(ExitStatus::Failure)
         }
     }
 }

@@ -1,5 +1,6 @@
 use crate::eprintln_tagged;
 use crate::imp;
+use crate::ExitStatus;
 
 #[derive(clap::Clap)]
 #[clap(about = "Initializes directory tree")]
@@ -33,7 +34,7 @@ pub enum Error {
 }
 
 impl InitDirs {
-    pub fn run(self, _quiet: bool) -> Result<()> {
+    pub fn run(self, _quiet: bool) -> Result<ExitStatus> {
         // max number of problems is to avoid overflow of problem id.  we need
         // to limit the number of problems in order to avoid the problem id
         // exceeding `Z`.
@@ -64,6 +65,6 @@ impl InitDirs {
         .map_err(|source| Error::CreatingDirectoryError { source })?;
         eprintln_tagged!("Created": "directory tree");
 
-        Ok(())
+        Ok(ExitStatus::Success)
     }
 }
