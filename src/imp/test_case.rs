@@ -35,7 +35,7 @@ pub enum ErrorKind {
     #[error("failed to get the stdout of spawned binary")]
     GetStdoutFailed,
 
-    #[error("failed to execute compiled binary main")]
+    #[error("failed to execute compiled binary")]
     ExecutionOfMainBinaryFailed { source: anyhow::Error },
 }
 
@@ -557,6 +557,7 @@ fn make_of_name(num: i32) -> String {
 fn spawn(mut cmd: Command) -> Result<Child> {
     cmd.stdin(Stdio::piped())
         .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| Error(ErrorKind::ExecutionOfMainBinaryFailed { source: e.into() }))
 }

@@ -1,12 +1,8 @@
+use crate::eprintln_progress;
 use crate::imp::common;
 use crate::imp::config::ConfigFile;
 use crate::imp::langs;
-use crate::imp::langs::Lang;
 use crate::ExitStatus;
-use crate::{eprintln_info, eprintln_tagged};
-use std::fs;
-use std::fs::File;
-use std::io::prelude::*;
 use std::path::Path;
 
 #[derive(clap::Clap)]
@@ -22,13 +18,6 @@ pub struct Init {
     lang: Option<String>,
 }
 
-const FILES: &[&str] = &[
-    "compile_commands.json",
-    ".vscode/c_cpp_properties.json",
-    ".vscode/tasks.json",
-    ".vscode/launch.json",
-];
-
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
@@ -39,67 +28,21 @@ pub enum Error {
     #[error("unknown file type: {lang}")]
     UnknownFileType { lang: String },
 
-    #[error("creating directory `{name}` failed")]
-    CreateDestinationDirectoryFailed { source: anyhow::Error, name: String },
-
-    #[error("creating `{name}` failed")]
-    CreateDestinationFailed { source: anyhow::Error, name: String },
-
-    #[error("writing `{name}` failed")]
-    WriteToDestinationFailed { source: anyhow::Error, name: String },
-
-    #[error("template file for `{name}` not found")]
-    OpenTemplateFailed { source: anyhow::Error, name: String },
-
-    #[error("template variable substitution failed")]
-    TemplateVariableSubstitutionFailed { source: anyhow::Error },
-
-    #[error("reading from template `{name}` failed")]
-    ReadFromTemplateFailed { source: anyhow::Error, name: String },
-
     #[error("failed to open editor")]
     OpeningEditorFailed { source: anyhow::Error },
+
+    #[error("init thread panicked")]
+    WaitingForInitFinishFailed,
+
+    #[error("init failed")]
+    InitFailed { source: anyhow::Error },
 }
 
 impl Init {
-    pub fn run(self, quiet: bool) -> Result<ExitStatus> {
+    pub fn run(self, _quiet: bool) -> Result<ExitStatus> {
         let config: ConfigFile = ConfigFile::get_config()
             .map_err(|e| Error::GettingConfigFailed { source: e.into() })?;
 
-        // parse command line arguments
-        let project = self.validate_arguments(&config)?;
-
-        let path_project = Path::new(&project.name);
-        create_project_directory(&path_project)?;
-
-        let path_src_file = Path::new(&project.lang.src_file_name);
-        safe_generate(quiet, &project.lang, path_project, path_src_file)?;
-
-        for file in FILES {
-            let path = Path::new(file);
-            safe_generate(quiet, &project.lang, path_project, path)?;
-        }
-
-        if config.init_auto_open {
-            let path_open = if config.init_open_directory_instead_of_specific_file {
-                path_project.display().to_string()
-            } else {
-                path_project
-                    .join(&project.lang.src_file_name)
-                    .display()
-                    .to_string()
-            };
-            common::open(&config, false, &[&path_open])
-                .map_err(|e| Error::OpeningEditorFailed { source: e.into() })?;
-        }
-
-        Ok(ExitStatus::Success)
-    }
-
-    fn validate_arguments(self, config: &ConfigFile) -> Result<Project> {
-        let name = self.dirname.clone();
-
-        // generate source code
         let specified_lang = self
             .lang
             .unwrap_or_else(|| config.init_default_lang.clone());
@@ -111,106 +54,35 @@ impl Init {
                     lang: specified_lang,
                 })?;
 
-        let lang = langs::LANGS_MAP
+        let (_, ctor) = langs::LANGS_MAP
             .get(lang)
             .unwrap_or_else(|| panic!("internal error: unknown file type {}", lang));
+        let lang = ctor();
+        let path_project = Path::new(&self.dirname);
 
-        Ok(Project { name, lang })
-    }
-}
-
-struct Project {
-    name: String,
-    lang: &'static Lang,
-}
-
-fn create_project_directory(path_project: &Path) -> Result<()> {
-    fs::create_dir_all(path_project).map_err(|e| Error::CreateDestinationDirectoryFailed {
-        source: e.into(),
-        name: path_project.display().to_string(),
-    })
-}
-
-fn safe_generate(quiet: bool, lang: &Lang, path_project: &Path, path: &Path) -> Result<()> {
-    if path_project.join(path).exists() {
-        if !quiet {
-            eprintln_info!("file {} already exists, skipping", path.display());
+        // initialize the project asynchronously and get progress
+        let progress = lang.init_async(path_project);
+        while let Ok(msg) = progress.recver.recv() {
+            eprintln_progress!("{}", msg);
         }
-        return Ok(());
+
+        let to_open = progress
+            .handle
+            .join()
+            .map_err(|_| Error::WaitingForInitFinishFailed)?
+            .map_err(|source| Error::InitFailed { source })?;
+
+        let to_open = if config.init_open_directory_instead_of_specific_file {
+            vec![to_open.directory]
+        } else {
+            to_open.files
+        };
+
+        if config.init_auto_open {
+            common::open_general(&config, &to_open)
+                .map_err(|e| Error::OpeningEditorFailed { source: e.into() })?;
+        }
+
+        Ok(ExitStatus::Success)
     }
-
-    generate(quiet, lang, path_project, path)?;
-    eprintln_tagged!("Generated": "{}", path.display());
-    Ok(())
-}
-
-fn generate(quiet: bool, lang: &Lang, path_project_root: &Path, path: &Path) -> Result<()> {
-    let exe_dir = current_exe::current_exe().unwrap();
-    let exe_dir = exe_dir.parent().unwrap();
-    let path_template = exe_dir.join("template").join(path);
-    let path_project = path_project_root.join(path);
-
-    let path_template_string = path_template.display().to_string();
-    if !quiet {
-        eprintln_info!("loading template from `{}`", path_template_string);
-    }
-    let mut template_file = File::open(path_template).map_err(|e| Error::OpenTemplateFailed {
-        source: e.into(),
-        name: path_template_string.clone(),
-    })?;
-
-    let mut content = String::new();
-    template_file
-        .read_to_string(&mut content)
-        .map_err(|e| Error::ReadFromTemplateFailed {
-            source: e.into(),
-            name: path_template_string,
-        })?;
-
-    let content = content.replace("$LIB_DIR", &libdir_escaped(&lang));
-    let content = content.replace("$GDB_PATH", &gdbpath_escaped());
-
-    let abs_path_project_root = to_absolute::to_absolute_from_current_dir(path_project_root)
-        .map_err(|e| Error::TemplateVariableSubstitutionFailed { source: e.into() })?;
-    let content = content.replace("$PROJECT_PATH", &escape_path(abs_path_project_root));
-
-    create_and_write_file(&path_project, &content)
-}
-
-fn create_and_write_file(path: &Path, content: &str) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| Error::CreateDestinationDirectoryFailed {
-            source: e.into(),
-            name: parent.display().to_string(),
-        })?;
-    }
-    let path_string = path.display().to_string();
-    let mut f = File::create(path).map_err(|e| Error::CreateDestinationFailed {
-        source: e.into(),
-        name: path_string.clone(),
-    })?;
-    f.write_all(content.as_bytes())
-        .map_err(|e| Error::WriteToDestinationFailed {
-            source: e.into(),
-            name: path_string,
-        })
-}
-
-fn gdbpath_escaped() -> String {
-    which::which("gdb")
-        .map(escape_path)
-        .unwrap_or_else(|_| "dummy - could not find GDB in your system".into())
-}
-
-fn libdir_escaped(lang: &Lang) -> String {
-    let libdir = (lang.lib_dir_getter)();
-    escape_path(libdir)
-}
-
-fn escape_path(path: impl AsRef<Path>) -> String {
-    path.as_ref()
-        .display()
-        .to_string()
-        .escape_default()
-        .to_string()
 }

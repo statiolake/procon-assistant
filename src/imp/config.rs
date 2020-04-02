@@ -28,6 +28,23 @@ pub struct ConfigFile {
     pub addcase_editor_command: Vec<String>,
     pub timeout_milliseconds: u64,
     pub eps_for_float: f64,
+    pub rust_config: RustConfig,
+}
+
+#[derive(Deserialize)]
+pub struct RustConfig {
+    pub project_template: RustProjectTemplate,
+    pub needs_pre_compile: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "type")]
+pub enum RustProjectTemplate {
+    #[serde(rename = "git")]
+    Git { repository: String, branch: String },
+
+    #[serde(rename = "local")]
+    Local { path: String },
 }
 
 impl ConfigFile {

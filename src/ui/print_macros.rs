@@ -62,3 +62,13 @@ macro_rules! eprintln_more {
         );
     };
 }
+
+#[macro_export]
+macro_rules! eprintln_progress {
+    ($($args:tt)*) => {
+        $crate::__eprintln_tagged_impl!(
+            console::style("Progress").blue().bold(),
+            $($args)*
+        );
+    };
+}

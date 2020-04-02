@@ -6,3 +6,12 @@ macro_rules! eprintln_debug {
         }
     };
 }
+
+#[macro_export]
+macro_rules! eprintln_debug_more {
+    ($($args:tt)*) => {
+        if cfg!(debug_assertions) {
+            $crate::eprintln_more!($($args)*);
+        }
+    };
+}

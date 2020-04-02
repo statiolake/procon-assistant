@@ -1,5 +1,6 @@
 use crate::imp::config::ConfigFile;
 use crate::imp::langs;
+use crate::imp::langs::Language;
 use crate::imp::test_case;
 use crate::imp::test_case::{
     Context, JudgeResult, RuntimeErrorKind, Span, TestCase, TestResult, WrongAnswer,
@@ -14,7 +15,6 @@ use console::Style;
 use futures::future;
 use itertools::Itertools as _;
 use std::cmp;
-use std::process::Command;
 
 const PANE_MINIMUM_SIZE: usize = 3;
 
@@ -83,13 +83,13 @@ impl Run {
     pub fn run(self, quiet: bool) -> Result<ExitStatus> {
         let config = ConfigFile::get_config()
             .map_err(|e| Error(ErrorKind::GettingConfigFailed { source: e.into() }))?;
-        let lang = langs::get_lang()
+        let lang = langs::guess_language()
             .map_err(|e| Error(ErrorKind::GettingLanguageFailed { source: e.into() }))?;
-        let success = compile::compile(quiet, &lang, self.force_compile)
+        let status = compile::compile(quiet, &*lang, self.force_compile)
             .map_err(|e| Error(ErrorKind::CompilationFailed { source: e.into() }))?;
-        let result = if success {
+        let result = if status == ExitStatus::Success {
             async_std::task::block_on(async {
-                run_tests(quiet, &config, &self.to_run)
+                run_tests(quiet, &config, &*lang, &self.to_run)
                     .await
                     .map_err(|e| Error(ErrorKind::RunningTestsFailed { source: e.into() }))
             })?
@@ -105,7 +105,7 @@ impl Run {
         // copy the answer to the clipboard
         if result.is_accepted() {
             eprintln!("");
-            clip::copy_to_clipboard(quiet, &lang)
+            clip::copy_to_clipboard(quiet, &*lang)
                 .map_err(|e| Error(ErrorKind::CopyingToClipboardFailed { source: e.into() }))?;
 
             Ok(ExitStatus::Success)
@@ -115,9 +115,14 @@ impl Run {
     }
 }
 
-async fn run_tests(quiet: bool, config: &ConfigFile, args: &[String]) -> Result<TestResult> {
+async fn run_tests<L: Language + ?Sized>(
+    quiet: bool,
+    config: &ConfigFile,
+    lang: &L,
+    args: &[String],
+) -> Result<TestResult> {
     let tcs = enumerate_test_cases(&args)?;
-    run(quiet, config, tcs).await
+    run(quiet, config, lang, tcs).await
 }
 
 fn parse_argument_cases(args: &[String]) -> Result<Vec<TestCase>> {
@@ -145,17 +150,21 @@ fn enumerate_test_cases(args: &[String]) -> Result<Vec<TestCase>> {
     Ok(test_cases)
 }
 
-async fn run(quiet: bool, config: &ConfigFile, tcs: Vec<TestCase>) -> Result<TestResult> {
+async fn run<L: Language + ?Sized>(
+    quiet: bool,
+    config: &ConfigFile,
+    lang: &L,
+    tcs: Vec<TestCase>,
+) -> Result<TestResult> {
     eprintln_tagged!(
         "Running": "{} test cases (current timeout is {} millisecs)",
         tcs.len(),
         config.timeout_milliseconds,
     );
 
-    let judge_results = tcs.into_iter().map(|tc| async move {
-        // TODO: do this by language side
-        let cmd = Command::new("./main");
-        (tc.to_string(), tc.judge(config, cmd))
+    let judge_results = tcs.into_iter().map(|tc| {
+        let cmd = lang.run_command();
+        async move { (tc.to_string(), tc.judge(config, cmd)) }
     });
 
     // wait for finish of all threads

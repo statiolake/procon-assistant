@@ -1,5 +1,5 @@
 use crate::eprintln_tagged;
-use crate::imp;
+use crate::imp::common;
 use crate::imp::config::ConfigFile;
 use crate::imp::test_case::TestCase;
 use crate::ExitStatus;
@@ -46,7 +46,7 @@ impl AddCase {
 
         eprintln_tagged!("Created": "{}, {}", tsf.if_name, tsf.of_name);
 
-        imp::common::open(&config, true, &[&tsf.if_name, &tsf.of_name])
+        common::open_addcase(&config, &[&tsf.if_name, &tsf.of_name])
             .map_err(|e| Error(ErrorKind::FileOpeningFailed { source: e.into() }))?;
 
         Ok(ExitStatus::Success)

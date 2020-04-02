@@ -1,10 +1,9 @@
-use crate::eprintln_info;
-use crate::eprintln_tagged;
 use crate::imp::compile;
 use crate::imp::compile::CompilerOutput;
 use crate::imp::langs;
-use crate::imp::langs::Lang;
+use crate::imp::langs::Language;
 use crate::ExitStatus;
+use crate::{eprintln_info, eprintln_more, eprintln_tagged};
 
 #[derive(clap::Clap)]
 #[clap(about = "Compiles the current solution;  the produced binary won't be tested automatically")]
@@ -35,48 +34,48 @@ pub enum ErrorKind {
 
 impl Compile {
     pub fn run(self, quiet: bool) -> Result<ExitStatus> {
-        let lang = langs::get_lang()
+        let lang = langs::guess_language()
             .map_err(|e| Error(ErrorKind::GettingLanguageFailed { source: e.into() }))?;
-        let success = compile(quiet, &lang, self.force)?;
-        if success {
-            Ok(ExitStatus::Success)
-        } else {
-            Ok(ExitStatus::Failure)
-        }
+
+        let status = compile(quiet, &*lang, self.force)?;
+        Ok(status)
     }
 }
 
-pub fn compile(quiet: bool, lang: &Lang, force: bool) -> Result<bool> {
-    if !force && !compile::is_compile_needed(lang).unwrap_or(true) {
+pub fn compile<L: Language + ?Sized>(quiet: bool, lang: &L, force: bool) -> Result<ExitStatus> {
+    if !force && !lang.needs_compile() {
         if !quiet {
             eprintln_info!("no need to compile");
         }
-        return Ok(true);
+
+        return Ok(ExitStatus::Success);
     }
+
     compile_src(quiet, lang).map_err(|e| Error(ErrorKind::CompilationFailed { source: e.into() }))
 }
 
-pub fn compile_src(quiet: bool, lang: &Lang) -> compile::Result<bool> {
-    eprintln_tagged!("Compiling": "{}", lang.src_file_name);
+pub fn compile_src<L: Language + ?Sized>(quiet: bool, lang: &L) -> compile::Result<ExitStatus> {
+    eprintln_tagged!("Compiling": "project");
     let CompilerOutput {
-        success,
+        status,
         stdout,
         stderr,
     } = compile::compile(lang)?;
     print_compiler_output(quiet, "standard output", stdout);
     print_compiler_output(quiet, "standard error", stderr);
 
-    Ok(success)
+    Ok(status)
 }
 
 pub fn print_compiler_output(quiet: bool, kind: &str, output: Option<String>) {
+    if quiet {
+        return;
+    }
+
     if let Some(output) = output {
-        let output = output.trim().split('\n');
-        if !quiet {
-            eprintln_info!("compiler {}:", kind);
-            for line in output {
-                eprintln!("        {}", line);
-            }
+        eprintln_info!("compiler {}:", kind);
+        for line in output.trim().lines() {
+            eprintln_more!("{}", line);
         }
     }
 }
