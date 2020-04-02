@@ -1,8 +1,8 @@
 use crate::eprintln_progress;
 use crate::imp::common;
-use crate::imp::config::ConfigFile;
 use crate::imp::config::OpenTarget;
 use crate::imp::langs;
+use crate::ui::CONFIG;
 use crate::ExitStatus;
 use std::path::Path;
 
@@ -23,9 +23,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("failed to get config")]
-    GettingConfigFailed { source: anyhow::Error },
-
     #[error("unknown file type: {lang}")]
     UnknownFileType { lang: String },
 
@@ -41,12 +38,9 @@ pub enum Error {
 
 impl Init {
     pub fn run(self, _quiet: bool) -> Result<ExitStatus> {
-        let config: ConfigFile = ConfigFile::get_config()
-            .map_err(|e| Error::GettingConfigFailed { source: e.into() })?;
-
         let specified_lang = self
             .lang
-            .unwrap_or_else(|| config.init.default_lang.clone());
+            .unwrap_or_else(|| CONFIG.init.default_lang.clone());
 
         let lang =
             langs::FILETYPE_ALIAS
@@ -73,13 +67,13 @@ impl Init {
             .map_err(|_| Error::WaitingForInitFinishFailed)?
             .map_err(|source| Error::InitFailed { source })?;
 
-        if config.init.auto_open {
-            let to_open = match config.init.open_target {
+        if CONFIG.init.auto_open {
+            let to_open = match CONFIG.init.open_target {
                 OpenTarget::Directory => vec![to_open.directory],
                 OpenTarget::Files => to_open.files,
             };
 
-            common::open_general(&config, &to_open)
+            common::open_general(&to_open)
                 .map_err(|e| Error::OpeningEditorFailed { source: e.into() })?;
         }
 

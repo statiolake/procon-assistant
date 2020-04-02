@@ -1,5 +1,5 @@
 use crate::eprintln_debug;
-use crate::imp::config::ConfigFile;
+use crate::ui::CONFIG;
 use itertools::Itertools;
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -20,33 +20,33 @@ pub enum Error {
     },
 }
 
-pub fn open_addcase<P: AsRef<Path>>(config: &ConfigFile, names: &[P]) -> Result<()> {
+pub fn open_addcase<P: AsRef<Path>>(names: &[P]) -> Result<()> {
     let names = names
         .iter()
         .map(|p| p.as_ref().display().to_string())
         .collect_vec();
     let names = names.iter().map(String::as_str).collect_vec();
-    let (process_name, cmds) = open_addcase_cmds(config, &names)?;
-    spawn_editor(config, process_name, cmds)
+    let (process_name, cmds) = open_addcase_cmds(&names)?;
+    spawn_editor(process_name, cmds)
 }
 
-pub fn open_general<P: AsRef<Path>>(config: &ConfigFile, names: &[P]) -> Result<()> {
+pub fn open_general<P: AsRef<Path>>(names: &[P]) -> Result<()> {
     let names = names
         .iter()
         .map(|p| p.as_ref().display().to_string())
         .inspect(|p| eprintln_debug!("Opening `{}`", p))
         .collect_vec();
     let names = names.iter().map(String::as_str).collect_vec();
-    let (process_name, cmds) = open_general_cmds(config, &names)?;
-    spawn_editor(config, process_name, cmds)
+    let (process_name, cmds) = open_general_cmds(&names)?;
+    spawn_editor(process_name, cmds)
 }
 
-fn spawn_editor(config: &ConfigFile, process_name: &str, cmds: Vec<Command>) -> Result<()> {
+fn spawn_editor(process_name: &str, cmds: Vec<Command>) -> Result<()> {
     for mut cmd in cmds {
         cmd.stdin(Stdio::inherit())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
-        let res = if config.general.wait_for_editor_finish {
+        let res = if CONFIG.general.wait_for_editor_finish {
             cmd.spawn().and_then(|mut child| child.wait()).map(drop)
         } else {
             cmd.spawn().map(drop)
@@ -63,16 +63,13 @@ fn spawn_editor(config: &ConfigFile, process_name: &str, cmds: Vec<Command>) -> 
     Ok(())
 }
 
-fn open_addcase_cmds<'a>(
-    config: &'a ConfigFile,
-    names: &[&str],
-) -> Result<(&'a str, Vec<Command>)> {
-    let mut editor_command = config.addcase.editor_command.iter().map(String::as_str);
+fn open_addcase_cmds(names: &[&str]) -> Result<(&'static str, Vec<Command>)> {
+    let mut editor_command = CONFIG.addcase.editor_command.iter().map(String::as_str);
     let process_name = editor_command.next().unwrap_or("");
     let editor_command = editor_command.collect_vec();
 
     let mut commands = Vec::new();
-    if config.addcase.give_argument_once {
+    if CONFIG.addcase.give_argument_once {
         let command = make_editor_command(process_name, &editor_command, names);
         commands.push(command);
     } else {
@@ -85,11 +82,8 @@ fn open_addcase_cmds<'a>(
     Ok((process_name, commands))
 }
 
-fn open_general_cmds<'a>(
-    config: &'a ConfigFile,
-    names: &[&str],
-) -> Result<(&'a str, Vec<Command>)> {
-    let mut editor_command = config.general.editor_command.iter().map(|x| x as &str);
+fn open_general_cmds(names: &[&str]) -> Result<(&'static str, Vec<Command>)> {
+    let mut editor_command = CONFIG.general.editor_command.iter().map(|x| x as &str);
     let process_name = editor_command.next().unwrap_or("");
     let editor_command = editor_command.collect_vec();
 

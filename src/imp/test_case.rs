@@ -1,5 +1,5 @@
 use crate::imp;
-use crate::imp::config::ConfigFile;
+use crate::ui::CONFIG;
 use itertools::izip;
 use std::io::Read;
 use std::io::Write;
@@ -193,7 +193,7 @@ impl Context {
         Context { expected, actual }
     }
 
-    pub fn verify(mut self, config: &ConfigFile) -> TestResult {
+    pub fn verify(mut self) -> TestResult {
         // fix last newline at first
         let is_presentation_error = self.check_presentation_error();
         self.fix_last_newline();
@@ -206,7 +206,7 @@ impl Context {
         // check each line and collect errors
         let mut errors = Vec::new();
         for (lineno, (expected, actual)) in izip!(&self.expected, &self.actual).enumerate() {
-            let errors_line = Context::verify_line(config, expected, actual, lineno);
+            let errors_line = Context::verify_line(expected, actual, lineno);
             errors.extend(errors_line);
         }
 
@@ -260,12 +260,7 @@ impl Context {
         }
     }
 
-    fn verify_line(
-        config: &ConfigFile,
-        expected_line: &str,
-        actual_line: &str,
-        lineno: usize,
-    ) -> Vec<WrongAnswerKind> {
+    fn verify_line(expected_line: &str, actual_line: &str, lineno: usize) -> Vec<WrongAnswerKind> {
         let expected = Token::parse_line(expected_line, lineno);
         let actual = Token::parse_line(actual_line, lineno);
 
@@ -292,7 +287,7 @@ impl Context {
         // check for each token
         let mut errors = vec![];
         for (expected, actual) in expected.iter().zip(actual.iter()) {
-            if !Token::is_equal(config, expected, actual) {
+            if !Token::is_equal(expected, actual) {
                 errors.push(WrongAnswerKind::TokenDiffers {
                     expected: expected.clone(),
                     actual: actual.clone(),
@@ -322,12 +317,12 @@ impl Token {
     /// Checks if two tokens are "equal".  Note that this equality doesn't
     /// satisfy the transitivity (because a certain amount of error is allowed
     /// for floating point numbers).
-    fn is_equal(config: &ConfigFile, a: &Token, b: &Token) -> bool {
+    fn is_equal(a: &Token, b: &Token) -> bool {
         match (&a.kind, &b.kind) {
             (TokenKind::String(a), TokenKind::String(b)) => a == b,
             (TokenKind::Uint(a), TokenKind::Uint(b)) => a == b,
             (TokenKind::Int(a), TokenKind::Int(b)) => a == b,
-            (TokenKind::Float(a), TokenKind::Float(b)) => (a - b).abs() < config.run.eps_for_float,
+            (TokenKind::Float(a), TokenKind::Float(b)) => (a - b).abs() < CONFIG.run.eps_for_float,
             _ => false,
         }
     }
@@ -504,13 +499,13 @@ impl TestCase {
     }
 
     /// Judge the output of the specified command using this test case.
-    pub fn judge(self, config: &ConfigFile, cmd: Command) -> Result<JudgeResult> {
+    pub fn judge(self, cmd: Command) -> Result<JudgeResult> {
         // spawn the solution
         let mut child = spawn(cmd)?;
         input_to_child(&mut child, self.if_contents.as_bytes())?;
 
         // wait for the solution to finish or timeout
-        let (elapsed, maybe_result) = wait_or_timeout(config, &mut child)?;
+        let (elapsed, maybe_result) = wait_or_timeout(&mut child)?;
         if let Some(result) = maybe_result {
             return Ok(JudgeResult { elapsed, result });
         }
@@ -523,7 +518,7 @@ impl TestCase {
             .map(ToString::to_string)
             .collect();
 
-        let result = Context::new(expected, actual).verify(config);
+        let result = Context::new(expected, actual).verify();
 
         Ok(JudgeResult { elapsed, result })
     }
@@ -571,13 +566,10 @@ fn input_to_child(child: &mut Child, if_contents: &[u8]) -> Result<()> {
         .map_err(|e| Error(ErrorKind::WriteStdinFailed { source: e.into() }))
 }
 
-fn wait_or_timeout(
-    config: &ConfigFile,
-    child: &mut Child,
-) -> Result<(time::Duration, Option<TestResult>)> {
+fn wait_or_timeout(child: &mut Child) -> Result<(time::Duration, Option<TestResult>)> {
     use self::TestResult::{RuntimeError as RE, TimeLimitExceeded as TLE};
 
-    let timeout = time::Duration::from_millis(config.run.timeout_milliseconds);
+    let timeout = time::Duration::from_millis(CONFIG.run.timeout_milliseconds);
     let timer = time::Instant::now();
     loop {
         // current elapsed time
