@@ -1,14 +1,13 @@
 use super::{FilesToOpen, Minified, Preprocessed, RawSource};
 use super::{Language, Progress};
+use crate::eprintln_debug;
 use crate::imp::config::RustProjectTemplate;
-use crate::imp::fs as impfs;
 use crate::ui::CONFIG;
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use fs_extra::dir;
 use fs_extra::dir::CopyOptions;
 use scopefunc::ScopeFunc;
 use scopeguard::defer;
-use std::cmp::Ordering;
 use std::env;
 use std::fs as stdfs;
 use std::path::{Path, PathBuf};
@@ -72,11 +71,10 @@ impl Language for Rust {
             let _ = sender.send("generating new cargo project".into());
             // generate a project
             match &CONFIG.languages.rust.project_template {
-                RustProjectTemplate::Git { repository, branch } => {
-                    generate_git(repository, branch)?
-                }
-                RustProjectTemplate::Local { path } => generate_local(path)?,
+                RustProjectTemplate::Git { repository, branch } => generate_git(repository, branch),
+                RustProjectTemplate::Local { path } => generate_local(path),
             }
+            .map_err(|source| Error::GeneratingProjectFailed { source })?;
 
             let _ = sender.send("building generated project".into());
             // pre-build the project
@@ -110,21 +108,28 @@ impl Language for Rust {
     }
 
     fn needs_compile(&self) -> bool {
-        let target = if cfg!(windows) {
-            "main/target/debug/main.exe"
-        } else {
-            "main/target/debug/main"
-        };
-
-        impfs::cmp_modified_time("main/src/main.rs", target)
-            .map(|ord| ord == Ordering::Greater)
-            .unwrap_or(true)
+        // in Rust, to avoid copying a large `target` directory, `target`
+        // directory is symlinked to the template directory. This means that the
+        // binary is placed in the same place for all projects. It causes the
+        // binary overwritten by another project. To prevent running wrong
+        // binary, we always need to clean the binary and compile.
+        true
     }
 
-    fn compile_command(&self) -> Command {
-        Command::new("cargo").modify(|c| {
+    fn compile_command(&self) -> Vec<Command> {
+        let clean = Command::new("cargo").modify(|c| {
+            c.arg("clean")
+                .arg("--manifest-path")
+                .arg("main/Cargo.toml")
+                .arg("-p")
+                .arg("main");
+        });
+
+        let build = Command::new("cargo").modify(|c| {
             c.arg("build").arg("--manifest-path").arg("main/Cargo.toml");
-        })
+        });
+
+        vec![clean, build]
     }
 
     fn run_command(&self) -> Command {
@@ -171,17 +176,41 @@ fn generate_git(repository: &str, branch: &str) -> anyhow::Result<()> {
         .spawn()?
         .wait_with_output()?;
     if !output.status.success() {
-        return Err(From::from(Error::GeneratingProjectFailed {
-            source: anyhow!("{}", String::from_utf8_lossy(&output.stderr)),
-        }));
+        bail!("{}", String::from_utf8_lossy(&output.stderr));
     }
 
     Ok(())
 }
 
 fn generate_local(path: &Path) -> anyhow::Result<()> {
-    dir::copy(path, "main", &CopyOptions::new())
-        .map_err(|e| Error::GeneratingProjectFailed { source: e.into() })?;
+    eprintln_debug!("copying from `{}`", path.display());
+
+    let options = CopyOptions {
+        skip_exist: true,
+        copy_inside: true,
+        ..CopyOptions::new()
+    };
+
+    let base_path = Path::new("main");
+    stdfs::create_dir(base_path)?;
+    for entry in stdfs::read_dir(path)? {
+        let entry = entry?;
+        let entry_path = entry.path();
+        let entry_name = entry_path.file_name().unwrap();
+        let entry_metadata = entry.metadata()?;
+        if entry_metadata.is_file() {
+            stdfs::copy(&entry_path, base_path.join(entry_name))?;
+        } else if entry_metadata.is_dir() && entry_name != "target" {
+            dir::copy(&entry_path, base_path.join(entry_name), &options)?;
+        }
+    }
+
+    // symlink target directory
+    let template_target_path = path.join("target");
+    let project_target_path = base_path.join("target");
+    if template_target_path.exists() {
+        symlink::symlink_dir(template_target_path, project_target_path)?;
+    }
 
     Ok(())
 }

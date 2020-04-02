@@ -16,8 +16,6 @@ pub struct RawSource(pub String);
 pub struct Preprocessed(pub String);
 pub struct Minified(pub String);
 
-pub const PROGRESS_END_TOKEN: &str = "__PROGRESS__END__";
-
 pub struct Progress<T> {
     pub handle: JoinHandle<T>,
     pub recver: mpsc::Receiver<String>,
@@ -52,7 +50,7 @@ pub trait Language {
     fn init_async(&self, path: &Path) -> Progress<anyhow::Result<FilesToOpen>>;
     fn needs_compile(&self) -> bool;
     fn get_source(&self) -> anyhow::Result<RawSource>;
-    fn compile_command(&self) -> Command;
+    fn compile_command(&self) -> Vec<Command>;
     fn run_command(&self) -> Command;
     fn preprocess(&self, source: &RawSource) -> anyhow::Result<Preprocessed>;
     fn minify(&self, processed: &Preprocessed) -> anyhow::Result<Minified>;
