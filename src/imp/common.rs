@@ -1,5 +1,8 @@
+use crate::eprintln_debug;
 use crate::imp::config::ConfigFile;
-use std::process::Command;
+use itertools::Itertools;
+use std::path::Path;
+use std::process::{Command, Stdio};
 
 pub fn colorize() -> bool {
     use atty::Stream;
@@ -17,58 +20,64 @@ pub enum Error {
     },
 }
 
-pub fn open(config: &ConfigFile, addcase: bool, names: &[&str]) -> Result<()> {
-    let (process_name, commands) = if addcase {
-        open_addcase(config, names)
-    } else {
-        open_general(config, names)
-    }?;
+pub fn open_addcase<P: AsRef<Path>>(config: &ConfigFile, names: &[P]) -> Result<()> {
+    let names = names
+        .iter()
+        .map(|p| p.as_ref().display().to_string())
+        .collect_vec();
+    let names = names.iter().map(String::as_str).collect_vec();
+    let (process_name, cmds) = open_addcase_cmds(config, &names)?;
+    spawn_editor(config, process_name, cmds)
+}
 
-    for mut command in commands {
-        if config.is_terminal_editor {
-            use std::process::Stdio;
-            command
-                .stdin(Stdio::inherit())
-                .stdout(Stdio::inherit())
-                .stderr(Stdio::inherit())
-                .output()
-                .map(|_| ())
+pub fn open_general<P: AsRef<Path>>(config: &ConfigFile, names: &[P]) -> Result<()> {
+    let names = names
+        .iter()
+        .map(|p| p.as_ref().display().to_string())
+        .inspect(|p| eprintln_debug!("Opening `{}`", p))
+        .collect_vec();
+    let names = names.iter().map(String::as_str).collect_vec();
+    let (process_name, cmds) = open_general_cmds(config, &names)?;
+    spawn_editor(config, process_name, cmds)
+}
+
+fn spawn_editor(config: &ConfigFile, process_name: &str, cmds: Vec<Command>) -> Result<()> {
+    for mut cmd in cmds {
+        cmd.stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit());
+        let res = if config.is_terminal_editor {
+            cmd.spawn().and_then(|mut child| child.wait()).map(drop)
         } else {
-            command.spawn().map(|_| ())
+            cmd.spawn().map(drop)
+        };
+
+        if let Err(e) = res {
+            return Err(Error::SpawningCommandFailed {
+                source: e.into(),
+                process_name: process_name.to_string(),
+            });
         }
-        .map_err(|e| Error::SpawningCommandFailed {
-            source: e.into(),
-            process_name: process_name.to_string(),
-        })?;
     }
 
     Ok(())
 }
 
-fn open_addcase<'a, 'b, 'c>(
+fn open_addcase_cmds<'a>(
     config: &'a ConfigFile,
-    names: &'b [&'c str],
+    names: &[&str],
 ) -> Result<(&'a str, Vec<Command>)> {
-    let mut editor_command = config.addcase_editor_command.iter().map(|x| x as &str);
+    let mut editor_command = config.addcase_editor_command.iter().map(String::as_str);
     let process_name = editor_command.next().unwrap_or("");
-
-    // make rustc re-infer lifetime of iterator item: &'? str without this, process_name is of type
-    // &'a str (since it is return value) and so editor_command is of type Iterator<Item = &'a
-    // str>.  however make_editor_command requires this iterator and iterator based on `names` must
-    // be the iterator generating same type, so that causes lifetime error.
-    let editor_command = editor_command.map(|x| &*x);
+    let editor_command = editor_command.collect_vec();
 
     let mut commands = Vec::new();
     if config.addcase_give_argument_once {
-        let command = make_editor_command(process_name, editor_command, names.iter().cloned());
+        let command = make_editor_command(process_name, &editor_command, names);
         commands.push(command);
     } else {
         for name in names {
-            let command = make_editor_command(
-                process_name,
-                editor_command.clone(),
-                Some(name).into_iter().cloned(),
-            );
+            let command = make_editor_command(process_name, &editor_command.clone(), &[name]);
             commands.push(command);
         }
     }
@@ -76,32 +85,23 @@ fn open_addcase<'a, 'b, 'c>(
     Ok((process_name, commands))
 }
 
-fn open_general<'a, 'b>(
+fn open_general_cmds<'a>(
     config: &'a ConfigFile,
-    names: &'b [&str],
+    names: &[&str],
 ) -> Result<(&'a str, Vec<Command>)> {
     let mut editor_command = config.editor_command.iter().map(|x| x as &str);
     let process_name = editor_command.next().unwrap_or("");
+    let editor_command = editor_command.collect_vec();
 
-    // make rustc re-infer lifetime of iterator
-    let editor_command = editor_command.map(|x| &*x);
-    let commands = vec![make_editor_command(
-        process_name,
-        editor_command,
-        names.iter().cloned(),
-    )];
+    let commands = vec![make_editor_command(process_name, &editor_command, names)];
 
     Ok((process_name, commands))
 }
 
-fn make_editor_command<'a, 'b>(
-    process_name: &'a str,
-    arguments: impl Iterator<Item = &'b str>,
-    file_paths: impl Iterator<Item = &'b str> + Clone,
-) -> Command {
-    let arguments = arguments.flat_map(|arg| match arg {
-        "%PATHS%" => Box::new(file_paths.clone()) as Box<dyn Iterator<Item = &'b str>>,
-        _ => Box::new(Some(arg).into_iter()) as Box<dyn Iterator<Item = &'b str>>,
+fn make_editor_command(process_name: &str, arguments: &[&str], file_paths: &[&str]) -> Command {
+    let arguments = arguments.iter().flat_map(|arg| match *arg {
+        "%PATHS%" => file_paths.iter().map(ToString::to_string).collect_vec(),
+        other => vec![other.to_string()],
     });
     let mut cmd = Command::new(process_name);
     cmd.args(arguments);

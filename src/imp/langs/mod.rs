@@ -1,43 +1,78 @@
-use crate::imp::preprocess;
-use crate::imp::preprocess::{Minified, Preprocessed, RawSource};
-use lazy_static::lazy_static;
-use std::collections::HashMap;
-use std::path::Path;
-use std::path::PathBuf;
-use std::process::Command;
-
 pub mod cpp;
 pub mod rust;
 
-#[derive(Clone)]
-pub struct Lang {
-    pub lang: &'static str,
-    pub src_file_name: &'static str,
-    pub compiler: &'static str,
-    pub lib_dir_getter: fn() -> PathBuf,
-    pub compile_command_maker: fn(colorize: bool) -> Command,
-    pub preprocessor: fn(quiet: bool, RawSource) -> preprocess::Result<Preprocessed>,
-    pub minifier: fn(quiet: bool, Preprocessed) -> Minified,
-    pub linter: fn(quiet: bool, &Minified) -> Vec<String>,
+use self::cpp::Cpp;
+use self::rust::Rust;
+use indexmap::indexmap;
+use indexmap::IndexMap;
+use lazy_static::lazy_static;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::sync::mpsc;
+use std::thread;
+use std::thread::JoinHandle;
+
+pub struct RawSource(pub String);
+pub struct Preprocessed(pub String);
+pub struct Minified(pub String);
+
+pub const PROGRESS_END_TOKEN: &str = "__PROGRESS__END__";
+
+pub struct Progress<T> {
+    pub handle: JoinHandle<T>,
+    pub recver: mpsc::Receiver<String>,
 }
+
+impl<T: Send + 'static> Progress<T> {
+    pub fn from_fn<F: (FnOnce(mpsc::Sender<String>) -> T) + Send + 'static>(f: F) -> Progress<T> {
+        let (sender, recver) = mpsc::channel();
+        let handle = thread::spawn(move || f(sender));
+        Progress { handle, recver }
+    }
+}
+
+pub struct FilesToOpen {
+    pub files: Vec<PathBuf>,
+    pub directory: PathBuf,
+}
+
+pub trait Language {
+    fn check() -> bool
+    where
+        Self: Sized;
+
+    fn new_boxed() -> Box<dyn Language>
+    where
+        Self: Sized;
+
+    fn language_name() -> &'static str
+    where
+        Self: Sized;
+
+    fn init_async(&self, path: &Path) -> Progress<anyhow::Result<FilesToOpen>>;
+    fn needs_compile(&self) -> bool;
+    fn get_source(&self) -> anyhow::Result<RawSource>;
+    fn compile_command(&self) -> Command;
+    fn run_command(&self) -> Command;
+    fn preprocess(&self, source: &RawSource) -> anyhow::Result<Preprocessed>;
+    fn minify(&self, processed: &Preprocessed) -> anyhow::Result<Minified>;
+    fn lint(&self, minified: &Minified) -> Vec<String>;
+}
+
+type CheckerType = fn() -> bool;
+type CtorType = fn() -> Box<dyn Language>;
 
 lazy_static! {
-    pub static ref LANGS_MAP: HashMap<&'static str, Lang> = {
-        let mut m = HashMap::new();
-        m.insert(cpp::LANG.lang, cpp::LANG);
-        m.insert(rust::LANG.lang, rust::LANG);
-        m
+    pub static ref LANGS_MAP: IndexMap<&'static str, (CheckerType, CtorType)> = indexmap! {
+        Cpp::language_name() => (Cpp::check as CheckerType, Cpp::new_boxed as CtorType),
+        Rust::language_name() => (Rust::check as CheckerType, Rust::new_boxed as CtorType),
     };
-    pub static ref FILETYPE_ALIAS: HashMap<&'static str, &'static str> = {
-        let mut m = HashMap::new();
-        m.insert("cpp", "cpp");
-        m.insert("rust", "rust");
-        m.insert("r", "rust");
-        m
+    pub static ref FILETYPE_ALIAS: IndexMap<&'static str, &'static str> = indexmap! {
+        Cpp::language_name() => Cpp::language_name(),
+        Rust::language_name() => Rust::language_name(),
+        "r" => Rust::language_name(),
     };
 }
-
-pub const LANGS: &[Lang] = &[cpp::LANG, rust::LANG];
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -51,11 +86,11 @@ pub enum ErrorKind {
     FileNotFound,
 }
 
-pub fn get_lang() -> Result<Lang> {
-    for lang in LANGS {
-        if Path::new(&lang.src_file_name).exists() {
-            return Ok(lang.clone());
-        }
-    }
-    Err(Error(ErrorKind::FileNotFound))
+pub fn guess_language() -> Result<Box<dyn Language>> {
+    LANGS_MAP
+        .iter()
+        .filter(|(_, (check, _))| check())
+        .map(|(_, (_, ctor))| ctor())
+        .next()
+        .ok_or_else(|| Error(ErrorKind::FileNotFound))
 }
