@@ -1,6 +1,7 @@
 use crate::imp::clip;
 use crate::imp::langs;
-use crate::imp::langs::{Language, Minified};
+use crate::imp::langs::{Language, Minified, Preprocessed};
+use crate::ui::CONFIG;
 use crate::ExitStatus;
 use crate::{eprintln_info, eprintln_tagged, eprintln_warning};
 
@@ -52,9 +53,14 @@ pub fn copy_to_clipboard<L: Language + ?Sized>(quiet: bool, lang: &L) -> Result<
     let preprocessed = lang
         .preprocess(&source)
         .map_err(|source| Error(ErrorKind::PreprocessFailed { source }))?;
-    let minified = lang
-        .minify(&preprocessed)
-        .map_err(|source| Error(ErrorKind::MinifyFailed { source }))?;
+    let minified = if CONFIG.clip.minify {
+        lang.minify(&preprocessed)
+            .map_err(|source| Error(ErrorKind::MinifyFailed { source }))?
+    } else {
+        let Preprocessed(p) = preprocessed;
+        Minified(p)
+    };
+
     let lints = lang.lint(&minified);
     let Minified(minified) = minified;
     let minified = minified + "\n";
