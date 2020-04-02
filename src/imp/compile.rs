@@ -10,6 +10,9 @@ delegate_impl_error_error_kind! {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
+    #[error("compile command is empty")]
+    CompileCommandEmpty,
+
     #[error("failed to spawn compiler; check your installation")]
     SpawningCompilerFailed { source: anyhow::Error },
 
@@ -40,7 +43,10 @@ impl CompilerOutput {
 pub fn compile<L: Language + ?Sized>(lang: &L) -> Result<CompilerOutput> {
     let result = lang
         .compile_command()
-        .output()
+        .into_iter()
+        .map(|mut cmd| cmd.output())
+        .last()
+        .ok_or_else(|| Error(ErrorKind::CompileCommandEmpty))?
         .map_err(|e| Error(ErrorKind::SpawningCompilerFailed { source: e.into() }))?;
 
     let stdout = wrap_output_to_option(&result.stdout).map(output_to_string);

@@ -147,7 +147,7 @@ impl Language for Cpp {
             .unwrap_or(true)
     }
 
-    fn compile_command(&self) -> Command {
+    fn compile_command(&self) -> Vec<Command> {
         let mut cmd = Command::new("clang++");
         let libdir = libdir().display().to_string();
         cmd.arg(format!("-I{}", libdir.escape_default()));
@@ -179,7 +179,7 @@ impl Language for Cpp {
             "-fdiagnostics-color=always",
         ]);
 
-        cmd
+        vec![cmd]
     }
 
     fn run_command(&self) -> Command {
