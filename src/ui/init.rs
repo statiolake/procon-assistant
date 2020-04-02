@@ -1,6 +1,7 @@
 use crate::eprintln_progress;
 use crate::imp::common;
 use crate::imp::config::ConfigFile;
+use crate::imp::config::OpenTarget;
 use crate::imp::langs;
 use crate::ExitStatus;
 use std::path::Path;
@@ -45,7 +46,7 @@ impl Init {
 
         let specified_lang = self
             .lang
-            .unwrap_or_else(|| config.init_default_lang.clone());
+            .unwrap_or_else(|| config.init.default_lang.clone());
 
         let lang =
             langs::FILETYPE_ALIAS
@@ -72,13 +73,12 @@ impl Init {
             .map_err(|_| Error::WaitingForInitFinishFailed)?
             .map_err(|source| Error::InitFailed { source })?;
 
-        let to_open = if config.init_open_directory_instead_of_specific_file {
-            vec![to_open.directory]
-        } else {
-            to_open.files
-        };
+        if config.init.auto_open {
+            let to_open = match config.init.open_target {
+                OpenTarget::Directory => vec![to_open.directory],
+                OpenTarget::Files => to_open.files,
+            };
 
-        if config.init_auto_open {
             common::open_general(&config, &to_open)
                 .map_err(|e| Error::OpeningEditorFailed { source: e.into() })?;
         }

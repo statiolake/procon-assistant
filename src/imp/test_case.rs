@@ -327,7 +327,7 @@ impl Token {
             (TokenKind::String(a), TokenKind::String(b)) => a == b,
             (TokenKind::Uint(a), TokenKind::Uint(b)) => a == b,
             (TokenKind::Int(a), TokenKind::Int(b)) => a == b,
-            (TokenKind::Float(a), TokenKind::Float(b)) => (a - b).abs() < config.eps_for_float,
+            (TokenKind::Float(a), TokenKind::Float(b)) => (a - b).abs() < config.run.eps_for_float,
             _ => false,
         }
     }
@@ -577,7 +577,7 @@ fn wait_or_timeout(
 ) -> Result<(time::Duration, Option<TestResult>)> {
     use self::TestResult::{RuntimeError as RE, TimeLimitExceeded as TLE};
 
-    let timeout = time::Duration::from_millis(config.timeout_milliseconds);
+    let timeout = time::Duration::from_millis(config.run.timeout_milliseconds);
     let timer = time::Instant::now();
     loop {
         // current elapsed time

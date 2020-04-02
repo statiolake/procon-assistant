@@ -76,9 +76,10 @@ lazy_static! {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, thiserror::Error)]
-#[error("failed to get the language for this project")]
-pub struct Error(ErrorKind);
+delegate_impl_error_error_kind! {
+    #[error("failed to get the language for this project")]
+    pub struct Error(ErrorKind);
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {

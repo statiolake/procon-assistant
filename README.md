@@ -1,6 +1,6 @@
 # procon-assistant
 
-assistant program for programming contest.
+assistant program for programming contest.  
 
 ## How to Setup
 

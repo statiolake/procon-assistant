@@ -159,7 +159,7 @@ async fn run<L: Language + ?Sized>(
     eprintln_tagged!(
         "Running": "{} test cases (current timeout is {} millisecs)",
         tcs.len(),
-        config.timeout_milliseconds,
+        config.run.timeout_milliseconds,
     );
 
     let judge_results = tcs.into_iter().map(|tc| {
