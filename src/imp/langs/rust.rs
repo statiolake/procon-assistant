@@ -6,6 +6,9 @@ use crate::ui::CONFIG;
 use anyhow::{anyhow, bail};
 use fs_extra::dir;
 use fs_extra::dir::CopyOptions;
+use itertools::Itertools;
+use lazy_static::lazy_static;
+use regex::Regex;
 use scopefunc::ScopeFunc;
 use scopeguard::defer;
 use std::env;
@@ -31,6 +34,12 @@ pub enum Error {
 }
 
 pub struct Rust;
+
+lazy_static! {
+    static ref RE_MOD_PATH: Regex = Regex::new(r#"#\[path\s+=\s+"(?P<path>.*)"\]"#).unwrap();
+    static ref RE_MOD: Regex = Regex::new(r#"(?:pub\s+)?mod (?P<name>\w+);"#).unwrap();
+    static ref RE_COMMENT: Regex = Regex::new(r#"//.*"#).unwrap();
+}
 
 impl Language for Rust {
     fn check() -> bool {
@@ -142,11 +151,13 @@ impl Language for Rust {
     }
 
     fn preprocess(&self, RawSource(source): &RawSource) -> anyhow::Result<Preprocessed> {
-        Ok(Preprocessed(source.clone()))
+        let source = resolve_mod(Path::new("main/src"), source.clone())?;
+        Ok(Preprocessed(source))
     }
 
     fn minify(&self, Preprocessed(processed): &Preprocessed) -> anyhow::Result<Minified> {
-        Ok(Minified(processed.clone()))
+        let minified = processed.lines().map(|x| x.trim()).join("");
+        Ok(Minified(minified))
     }
 
     fn lint(&self, _minified: &Minified) -> Vec<String> {
@@ -215,8 +226,60 @@ fn generate_local(path: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-// fn get_lib_dir() -> PathBuf {
-//     let mut home_dir = fs::get_home_path();
-//     home_dir.push("procon-lib-rs");
-//     home_dir
-// }
+fn resolve_mod(cwd: &Path, source: String) -> anyhow::Result<String> {
+    let mut result = Vec::new();
+    let mut path_attr = None;
+    for line in source.lines() {
+        if line.trim().is_empty() {
+            result.push("".to_string());
+            continue;
+        }
+
+        match RE_MOD.captures(&line) {
+            None => {
+                match RE_MOD_PATH.captures(&line) {
+                    Some(caps) => path_attr = Some(caps.name("path").unwrap().as_str().to_string()),
+                    None => {
+                        path_attr = None;
+                        result.push(RE_COMMENT.replace_all(line, "").to_string());
+                    }
+                }
+                continue;
+            }
+            Some(caps) => {
+                let mod_name = caps.name("name").unwrap().as_str().to_string();
+                let mod_path = match path_attr {
+                    Some(path) => {
+                        let mut path = PathBuf::from(path);
+                        if !path.is_absolute() {
+                            path = cwd.join(path);
+                        }
+                        path
+                    }
+                    None => {
+                        let file = cwd.join(format!("{}.rs", mod_name));
+                        let dir = cwd.join(format!("{}/mod.rs", mod_name));
+                        eprintln_debug!("searching file: {}", file.display());
+                        eprintln_debug!("searching dir: {}", dir.display());
+
+                        if file.exists() {
+                            file
+                        } else if dir.exists() {
+                            dir
+                        } else {
+                            panic!("failed to find the module");
+                        }
+                    }
+                };
+                let source = stdfs::read_to_string(&mod_path)?;
+                let next_cwd = cwd.join(&mod_name);
+                let replaced = resolve_mod(&next_cwd, source)?;
+                result.push(format!("mod {} {{\n{}\n}}", mod_name, replaced));
+
+                path_attr = None;
+            }
+        };
+    }
+
+    Ok(result.join("\n"))
+}

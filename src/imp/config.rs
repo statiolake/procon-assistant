@@ -30,6 +30,8 @@ pub struct ConfigFile {
     #[serde(default)]
     pub run: Run,
     #[serde(default)]
+    pub clip: Clip,
+    #[serde(default)]
     pub languages: Languages,
 }
 
@@ -75,6 +77,12 @@ pub struct Run {
     pub timeout_milliseconds: u64,
     #[serde(default = "Run::default_eps_for_float")]
     pub eps_for_float: f64,
+}
+
+#[derive(Deserialize)]
+pub struct Clip {
+    #[serde(default = "Clip::default_minify")]
+    pub minify: bool,
 }
 
 #[derive(Deserialize, Default)]
@@ -223,6 +231,20 @@ impl Run {
 
     pub fn default_eps_for_float() -> f64 {
         1e-8
+    }
+}
+
+impl Default for Clip {
+    fn default() -> Self {
+        Clip {
+            minify: Clip::default_minify(),
+        }
+    }
+}
+
+impl Clip {
+    pub fn default_minify() -> bool {
+        true
     }
 }
 
