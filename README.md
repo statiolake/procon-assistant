@@ -1,6 +1,6 @@
 # procon-assistant
 
-assistant program for programming contest.  
+Assistant program for programming contest. Supported languages are C++ and Rust.
 
 ## How to Setup
 
@@ -8,20 +8,37 @@ assistant program for programming contest.
 
 #### Common
 
+1. your favorite editor
+
+    Any kind of editor works well with this program, but especially Vim or
+    Visual Studio Code is useful. Auto-completion and syntax checker integration
+    settings are present, since I usually use them to code.
+
+#### C++
+
 1. clang
 
-    clang is used to compile the binary.
+    clang is used when compiling C++ project.
 
     **Note for Windows** LLVM for Windows (official build) found at
     <http://releases.llvm.org/download.html> is recommended (MinGW on MSYS2
     version may work, but not tested). Make sure your `clang++.exe` executable
     is placed at the directory which is added to `PATH` environment variable.
 
-1. your favorite editor
+#### Rust
 
-    Any kind of editor works well with this program, but especially Vim or
-    Visual Studio Code is useful. Auto-completion and syntax checker
-    integration settings are present, since I usually use them to code.
+1. rustup (or appropriate version of Rust)
+
+    rustup is used when compiling Rust project. If you use rustup you can
+    automatically install appropriate version of Rust toolchain.
+
+    **Note for Windows** Visual C++ Build Tools are required to install Rust.
+    It's bundled with Visual Studio's C++ installation, so if you have Visual
+    Studio installed with C++ functionality on your computer, there's nothing
+    else you should do. On the other hand, if Visual Studio is not installed on
+    your computer, you'll need to install Visual C++ Build Tools. However, it's
+    enough to install just the build tools and doesn't require a full Visual
+    Studio installation.
 
 #### Windows
 
@@ -43,46 +60,71 @@ if one of them is lacking, simply it doesn't compile.
 You can use other features without xclip (though it prints no-such-file error
 when trying to use xclip).
 
-### Create config.json
+### Configuration
 
-This program needs `config.json` in the same directory with the executable
-(usually `target/release/config.json` or somewhere).
+If you want to customize the behavior, you can create a config file. The config
+file should be placed at `<CONFIG_DIR>/procon-assistant/config.json`, where
+`<CONFIG_DIR>` is `%APPDATA%` on Windows, `~/Library/Preferences` on macOS,
+`$XDG_CONFIG_HOME` or `~/.config` on Linux.
 
 An example config is:
 
 ```json
 {
-  "editor": "/path/to/your/favorite/editor",
-  "is_terminal_editor": false,
-  "init_auto_open": true,
-  "init_open_directory_instead_of_specific_file": false,
-  "init_default_lang": "cpp",
-  "addcase_give_argument_once": false,
-  "timeout_milliseconds": 3000,
-  "eps_for_float": 1e-8,
+  "general": {
+    "editor_command": ["code.exe", "%PATHS%"],
+    "wait_for_editor_finish": false
+  },
+  "init": {
+    "auto_open": true,
+    "open_target": "directory",
+    "default_lang": "cpp"
+  },
+  "addcase": {
+    "give_argument_once": true,
+    "editor_command": ["code.exe", "%PATHS%"],
+    "wait_for_editor_finish": false
+  },
+  "run": {
+    "timeout_milliseconds": 3000,
+    "eps_for_float": 1e-8
+  },
+  "languages": {
+    "rust": {
+      "project_template": {
+        "type": "git",
+        "repository": "https://github.com/rust-lang-ja/atcoder-rust-base",
+        "branch": "ja"
+      },
+      "needs_pre_compile": true
+    }
+  }
 }
+
 ```
 
-Short description for each variable is as follows:
+TODO: descriptions
 
-| name | type | description |
-|------|------|-------------|
-| editor | boolean | The path of your editor |
-| is_terminal_editor | boolean | if the editor is used within the terminal; this matters `addcase` command waits the editor's finish or not. `addcase` opens two file, `inX.txt` and `outX.txt`. When true, addcase waits the editor's finish before opening `outX.txt`. Otherwise `addcase` spawns the editor opening `outX.txt` before the finish of the first editor opening `inX.txt`. |
-| init_auto_open | boolean | If true, open initialized file or project with the editor to start coding. |
-| init_open_directory_instead_of_specific_file | boolean | If true, the project directory name is specified instead of the `main.cpp`. This is useful for Visual Studio Code, which treat one directory as a workspace. |
-| init_default_lang | string | The default language to be initialized if the language is not specified by the command-line argument. currently, `cpp` and `rust` are supported. |
-| addcase_give_argument_once | boolean | If true, two filenames (`inX.txt`, `outX.txt`) will be passed to the editor at once. |
-| timeout_milliseconds | u64 | The timeout milliseconds to treat the solution Time Limit Exceeded (TLE). |
-| eps_for_float | f64 | The amount of error allowed for floating point numbers. |
+### Template directory
 
-### Copy or create symlink (or junction in Windows) to `template` directory
+`<CONFIG_DIR>/template` is a template directory. `<CONFIG_DIR>/template/<LANG>`
+is a template directory for each language (`<LANG>` is language id like `cpp`,
+`rust`).  The usage of each template directory is completely depends on the
+language.
 
-`init` command generates various files. Templates for these generated files
-are in `template` directory, so this program needs `template` directory is at
-the same place the executable exists. Of course, you can simply copy them to
-the same directory, but to avoid inconsistency I recommend making them as a
-link.
+#### `cpp`, C++
+
+In C++, files under the template directory is generated to the project directory
+when `init` command is executed. Some variables such as `$PROJECT_PATH` in the
+file are replaced to the appropriate values. For example template, this
+repository contains `template` directory in the root.
+
+#### `rust`, Rust
+
+Rust does not use the template directory. You can freely use the directory to
+place Rust-related resources. For example, you can create a project template
+under `<CONFIG_DIR>/template/rust` and specify the directory as a template
+directory in the `config.json`.
 
 ## Usage
 
