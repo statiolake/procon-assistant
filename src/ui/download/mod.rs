@@ -22,9 +22,10 @@ pub struct Download {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, thiserror::Error)]
-#[error("failed to download: {0}")]
-pub struct Error(ErrorKind);
+delegate_impl_error_error_kind! {
+    #[error("failed to download")]
+    pub struct Error(ErrorKind);
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {

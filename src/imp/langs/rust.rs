@@ -71,7 +71,7 @@ impl Language for Rust {
 
             let _ = sender.send("generating new cargo project".into());
             // generate a project
-            match &CONFIG.rust_config.project_template {
+            match &CONFIG.languages.rust.project_template {
                 RustProjectTemplate::Git { repository, branch } => {
                     generate_git(repository, branch)?
                 }

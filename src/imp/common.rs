@@ -46,7 +46,7 @@ fn spawn_editor(config: &ConfigFile, process_name: &str, cmds: Vec<Command>) -> 
         cmd.stdin(Stdio::inherit())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
-        let res = if config.is_terminal_editor {
+        let res = if config.general.wait_for_editor_finish {
             cmd.spawn().and_then(|mut child| child.wait()).map(drop)
         } else {
             cmd.spawn().map(drop)
@@ -67,12 +67,12 @@ fn open_addcase_cmds<'a>(
     config: &'a ConfigFile,
     names: &[&str],
 ) -> Result<(&'a str, Vec<Command>)> {
-    let mut editor_command = config.addcase_editor_command.iter().map(String::as_str);
+    let mut editor_command = config.addcase.editor_command.iter().map(String::as_str);
     let process_name = editor_command.next().unwrap_or("");
     let editor_command = editor_command.collect_vec();
 
     let mut commands = Vec::new();
-    if config.addcase_give_argument_once {
+    if config.addcase.give_argument_once {
         let command = make_editor_command(process_name, &editor_command, names);
         commands.push(command);
     } else {
@@ -89,7 +89,7 @@ fn open_general_cmds<'a>(
     config: &'a ConfigFile,
     names: &[&str],
 ) -> Result<(&'a str, Vec<Command>)> {
-    let mut editor_command = config.editor_command.iter().map(|x| x as &str);
+    let mut editor_command = config.general.editor_command.iter().map(|x| x as &str);
     let process_name = editor_command.next().unwrap_or("");
     let editor_command = editor_command.collect_vec();
 

@@ -8,9 +8,10 @@ const SERVICE_NAME: &str = "atcoder";
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, thiserror::Error)]
-#[error("authenticated operation failed")]
-pub struct Error(ErrorKind);
+delegate_impl_error_error_kind! {
+    #[error("authenticated operation failed")]
+    pub struct Error(ErrorKind);
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
