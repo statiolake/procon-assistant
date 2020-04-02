@@ -179,7 +179,7 @@ fn generate_git(repository: &str, branch: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn generate_local(path: &str) -> anyhow::Result<()> {
+fn generate_local(path: &Path) -> anyhow::Result<()> {
     dir::copy(path, "main", &CopyOptions::new())
         .map_err(|e| Error::GeneratingProjectFailed { source: e.into() })?;
 

@@ -1,5 +1,6 @@
 use serde_derive::Deserialize;
 use std::fs::File;
+use std::path::PathBuf;
 use which::which;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -79,7 +80,15 @@ pub struct Run {
 #[derive(Deserialize, Default)]
 pub struct Languages {
     #[serde(default)]
+    pub cpp: Cpp,
+    #[serde(default)]
     pub rust: Rust,
+}
+
+#[derive(Deserialize)]
+pub struct Cpp {
+    #[serde(default = "Cpp::default_template_dir")]
+    pub template_dir: PathBuf,
 }
 
 #[derive(Deserialize)]
@@ -97,14 +106,12 @@ pub enum RustProjectTemplate {
     Git { repository: String, branch: String },
 
     #[serde(rename = "local")]
-    Local { path: String },
+    Local { path: PathBuf },
 }
 
 impl ConfigFile {
     pub fn get_config() -> Result<ConfigFile> {
-        let config_path = current_exe::current_exe()
-            .unwrap()
-            .with_file_name("config.json");
+        let config_path = config_dir().join("config.json");
 
         let file = match File::open(&config_path) {
             Ok(f) => f,
@@ -219,6 +226,20 @@ impl Run {
     }
 }
 
+impl Default for Cpp {
+    fn default() -> Self {
+        Cpp {
+            template_dir: Cpp::default_template_dir(),
+        }
+    }
+}
+
+impl Cpp {
+    pub fn default_template_dir() -> PathBuf {
+        config_dir().join("template").join("cpp")
+    }
+}
+
 impl Default for Rust {
     fn default() -> Self {
         Rust {
@@ -239,4 +260,8 @@ impl Rust {
     pub fn default_needs_pre_compile() -> bool {
         true
     }
+}
+
+pub fn config_dir() -> PathBuf {
+    dirs::config_dir().unwrap().join("procon-assistant")
 }

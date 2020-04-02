@@ -1,15 +1,18 @@
 use super::Language;
 use super::{FilesToOpen, Minified, Preprocessed, Progress, RawSource};
-use crate::imp::fs;
+use crate::imp::fs as impfs;
+use crate::ui::CONFIG;
 use crate::{eprintln_debug, eprintln_debug_more};
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::cmp::Ordering;
 use std::collections::HashSet;
+use std::fs as stdfs;
 use std::mem;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use walkdir::WalkDir;
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -33,8 +36,14 @@ pub enum Error {
         path: PathBuf,
     },
 
-    #[error("reading from template `{name}` failed")]
-    ReadingTemplateFailed { source: anyhow::Error, name: String },
+    #[error("reading template directory failed")]
+    ReadingTemplateDirectoryFailed { source: anyhow::Error },
+
+    #[error("reading from template `{}` failed", .path.display())]
+    ReadingTemplateFailed {
+        source: anyhow::Error,
+        path: PathBuf,
+    },
 
     #[error("creating directory `{}` failed", .path.display())]
     CreateDestinationDirectoryFailed {
@@ -89,28 +98,38 @@ impl Language for Cpp {
     }
 
     fn get_source(&self) -> anyhow::Result<RawSource> {
-        std::fs::read_to_string(Path::new("main.cpp"))
+        stdfs::read_to_string(Path::new("main.cpp"))
             .map(RawSource)
             .map_err(Into::into)
     }
 
     fn init_async(&self, path: &Path) -> Progress<anyhow::Result<FilesToOpen>> {
-        const FILES: &[&str] = &[
-            "compile_commands.json",
-            ".vscode/c_cpp_properties.json",
-            ".vscode/tasks.json",
-            ".vscode/launch.json",
-        ];
-
         let path_project = path.to_path_buf();
         Progress::from_fn(move |sender| {
+            let template_dir = &CONFIG.languages.cpp.template_dir;
+
             let _ = sender.send("creating project directory".into());
             create_project_directory(&path_project)?;
 
-            safe_generate(&path_project, Path::new("main.cpp"))?;
-            for file in FILES {
-                let _ = sender.send(format!("generating `{}`", file));
-                let path = Path::new(file);
+            for entry in WalkDir::new(template_dir).min_depth(1) {
+                let entry = entry
+                    .map_err(|e| Error::ReadingTemplateDirectoryFailed { source: e.into() })?;
+
+                let is_file = entry
+                    .metadata()
+                    .map_err(|e| Error::ReadingTemplateDirectoryFailed { source: e.into() })?
+                    .is_file();
+
+                if !is_file {
+                    continue;
+                }
+
+                let path = entry
+                    .path()
+                    .strip_prefix(template_dir)
+                    .map_err(|e| Error::ReadingTemplateDirectoryFailed { source: e.into() })?;
+
+                let _ = sender.send(format!("generating `{}`", path.display()));
                 safe_generate(&path_project, path)?;
             }
 
@@ -123,7 +142,7 @@ impl Language for Cpp {
 
     fn needs_compile(&self) -> bool {
         let target = if cfg!(windows) { "main.exe" } else { "main" };
-        fs::cmp_modified_time("main.cpp", target)
+        impfs::cmp_modified_time("main.cpp", target)
             .map(|ord| ord == Ordering::Greater)
             .unwrap_or(true)
     }
@@ -222,13 +241,13 @@ impl Language for Cpp {
 }
 
 fn libdir() -> PathBuf {
-    let mut home_dir = fs::get_home_path();
+    let mut home_dir = impfs::get_home_path();
     home_dir.push("procon-lib");
     home_dir
 }
 
 fn create_project_directory(path_project: &Path) -> Result<()> {
-    std::fs::create_dir_all(path_project).map_err(|e| Error::CreateDestinationDirectoryFailed {
+    stdfs::create_dir_all(path_project).map_err(|e| Error::CreateDestinationDirectoryFailed {
         source: e.into(),
         path: path_project.to_path_buf(),
     })
@@ -246,21 +265,15 @@ fn safe_generate(path_project: &Path, path: &Path) -> Result<()> {
 }
 
 fn generate(path_project_root: &Path, path: &Path) -> Result<()> {
-    let exe_dir = current_exe::current_exe().unwrap();
-    let exe_dir = exe_dir.parent().unwrap();
-    let path_template = exe_dir
-        .join("template")
-        .join(Cpp::language_name())
-        .join(path);
+    let path_template = CONFIG.languages.cpp.template_dir.join(path);
     let path_project = path_project_root.join(path);
 
-    let path_template_string = path_template.display().to_string();
-    eprintln_debug!("loading template from `{}`", path_template_string);
+    eprintln_debug!("loading template from `{}`", path_template.display());
 
     let template =
-        std::fs::read_to_string(path_template).map_err(|e| Error::ReadingTemplateFailed {
+        stdfs::read_to_string(&path_template).map_err(|e| Error::ReadingTemplateFailed {
             source: e.into(),
-            name: path_template_string.clone(),
+            path: path_template,
         })?;
 
     let abs_path_project_root = to_absolute::to_absolute_from_current_dir(path_project_root)
@@ -275,13 +288,13 @@ fn generate(path_project_root: &Path, path: &Path) -> Result<()> {
 
 fn write_file_ensure_parent_dirs(path: &Path, contents: &str) -> Result<()> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| Error::CreateDestinationDirectoryFailed {
+        stdfs::create_dir_all(parent).map_err(|e| Error::CreateDestinationDirectoryFailed {
             source: e.into(),
             path: parent.to_path_buf(),
         })?;
     }
 
-    std::fs::write(path, contents).map_err(|e| Error::WriteToDestinationFailed {
+    stdfs::write(path, contents).map_err(|e| Error::WriteToDestinationFailed {
         source: e.into(),
         path: path.to_path_buf(),
     })
@@ -343,7 +356,7 @@ fn parse_include(
                 .expect("internal error: cannot extract parent");
 
             let source =
-                std::fs::read_to_string(&inc_path).map_err(|e| Error::ReadingSourceFailed {
+                stdfs::read_to_string(&inc_path).map_err(|e| Error::ReadingSourceFailed {
                     source: e.into(),
                     path: inc_path.clone(),
                 })?;
