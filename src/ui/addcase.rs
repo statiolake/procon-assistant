@@ -1,6 +1,5 @@
 use crate::eprintln_tagged;
 use crate::imp::common;
-use crate::imp::config::ConfigFile;
 use crate::imp::test_case::TestCase;
 use crate::ExitStatus;
 
@@ -17,9 +16,6 @@ delegate_impl_error_error_kind! {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
-    #[error("failed to get user config")]
-    GettingConfigFailed { source: anyhow::Error },
-
     #[error("failed to set up test case")]
     TestCaseSettingUpFailed { source: anyhow::Error },
 
@@ -32,9 +28,6 @@ pub enum ErrorKind {
 
 impl AddCase {
     pub fn run(self, _quiet: bool) -> Result<ExitStatus> {
-        let config: ConfigFile = ConfigFile::get_config()
-            .map_err(|e| Error(ErrorKind::GettingConfigFailed { source: e.into() }))?;
-
         // Create empty test case
         let idx = TestCase::next_unused_idx()
             .map_err(|e| Error(ErrorKind::TestCaseSettingUpFailed { source: e.into() }))?;
@@ -46,7 +39,7 @@ impl AddCase {
 
         eprintln_tagged!("Created": "{}, {}", tsf.if_name, tsf.of_name);
 
-        common::open_addcase(&config, &[&tsf.if_name, &tsf.of_name])
+        common::open_addcase(&[&tsf.if_name, &tsf.of_name])
             .map_err(|e| Error(ErrorKind::FileOpeningFailed { source: e.into() }))?;
 
         Ok(ExitStatus::Success)

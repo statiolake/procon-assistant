@@ -1,4 +1,3 @@
-use crate::imp::config::ConfigFile;
 use crate::imp::langs;
 use crate::imp::langs::Language;
 use crate::imp::test_case;
@@ -9,6 +8,7 @@ use crate::imp::test_case::{
 use crate::ui::clip;
 use crate::ui::compile;
 use crate::ui::print_macros::TAG_WIDTH;
+use crate::ui::CONFIG;
 use crate::ExitStatus;
 use crate::{eprintln_debug, eprintln_info, eprintln_more, eprintln_tagged, eprintln_warning};
 use console::Style;
@@ -54,9 +54,6 @@ delegate_impl_error_error_kind! {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
-    #[error("failed to get the config")]
-    GettingConfigFailed { source: anyhow::Error },
-
     #[error("failed to compile")]
     CompilationFailed { source: anyhow::Error },
 
@@ -81,15 +78,13 @@ pub enum ErrorKind {
 
 impl Run {
     pub fn run(self, quiet: bool) -> Result<ExitStatus> {
-        let config = ConfigFile::get_config()
-            .map_err(|e| Error(ErrorKind::GettingConfigFailed { source: e.into() }))?;
         let lang = langs::guess_language()
             .map_err(|e| Error(ErrorKind::GettingLanguageFailed { source: e.into() }))?;
         let status = compile::compile(quiet, &*lang, self.force_compile)
             .map_err(|e| Error(ErrorKind::CompilationFailed { source: e.into() }))?;
         let result = if status == ExitStatus::Success {
             async_std::task::block_on(async {
-                run_tests(quiet, &config, &*lang, &self.to_run)
+                run_tests(quiet, &*lang, &self.to_run)
                     .await
                     .map_err(|e| Error(ErrorKind::RunningTestsFailed { source: e.into() }))
             })?
@@ -117,12 +112,11 @@ impl Run {
 
 async fn run_tests<L: Language + ?Sized>(
     quiet: bool,
-    config: &ConfigFile,
     lang: &L,
     args: &[String],
 ) -> Result<TestResult> {
     let tcs = enumerate_test_cases(&args)?;
-    run(quiet, config, lang, tcs).await
+    run(quiet, lang, tcs).await
 }
 
 fn parse_argument_cases(args: &[String]) -> Result<Vec<TestCase>> {
@@ -152,19 +146,18 @@ fn enumerate_test_cases(args: &[String]) -> Result<Vec<TestCase>> {
 
 async fn run<L: Language + ?Sized>(
     quiet: bool,
-    config: &ConfigFile,
     lang: &L,
     tcs: Vec<TestCase>,
 ) -> Result<TestResult> {
     eprintln_tagged!(
         "Running": "{} test cases (current timeout is {} millisecs)",
         tcs.len(),
-        config.run.timeout_milliseconds,
+        CONFIG.run.timeout_milliseconds,
     );
 
     let judge_results = tcs.into_iter().map(|tc| {
         let cmd = lang.run_command();
-        async move { (tc.to_string(), tc.judge(config, cmd)) }
+        async move { (tc.to_string(), tc.judge(cmd)) }
     });
 
     // wait for finish of all threads
