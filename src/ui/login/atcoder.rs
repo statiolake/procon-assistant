@@ -18,15 +18,15 @@ impl AtCoder {
     pub fn run(self, quiet: bool) -> Result<()> {
         AtCoder
             .authenticate(quiet)
-            .map_err(|e| Error::LoginFailed { source: e.into() })
+            .map_err(|source| Error::LoginFailed { source })
     }
 }
 
 impl LoginUI for AtCoder {
-    fn authenticate(&self, quiet: bool) -> anyhow::Result<()> {
+    fn authenticate(&self, _quiet: bool) -> anyhow::Result<()> {
         let (username, password) = auth::ask_account_info("AtCoder");
         eprintln_tagged!("Logging in": "to AtCoder");
-        auth::atcoder::login(quiet, username, password)?;
+        auth::atcoder::login(&username, &password)?;
         eprintln_tagged!("Finished": "fetching code; successfully saved");
 
         Ok(())

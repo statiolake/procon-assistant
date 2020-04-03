@@ -15,7 +15,7 @@ pub enum Error {
 impl Aoj {
     pub fn run(self, quiet: bool) -> Result<()> {
         Aoj.authenticate(quiet)
-            .map_err(|e| Error::LoginFailed { source: e.into() })
+            .map_err(|source| Error::LoginFailed { source })
     }
 }
 

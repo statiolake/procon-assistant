@@ -69,7 +69,7 @@ impl Problem {
             let contest_id = problem_id[0..6].to_string();
             let problem = problem_id[6..7].to_string();
             let url = format!(
-                "https://beta.atcoder.jp/contests/{}/tasks/{}_{}",
+                "https://atcoder.jp/contests/{}/tasks/{}_{}",
                 contest_id, contest_id, problem
             );
             Problem::ProblemId {
