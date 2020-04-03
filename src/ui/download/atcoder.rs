@@ -60,7 +60,7 @@ impl Contest {
             if contest_id.len() != 6 {
                 return Err(Error::InvalidFormatForContestId { contest_id });
             }
-            let url = format!("https://beta.atcoder.jp/contests/{}/tasks", contest_id);
+            let url = format!("https://atcoder.jp/contests/{}/tasks", contest_id);
             Contest::ContestId { contest_id, url }
         };
         Ok(contest)
@@ -126,7 +126,7 @@ fn fetcher_into_box<T: 'static + TestCaseProvider>(x: T) -> Box<dyn TestCaseProv
 // Result<(beginning_char, numof_problems)>
 fn get_range_of_problems(contest_id: &str) -> Result<(char, u8)> {
     // fetch the tasks
-    let url = format!("https://beta.atcoder.jp/contests/{}/tasks", contest_id);
+    let url = format!("https://atcoder.jp/contests/{}/tasks", contest_id);
     let text =
         download_text(&url).map_err(|e| Error::GettingProblemPageFailed { source: e.into() })?;
 

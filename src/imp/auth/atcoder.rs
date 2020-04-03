@@ -1,10 +1,15 @@
-use crate::{eprintln_debug, eprintln_info};
+use crate::eprintln_debug;
+use anyhow::anyhow;
+use itertools::Itertools;
+use maplit::hashmap;
 use reqwest::blocking::{Client, ClientBuilder, RequestBuilder, Response};
 use reqwest::header;
-use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::header::GetAll;
+use reqwest::header::HeaderValue;
 use reqwest::redirect::Policy;
 use reqwest::StatusCode;
 use scraper::{Html, Selector};
+use std::collections::HashMap;
 
 const SERVICE_NAME: &str = "atcoder";
 
@@ -17,224 +22,194 @@ delegate_impl_error_error_kind! {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
-    #[error("session info has invalid utf-8")]
-    InvalidUtf8SessionInfo { source: anyhow::Error },
+    #[error("failed to initialize a client")]
+    ClientInitializationFailed { source: anyhow::Error },
 
-    #[error("failed to send your request")]
-    RequestingError { source: anyhow::Error },
+    #[error("failed to load a session")]
+    LoadingSessionFailed { source: anyhow::Error },
 
     #[error("failed to fetch login page")]
     FetchingLoginPageFailed { source: anyhow::Error },
 
-    #[error("failed to parse received HTML")]
-    ParsingHtmlFailed { source: anyhow::Error },
-
-    #[error("getting csrf token failed")]
-    GettingCsrfTokenFailed,
-
-    #[error("csrf token has no attribute value")]
-    CsrfTokenMissingValue,
-
-    #[error("failed to post username and password")]
+    #[error("failed to post account info")]
     PostingAccountInfoFailed { source: anyhow::Error },
 
-    #[error("logging in failed; check your username and password")]
-    LoginUnsuccessful,
+    #[error("failed to authenticate: invalid username or password")]
+    InvalidAuthInfo,
 
-    #[error("invalid header value")]
-    InvalidHeaderValue { source: anyhow::Error },
-
-    #[error("failed to find REVEL_SESSION")]
-    MissingRevelSession,
-
-    #[error("failed to store REVEL_SESSION")]
-    StoringRevelSessionFailed { source: anyhow::Error },
-
-    #[error("HTTP status not OK: {:?}", status)]
+    #[error("invalid HTTP status")]
     HTTPStatusNotOk { status: StatusCode },
+
+    #[error("failed to fetch a page")]
+    RequestingError { source: anyhow::Error },
 }
 
-pub fn login(quiet: bool, username: String, password: String) -> Result<()> {
-    let (cookie, csrf_token) = get_cookie_and_csrf_token(quiet)?;
-    let cookie = login_get_cookie(cookie, username, password, csrf_token)?;
-    let revel_session = find_revel_session(cookie)?;
-    super::store_session_info(SERVICE_NAME, revel_session.as_bytes())
-        .map_err(|e| Error(ErrorKind::StoringRevelSessionFailed { source: e.into() }))?;
+struct CookieStore {
+    cookies: HashMap<String, String>,
+}
+
+impl CookieStore {
+    pub fn new() -> CookieStore {
+        CookieStore {
+            cookies: HashMap::new(),
+        }
+    }
+
+    pub fn load_from_session() -> anyhow::Result<CookieStore> {
+        let cookies = super::load_session_info(SERVICE_NAME)?;
+        let cookies = String::from_utf8_lossy(&cookies).into_owned();
+        let cookies = cookies
+            .lines()
+            .map(|l| l.split('\t').map(ToString::to_string).collect_vec())
+            .map(|e| (e[0].clone(), e[1].clone()))
+            .collect();
+
+        Ok(CookieStore { cookies })
+    }
+
+    pub fn save_to_session(&self) -> anyhow::Result<()> {
+        let cookies = self
+            .cookies
+            .iter()
+            .map(|(k, v)| format!("{}\t{}", k, v))
+            .join("\n");
+        super::store_session_info(SERVICE_NAME, cookies.as_bytes())?;
+
+        Ok(())
+    }
+
+    pub fn with_cookie(&mut self, req: RequestBuilder) -> anyhow::Result<Response> {
+        let cookies = self
+            .cookies
+            .iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .join(";");
+        let cookies = HeaderValue::from_str(&cookies)?;
+        let req = req.header(header::COOKIE, cookies);
+        let resp = req.send()?;
+        self.update_cookie(resp.headers().get_all(header::SET_COOKIE));
+
+        Ok(resp)
+    }
+
+    fn update_cookie(&mut self, cookie: GetAll<HeaderValue>) {
+        let new_cookies: HashMap<String, String> = cookie
+            .into_iter()
+            .filter_map(|x| x.to_str().ok())
+            .flat_map(|cookiestr| cookiestr.split(';'))
+            .filter_map(|raw_value| {
+                let mut split = raw_value.splitn(2, '=');
+                let name = split.next()?.trim().to_string();
+                let value = split.next()?.trim().to_string();
+                eprintln_debug!("set-cookie: {} -> '{}'='{}'", raw_value, name, value);
+                Some((name, value))
+            })
+            .collect();
+        self.cookies.extend(new_cookies);
+    }
+}
+
+impl Drop for CookieStore {
+    fn drop(&mut self) {
+        // we need to ignore the error
+        let _ = self.save_to_session();
+    }
+}
+
+pub fn login(username: &str, password: &str) -> Result<()> {
+    let mut store = CookieStore::new();
+
+    // access the login page and get csrf_token
+    let csrf_token = access_login_page(&mut store)
+        .map_err(|source| Error(ErrorKind::FetchingLoginPageFailed { source }))?;
+
+    // post user authentication info
+    let success = post_account_info(&mut store, username, password, &csrf_token)
+        .map_err(|source| Error(ErrorKind::PostingAccountInfoFailed { source }))?;
+
+    if !success {
+        return Err(Error(ErrorKind::InvalidAuthInfo));
+    }
 
     Ok(())
 }
 
-pub fn authenticated_get(url: &str) -> Result<Response> {
-    let client = Client::new();
-    let mut builder = client.get(url);
-    builder = add_auth_info_to_builder_if_possible(builder)?;
-    let mut res = builder
-        .send()
-        .map_err(|e| Error(ErrorKind::RequestingError { source: e.into() }))?;
-    store_revel_session_from_response(&mut res)?;
-    Ok(res)
+fn new_client() -> Result<Client> {
+    ClientBuilder::new()
+        .redirect(Policy::none())
+        .build()
+        .map_err(|e| Error(ErrorKind::ClientInitializationFailed { source: e.into() }))
 }
 
-fn add_auth_info_to_builder_if_possible(mut builder: RequestBuilder) -> Result<RequestBuilder> {
-    fn cleanup() {
-        super::clear_session_info(SERVICE_NAME)
-            .expect("critical error: failed to clean session info");
-        eprintln_debug!("cleared session info to avoid continuous error");
-    }
+fn access_login_page(store: &mut CookieStore) -> anyhow::Result<String> {
+    eprintln_debug!("fetching login page");
+    let req = new_client()?.get("https://atcoder.jp/login");
+    let res = store.with_cookie(req)?;
+    result_check(&res)?;
+    let csrf_token = parse_csrf_token(res)?;
 
-    if let Ok(revel_session) = super::load_session_info(SERVICE_NAME) {
-        eprintln_debug!("found sesion info, try to use it");
-        let revel_session = match String::from_utf8(revel_session) {
-            Ok(v) => v.trim().to_string(),
-            Err(e) => {
-                cleanup();
-                return Err(Error(ErrorKind::InvalidUtf8SessionInfo {
-                    source: e.into(),
-                }));
-            }
-        };
-
-        builder = builder.header(header::COOKIE, format!("REVEL_SESSION={}", revel_session));
-    }
-
-    Ok(builder)
+    Ok(csrf_token)
 }
 
-fn store_revel_session_from_response(res: &mut Response) -> Result<()> {
-    let cookie = extract_setcookie(res.headers());
-    let revel_session = find_revel_session(cookie)?;
-    super::store_session_info(SERVICE_NAME, revel_session.as_bytes())
-        .map_err(|e| Error(ErrorKind::StoringRevelSessionFailed { source: e.into() }))
-}
-
-fn get_cookie_and_csrf_token(quiet: bool) -> Result<(Vec<(String, String)>, String)> {
-    if !quiet {
-        eprintln_info!("fetching login page");
-    }
-    let client = Client::new();
-    let res = client
-        .get("https://beta.atcoder.jp/login")
-        .send()
-        .map_err(|e| Error(ErrorKind::FetchingLoginPageFailed { source: e.into() }))?;
-
+/// Posts account information. Returns true if the login was successful
+fn post_account_info(
+    store: &mut CookieStore,
+    username: &str,
+    password: &str,
+    csrf_token: &str,
+) -> anyhow::Result<bool> {
+    let req = new_client()?
+        .post("https://atcoder.jp/login")
+        .form(&hashmap! {
+            "username" => username,
+            "password" => password,
+            "csrf_token" => csrf_token,
+        });
+    let res = store.with_cookie(req)?;
     result_check(&res)?;
 
-    let cookie = extract_setcookie(res.headers());
-    let csrf_token = get_csrf_token_from_response(res)?;
-
-    Ok((cookie, csrf_token))
+    Ok(store.cookies["REVEL_FLASH"].contains("success"))
 }
 
-fn get_csrf_token_from_response(res: Response) -> Result<String> {
-    let doc = res
-        .text()
-        .map(|res| Html::parse_document(&res))
-        .map_err(|e| Error(ErrorKind::ParsingHtmlFailed { source: e.into() }))?;
+fn parse_csrf_token(res: Response) -> anyhow::Result<String> {
+    let text = res.text()?;
+    let doc = Html::parse_document(&text);
     let sel_csrf_token = Selector::parse("input[name=csrf_token]").unwrap();
     let csrf_token_tag = doc
         .select(&sel_csrf_token)
         .next()
-        .ok_or_else(|| Error(ErrorKind::GettingCsrfTokenFailed))?;
-    let csrf_token_tag_value = csrf_token_tag
+        .ok_or_else(|| anyhow!("failed to find csrf_token"))?;
+    let csrf_token = csrf_token_tag
         .value()
         .attr("value")
-        .ok_or_else(|| Error(ErrorKind::CsrfTokenMissingValue))?;
+        .ok_or_else(|| anyhow!("failed to get csrf_token value"))?;
 
-    Ok(csrf_token_tag_value.to_string())
-}
-
-fn login_get_cookie(
-    cookie: Vec<(String, String)>,
-    username: String,
-    password: String,
-    csrf_token: String,
-) -> Result<Vec<(String, String)>> {
-    let client = make_client().expect("critical error: creating client failed");
-    let params: [(&str, &str); 3] = [
-        ("username", &username),
-        ("password", &password),
-        ("csrf_token", &csrf_token),
-    ];
-    let post_cookie = make_post_cookie(cookie)?;
-    eprintln_debug!("post: cookie: {:?}", post_cookie);
-    let res = post(client, &params, post_cookie)
-        .map_err(|e| Error(ErrorKind::PostingAccountInfoFailed { source: e.into() }))?;
-
-    result_check(&res)?;
-
-    if !is_login_succeeded(&res)? {
-        return Err(Error(ErrorKind::LoginUnsuccessful));
-    }
-
-    let cookie = extract_setcookie(res.headers());
-
-    Ok(cookie)
-}
-
-fn make_client() -> reqwest::Result<Client> {
-    ClientBuilder::new().redirect(Policy::none()).build()
-}
-
-fn make_post_cookie(cookie: Vec<(String, String)>) -> Result<HeaderValue> {
-    let mut post_cookie = Vec::new();
-    for (head, value) in cookie {
-        post_cookie.push(format!("{}={}", head, value));
-    }
-    HeaderValue::from_str(&post_cookie.join("; "))
-        .map_err(|e| Error(ErrorKind::InvalidHeaderValue { source: e.into() }))
-}
-
-fn post(
-    client: Client,
-    params: &[(&str, &str)],
-    post_cookie: HeaderValue,
-) -> reqwest::Result<Response> {
-    let builder = client
-        .post("https://beta.atcoder.jp/login")
-        .form(params)
-        .header(header::COOKIE, post_cookie);
-    builder.send()
-}
-
-fn is_login_succeeded(res: &Response) -> Result<bool> {
-    let loc = res.headers().get(header::LOCATION).unwrap();
-    loc.to_str()
-        .map(|loc| loc == "/")
-        .map_err(|e| Error(ErrorKind::InvalidHeaderValue { source: e.into() }))
-}
-
-fn extract_setcookie(header: &HeaderMap) -> Vec<(String, String)> {
-    let mut res: Vec<_> = header
-        .get_all(header::SET_COOKIE)
-        .into_iter()
-        .filter_map(|x| x.to_str().ok())
-        .flat_map(|cookiestr| cookiestr.split(';'))
-        .filter_map(|raw_value| {
-            let mut split = raw_value.splitn(2, '=');
-            let name = split.next()?.trim().to_string();
-            let value = split.next()?.trim().to_string();
-            eprintln_debug!("set-cookie: {} -> '{}'='{}'", raw_value, name, value);
-            Some((name, value))
-        })
-        .collect();
-    res.sort();
-    res.dedup();
-    res
-}
-
-fn find_revel_session(cookie: Vec<(String, String)>) -> Result<String> {
-    cookie
-        .into_iter()
-        .find(|c| c.0 == "REVEL_SESSION")
-        .ok_or_else(|| Error(ErrorKind::MissingRevelSession))
-        .map(|c| c.1)
+    Ok(csrf_token.to_string())
 }
 
 fn result_check(res: &Response) -> Result<()> {
     eprintln_debug!("response: {:?}", res);
     let status = res.status();
     match status {
-        StatusCode::OK | StatusCode::FOUND => Ok(()),
+        StatusCode::OK | StatusCode::FOUND | StatusCode::MOVED_PERMANENTLY => Ok(()),
         _ => Err(Error(ErrorKind::HTTPStatusNotOk { status })),
     }
+}
+
+pub fn authenticated_get(url: &str) -> Result<Response> {
+    let mut store = CookieStore::load_from_session()
+        .map_err(|source| Error(ErrorKind::LoadingSessionFailed { source }))?;
+
+    let req = new_client()?.get(url);
+    let res = store
+        .with_cookie(req)
+        .map_err(|source| Error(ErrorKind::RequestingError { source }))?;
+
+    if cfg!(debug_assertions) {
+        let req = new_client().unwrap().get(url);
+        let res = store.with_cookie(req).unwrap();
+        eprintln_debug!("response: {:?}", res.text().unwrap());
+    }
+
+    Ok(res)
 }

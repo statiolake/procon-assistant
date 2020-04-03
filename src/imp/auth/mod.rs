@@ -1,4 +1,5 @@
 use crate::eprintln_debug;
+use crate::imp::config;
 use std::fs;
 use std::fs::File;
 use std::io;
@@ -23,15 +24,12 @@ pub fn ask_account_info(service_name: &str) -> (String, String) {
 }
 
 pub fn place_to_store(service_name: &str) -> PathBuf {
-    let mut place_to_store = current_exe::current_exe()
-        .expect("critical error: failed to get current executable path")
-        .parent()
-        .expect("critical error: failed to get parent directory of current executable")
-        .to_path_buf();
-    place_to_store.push("auth_info");
-    place_to_store.push(service_name);
+    let mut path = config::config_dir();
+    path.push("auth_info");
+    fs::create_dir_all(&path).expect("critical error: failed to create auth_info directory");
+    path.push(service_name);
 
-    place_to_store
+    path
 }
 
 pub fn clear_session_info(service_name: &str) -> io::Result<()> {
