@@ -19,7 +19,6 @@ pub fn login(_username: String, _password: String) -> Result<String> {
     Err(Error(ErrorKind::UnsupportedAction))
 }
 
-pub fn authenticated_get(url: &str) -> Result<reqwest::Response> {
-    async_std::task::block_on(reqwest::get(url))
-        .map_err(|e| Error(ErrorKind::RequestFailed { source: e.into() }))
+pub fn authenticated_get(url: &str) -> Result<reqwest::blocking::Response> {
+    reqwest::blocking::get(url).map_err(|e| Error(ErrorKind::RequestFailed { source: e.into() }))
 }

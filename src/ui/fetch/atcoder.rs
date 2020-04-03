@@ -175,11 +175,11 @@ fn parse_text(text: String) -> Result<Vec<TestCase>> {
 }
 
 fn download_text(quiet: bool, url: &str) -> Result<String> {
-    let text = auth::authenticated_get(quiet, url)
+    auth::authenticated_get(quiet, url)
         .map_err(|e| Error::AuthenticatedGetFailed {
             source: e.into(),
             url: url.to_string(),
         })?
-        .text();
-    async_std::task::block_on(text).map_err(|e| Error::GettingTextFailed { source: e.into() })
+        .text()
+        .map_err(|e| Error::GettingTextFailed { source: e.into() })
 }
