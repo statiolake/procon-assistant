@@ -3,31 +3,16 @@ pub mod rust;
 
 use self::cpp::Cpp;
 use self::rust::Rust;
+use crate::imp::progress::Progress;
 use indexmap::indexmap;
 use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::mpsc;
-use std::thread;
-use std::thread::JoinHandle;
 
 pub struct RawSource(pub String);
 pub struct Preprocessed(pub String);
 pub struct Minified(pub String);
-
-pub struct Progress<T> {
-    pub handle: JoinHandle<T>,
-    pub recver: mpsc::Receiver<String>,
-}
-
-impl<T: Send + 'static> Progress<T> {
-    pub fn from_fn<F: (FnOnce(mpsc::Sender<String>) -> T) + Send + 'static>(f: F) -> Progress<T> {
-        let (sender, recver) = mpsc::channel();
-        let handle = thread::spawn(move || f(sender));
-        Progress { handle, recver }
-    }
-}
 
 pub struct FilesToOpen {
     pub files: Vec<PathBuf>,

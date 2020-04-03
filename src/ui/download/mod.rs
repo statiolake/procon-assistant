@@ -5,12 +5,12 @@ use self::atcoder::AtCoder;
 use self::local::Local;
 use crate::eprintln_tagged;
 use crate::imp;
+use crate::imp::fetch::TestCaseProvider;
 use crate::ui::fetch;
-use crate::ui::fetch::TestCaseProvider;
+use crate::ui::login::LoginUI;
 use crate::ExitStatus;
 use std::env;
 use std::path::Path;
-use std::result;
 use std::str;
 
 #[derive(clap::Clap)]
@@ -61,7 +61,7 @@ impl Download {
         }?;
 
         let fetchers = provider
-            .make_fetchers(quiet)
+            .make_fetchers()
             .map_err(|source| Error(ErrorKind::MakingFetcherFailed { source }))?;
 
         eprintln_tagged!("Fetching": "{} (at {})", provider.contest_id(), provider.url());
@@ -129,7 +129,7 @@ fn handle_empty_arg() -> Result<Box<dyn ContestProvider>> {
 }
 
 pub struct Fetchers {
-    fetchers: Vec<Box<dyn TestCaseProvider>>,
+    fetchers: Vec<(Box<dyn TestCaseProvider>, Box<dyn LoginUI>)>,
     contest_id: String,
     beginning_char: char,
 }
@@ -164,14 +164,17 @@ pub fn generate_one(
     mut contest_id: String,
     beginning_char: char,
     problem: u8,
-    fetcher: Box<dyn TestCaseProvider + 'static>,
+    (provider, login_ui): (
+        Box<dyn TestCaseProvider + 'static>,
+        Box<dyn LoginUI + 'static>,
+    ),
 ) -> Result<()> {
     let curr_actual = (beginning_char as u8 + problem) as char;
     env::set_current_dir(Path::new(&curr_actual.to_string())).unwrap();
 
     let curr_url = (b'a' + problem) as char;
     contest_id.push(curr_url);
-    let tcfs = fetch::fetch_test_case_files(quiet, fetcher)
+    let tcfs = fetch::fetch_test_case_files(quiet, provider, login_ui)
         .map_err(|e| Error(ErrorKind::FetchError { source: e.into() }))?;
     fetch::write_test_case_files(tcfs)
         .map_err(|e| Error(ErrorKind::WritingTestCaseFailed { source: e.into() }))?;
@@ -187,5 +190,5 @@ pub trait ContestProvider {
     fn contest_id(&self) -> &str;
     fn url(&self) -> &str;
 
-    fn make_fetchers(&self, quiet: bool) -> result::Result<Fetchers, anyhow::Error>;
+    fn make_fetchers(&self) -> anyhow::Result<Fetchers>;
 }

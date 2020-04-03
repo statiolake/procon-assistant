@@ -1,9 +1,8 @@
-use crate::eprintln_info;
+use super::TestCaseProvider;
+use crate::eprintln_debug;
 use crate::imp::auth::atcoder as auth;
 use crate::imp::test_case::TestCase;
-use crate::ui::login::atcoder as login;
-use scraper::{Html, Selector};
-use std::result;
+use easy_scraper::Pattern;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -85,21 +84,21 @@ impl Problem {
     }
 
     pub fn problem_id(&self) -> &str {
-        match *self {
-            Problem::ProblemId { ref problem_id, .. } => &problem_id,
+        match self {
+            Problem::ProblemId { problem_id, .. } => problem_id,
             Problem::DirectUrl { .. } => "Unknown",
         }
     }
 
     pub fn url(&self) -> &str {
-        match *self {
-            Problem::ProblemId { ref url, .. } => url,
-            Problem::DirectUrl { ref url } => url,
+        match self {
+            Problem::ProblemId { url, .. } => url,
+            Problem::DirectUrl { url } => url,
         }
     }
 }
 
-impl super::TestCaseProvider for AtCoder {
+impl TestCaseProvider for AtCoder {
     fn site_name(&self) -> &str {
         "AtCoder"
     }
@@ -112,74 +111,66 @@ impl super::TestCaseProvider for AtCoder {
         self.problem.url()
     }
 
-    fn needs_authenticate(&self, quiet: bool) -> bool {
-        if !quiet {
-            eprintln_info!(
-                "needs_authenticate() is not implemetented for now, always returns `false`"
-            );
-        }
+    fn needs_authenticate(&self) -> bool {
+        eprintln_debug!(
+            "needs_authenticate() is not implemetented for now, always returns `false`"
+        );
 
         false
     }
 
-    fn authenticate(&self, quiet: bool) -> result::Result<(), anyhow::Error> {
-        login::AtCoder
-            .run(quiet)
-            .map_err(|e| Error::LoginFailed { source: e.into() })
-            .map_err(Into::into)
-    }
-
-    fn fetch_test_case_files(&self, quiet: bool) -> result::Result<Vec<TestCase>, anyhow::Error> {
-        let text = download_text(quiet, self.problem.url())?;
-        parse_text(text).map_err(Into::into)
+    fn fetch_test_case_files(&self) -> anyhow::Result<Vec<TestCase>> {
+        let text = download_text(self.problem.url())?;
+        parse_text(&text).map_err(Into::into)
     }
 }
 
-fn parse_text(text: String) -> Result<Vec<TestCase>> {
-    let document = Html::parse_document(&text);
-    let sel_div_task_stmt = Selector::parse("div#task-statement").unwrap();
-    let sel_span_ja = Selector::parse("span.lang-ja").unwrap();
-    let sel_pre = Selector::parse("pre").unwrap();
-
-    let div_task_stmt = document.select(&sel_div_task_stmt).next();
-    let div_task_stmt = div_task_stmt.ok_or_else(|| Error::FindingTagFailed {
-        selector: "div#task-statement".into(),
-    })?;
-
-    let lang_ja = div_task_stmt.select(&sel_span_ja).next();
-    let lang_ja = lang_ja.or_else(|| div_task_stmt.select(&sel_div_task_stmt).next());
-    let lang_ja = lang_ja.ok_or_else(|| Error::FindingTagFailed {
-        selector: "span.lang-ja".into(),
-    })?;
-    let pres: Vec<_> = lang_ja.select(&sel_pre).collect();
-
-    if pres.len() <= 1 || (pres.len() - 1) % 2 != 0 {
-        return Err(Error::UnexpectedNumberOfPreTag {
-            detected: pres.len(),
-        });
-    }
-
-    let beginning = TestCase::next_unused_idx()
-        .map_err(|e| Error::CouldNotDetermineTestCaseName { source: e.into() })?;
-    let mut result = Vec::new();
-    for i in 0..(pres.len() / 2) {
-        let tsf = TestCase::new_with_idx(
-            beginning + i as i32,
-            pres[i * 2 + 1].inner_html(),
-            pres[i * 2 + 2].inner_html(),
-        );
-        result.push(tsf)
-    }
-
-    Ok(result)
-}
-
-fn download_text(quiet: bool, url: &str) -> Result<String> {
-    auth::authenticated_get(quiet, url)
+fn download_text(url: &str) -> Result<String> {
+    auth::authenticated_get(url)
         .map_err(|e| Error::AuthenticatedGetFailed {
             source: e.into(),
             url: url.to_string(),
         })?
         .text()
         .map_err(|e| Error::GettingTextFailed { source: e.into() })
+}
+
+fn parse_text(text: &str) -> Result<Vec<TestCase>> {
+    let pattern = Pattern::new(
+        r#"
+<div id="task-statement">
+    <span class="lang-ja">
+        <div class="part">
+        <section>
+            <h3>入力例 {{n}}</h3>
+            <pre>
+                {{input}}
+            </pre>
+        </section>
+        </div>
+        <div class="part">
+        <section>
+            <h3>出力例 {{n}}</h3>
+            <pre>
+                {{output}}
+            </pre>
+        </section>
+        </div>
+    </span>
+</div>
+"#,
+    )
+    .unwrap();
+
+    let idx_start = TestCase::next_unused_idx()
+        .map_err(|e| Error::CouldNotDetermineTestCaseName { source: e.into() })?;
+    Ok(pattern
+        .matches(text)
+        .into_iter()
+        .enumerate()
+        .map(|(i, case)| {
+            let idx = idx_start + i as i32;
+            TestCase::new_with_idx(idx, case["input"].clone(), case["output"].clone())
+        })
+        .collect())
 }

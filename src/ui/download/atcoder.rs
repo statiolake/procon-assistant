@@ -1,8 +1,10 @@
+use super::{ContestProvider, Fetchers};
 use crate::imp::auth::atcoder as auth;
-use crate::ui::fetch::atcoder::AtCoder as FetchAtCoder;
-use crate::ui::fetch::TestCaseProvider;
+use crate::imp::fetch::atcoder as fetch;
+use crate::imp::fetch::TestCaseProvider;
+use crate::ui::login::atcoder as login;
+use crate::ui::login::LoginUI;
 use scraper::{Html, Selector};
-use std::result;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -79,7 +81,7 @@ impl Contest {
     }
 }
 
-impl super::ContestProvider for AtCoder {
+impl ContestProvider for AtCoder {
     fn site_name(&self) -> &str {
         "AtCoder"
     }
@@ -92,14 +94,16 @@ impl super::ContestProvider for AtCoder {
         self.contest.url()
     }
 
-    fn make_fetchers(&self, quiet: bool) -> result::Result<super::Fetchers, anyhow::Error> {
+    fn make_fetchers(&self) -> anyhow::Result<Fetchers> {
         let id = self.contest.contest_id();
-        let (beginning_char, numof_problems) = get_range_of_problems(quiet, id)?;
+        let (beginning_char, numof_problems) = get_range_of_problems(id)?;
 
         let fetchers = (0..numof_problems).map(|problem| {
             let problem = (b'a' + problem) as char; // hack: atcoder regular contest starts 'a' while it's showed as 'c'
             let problem_id = format!("{}{}", self.contest.contest_id(), problem);
-            fetcher_for(problem_id).map(fetcher_into_box)
+            fetcher_for(problem_id)
+                .map(fetcher_into_box)
+                .map(|t| (t, Box::new(login::AtCoder) as Box<dyn LoginUI>))
         });
 
         let fetchers: Result<Vec<_>> = fetchers.collect();
@@ -120,11 +124,11 @@ fn fetcher_into_box<T: 'static + TestCaseProvider>(x: T) -> Box<dyn TestCaseProv
 }
 
 // Result<(beginning_char, numof_problems)>
-fn get_range_of_problems(quiet: bool, contest_id: &str) -> Result<(char, u8)> {
+fn get_range_of_problems(contest_id: &str) -> Result<(char, u8)> {
     // fetch the tasks
     let url = format!("https://beta.atcoder.jp/contests/{}/tasks", contest_id);
-    let text = download_text(quiet, &url)
-        .map_err(|e| Error::GettingProblemPageFailed { source: e.into() })?;
+    let text =
+        download_text(&url).map_err(|e| Error::GettingProblemPageFailed { source: e.into() })?;
 
     let document = Html::parse_document(&text);
     let sel_tbody = Selector::parse("tbody").unwrap();
@@ -155,12 +159,12 @@ fn get_range_of_problems(quiet: bool, contest_id: &str) -> Result<(char, u8)> {
     ))
 }
 
-fn fetcher_for(problem_id: String) -> Result<FetchAtCoder> {
-    FetchAtCoder::new(problem_id).map_err(|e| Error::GettingProviderFailed { source: e.into() })
+fn fetcher_for(problem_id: String) -> Result<fetch::AtCoder> {
+    fetch::AtCoder::new(problem_id).map_err(|e| Error::GettingProviderFailed { source: e.into() })
 }
 
-fn download_text(quiet: bool, url: &str) -> Result<String> {
-    auth::authenticated_get(quiet, url)
+fn download_text(url: &str) -> Result<String> {
+    auth::authenticated_get(url)
         .map_err(|e| Error::AuthenticatedGetFailed {
             source: e.into(),
             url: url.to_string(),
