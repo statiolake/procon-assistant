@@ -1,3 +1,4 @@
+pub mod aoj;
 pub mod atcoder;
 
 use crate::ExitStatus;
@@ -13,6 +14,9 @@ pub struct Login {
 pub enum Site {
     #[clap(name = "atcoder", aliases = &["at"])]
     AtCoder(atcoder::AtCoder),
+
+    #[clap(name = "aoj")]
+    Aoj(aoj::Aoj),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -29,6 +33,9 @@ impl Site {
             Site::AtCoder(cmd) => cmd
                 .run(quiet)
                 .map_err(|e| Error::LoginError { source: e.into() }),
+            Site::Aoj(cmd) => cmd
+                .run(quiet)
+                .map_err(|e| Error::LoginError { source: e.into() }),
         }
     }
 }
@@ -39,4 +46,8 @@ impl Login {
 
         Ok(ExitStatus::Success)
     }
+}
+
+pub trait LoginUI {
+    fn authenticate(&self, quiet: bool) -> anyhow::Result<()>;
 }

@@ -1,4 +1,4 @@
-use crate::eprintln_info;
+use crate::eprintln_debug;
 use crate::imp::auth::aoj as auth;
 use crate::imp::test_case::TestCase;
 use scraper::{Html, Selector};
@@ -88,25 +88,15 @@ impl super::TestCaseProvider for Aoj {
         self.problem.url()
     }
 
-    fn needs_authenticate(&self, quiet: bool) -> bool {
-        if !quiet {
-            eprintln_info!(
-                "needs_authenticate() is not implemetented for now, always returns `false`"
-            );
-        }
+    fn needs_authenticate(&self) -> bool {
+        eprintln_debug!(
+            "needs_authenticate() is not implemetented for now, always returns `false`"
+        );
 
         false
     }
 
-    fn authenticate(&self, quiet: bool) -> result::Result<(), anyhow::Error> {
-        if !quiet {
-            eprintln_info!("authenticate() for AOJ is not implemented for now, do nothing");
-        }
-
-        Ok(())
-    }
-
-    fn fetch_test_case_files(&self, _quiet: bool) -> result::Result<Vec<TestCase>, anyhow::Error> {
+    fn fetch_test_case_files(&self) -> result::Result<Vec<TestCase>, anyhow::Error> {
         let text = download_text(self.problem.url()).map_err(|e| Error::FetchingProblemFailed {
             source: e.into(),
             problem_id: self.problem.problem_id().to_string(),

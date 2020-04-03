@@ -1,10 +1,9 @@
 use super::Fetchers;
+use crate::imp::fetch::ProblemDescriptor;
 use crate::ui::fetch;
-use crate::ui::fetch::ProblemDescriptor;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
-use std::result;
 use std::str;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -53,7 +52,7 @@ impl super::ContestProvider for Local {
         &self.file_path
     }
 
-    fn make_fetchers(&self, _quiet: bool) -> result::Result<Fetchers, anyhow::Error> {
+    fn make_fetchers(&self) -> anyhow::Result<Fetchers> {
         let problem_list = load_problem_list(self.file_path.clone())?;
         make_fetcher(problem_list).map_err(Into::into)
     }

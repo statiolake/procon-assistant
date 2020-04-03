@@ -64,10 +64,10 @@ pub fn login(quiet: bool, username: String, password: String) -> Result<()> {
     Ok(())
 }
 
-pub fn authenticated_get(quiet: bool, url: &str) -> Result<Response> {
+pub fn authenticated_get(url: &str) -> Result<Response> {
     let client = Client::new();
     let mut builder = client.get(url);
-    builder = add_auth_info_to_builder_if_possible(quiet, builder)?;
+    builder = add_auth_info_to_builder_if_possible(builder)?;
     let mut res = builder
         .send()
         .map_err(|e| Error(ErrorKind::RequestingError { source: e.into() }))?;
@@ -75,26 +75,19 @@ pub fn authenticated_get(quiet: bool, url: &str) -> Result<Response> {
     Ok(res)
 }
 
-fn add_auth_info_to_builder_if_possible(
-    quiet: bool,
-    mut builder: RequestBuilder,
-) -> Result<RequestBuilder> {
-    fn cleanup(quiet: bool) {
+fn add_auth_info_to_builder_if_possible(mut builder: RequestBuilder) -> Result<RequestBuilder> {
+    fn cleanup() {
         super::clear_session_info(SERVICE_NAME)
             .expect("critical error: failed to clean session info");
-        if !quiet {
-            eprintln_info!("cleared session info to avoid continuous error");
-        }
+        eprintln_debug!("cleared session info to avoid continuous error");
     }
 
-    if let Ok(revel_session) = super::load_session_info(quiet, SERVICE_NAME) {
-        if !quiet {
-            eprintln_info!("found sesion info, try to use it");
-        }
+    if let Ok(revel_session) = super::load_session_info(SERVICE_NAME) {
+        eprintln_debug!("found sesion info, try to use it");
         let revel_session = match String::from_utf8(revel_session) {
             Ok(v) => v.trim().to_string(),
             Err(e) => {
-                cleanup(quiet);
+                cleanup();
                 return Err(Error(ErrorKind::InvalidUtf8SessionInfo {
                     source: e.into(),
                 }));
