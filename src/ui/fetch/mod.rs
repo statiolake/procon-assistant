@@ -103,14 +103,40 @@ fn handle_empty_arg() -> Result<ProblemDescriptor> {
         .map(ToString::to_string);
 
     if let Some(current_dir_name) = maybe_current_dir_name {
+        let mut contest_site = None;
+        let problem = current_dir_name;
+        let mut contest_id = None;
+
         for component in current_dir.components() {
-            return Ok(match component.as_os_str().to_str() {
-                Some("aoj") => ProblemDescriptor::new("aoj".to_string(), current_dir_name),
-                Some("atcoder") | Some("at") => {
-                    ProblemDescriptor::new("atcoder".to_string(), current_dir_name)
+            match component.as_os_str().to_str() {
+                Some("aoj") => contest_site = Some("aoj".to_string()),
+                Some("atcoder") | Some("at") => contest_site = Some("atcoder".to_string()),
+                Some(other)
+                    if other.starts_with("abc")
+                        || other.starts_with("arc")
+                        || other.starts_with("agc") =>
+                {
+                    contest_id = Some(other.to_string())
                 }
                 _ => continue,
-            });
+            }
+        }
+
+        match (contest_site, contest_id) {
+            (Some(contest_site), Some(contest_id)) => {
+                return Ok(ProblemDescriptor::new(
+                    contest_site,
+                    format!("{}{}", contest_id, problem),
+                ))
+            }
+            (Some(contest_site), None)
+                if problem.starts_with("abc")
+                    || problem.starts_with("arc")
+                    || problem.starts_with("agc") =>
+            {
+                return Ok(ProblemDescriptor::new(contest_site, problem))
+            }
+            _ => {}
         }
     }
 
