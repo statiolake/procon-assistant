@@ -11,10 +11,11 @@ use crate::ui::print_macros::TAG_WIDTH;
 use crate::ui::CONFIG;
 use crate::ExitStatus;
 use crate::{eprintln_debug, eprintln_info, eprintln_more, eprintln_tagged, eprintln_warning};
+use anyhow::anyhow;
 use console::Style;
-use futures::future;
 use itertools::Itertools as _;
 use std::cmp;
+use std::thread;
 
 const PANE_MINIMUM_SIZE: usize = 3;
 
@@ -83,11 +84,8 @@ impl Run {
         let status = compile::compile(quiet, &*lang, self.force_compile)
             .map_err(|e| Error(ErrorKind::CompilationFailed { source: e.into() }))?;
         let result = if status == ExitStatus::Success {
-            async_std::task::block_on(async {
-                run_tests(quiet, &*lang, &self.to_run)
-                    .await
-                    .map_err(|e| Error(ErrorKind::RunningTestsFailed { source: e.into() }))
-            })?
+            run_tests(quiet, &*lang, &self.to_run)
+                .map_err(|e| Error(ErrorKind::RunningTestsFailed { source: e.into() }))?
         } else {
             TestResult::CompilationError
         };
@@ -110,13 +108,9 @@ impl Run {
     }
 }
 
-async fn run_tests<L: Language + ?Sized>(
-    quiet: bool,
-    lang: &L,
-    args: &[String],
-) -> Result<TestResult> {
+fn run_tests<L: Language + ?Sized>(quiet: bool, lang: &L, args: &[String]) -> Result<TestResult> {
     let tcs = enumerate_test_cases(&args)?;
-    run(quiet, lang, tcs).await
+    run(quiet, lang, tcs)
 }
 
 fn parse_argument_cases(args: &[String]) -> Result<Vec<TestCase>> {
@@ -144,35 +138,32 @@ fn enumerate_test_cases(args: &[String]) -> Result<Vec<TestCase>> {
     Ok(test_cases)
 }
 
-async fn run<L: Language + ?Sized>(
-    quiet: bool,
-    lang: &L,
-    tcs: Vec<TestCase>,
-) -> Result<TestResult> {
+fn run<L: Language + ?Sized>(quiet: bool, lang: &L, tcs: Vec<TestCase>) -> Result<TestResult> {
     eprintln_tagged!(
         "Running": "{} test cases (current timeout is {} millisecs)",
         tcs.len(),
         CONFIG.run.timeout_milliseconds,
     );
 
-    let judge_results = tcs.into_iter().map(|tc| {
+    let handles = tcs.into_iter().map(|tc| {
         let cmd = lang.run_command();
-        async move { (tc.to_string(), tc.judge(cmd)) }
+        thread::spawn(move || (tc.to_string(), tc.judge(cmd)))
     });
-
-    // wait for finish of all threads
-    let judge_results = future::join_all(judge_results).await;
 
     eprintln_tagged!("Finished": "running");
     eprintln!("");
     let mut whole_result = TestResult::Accepted;
-    for (display, judge_result) in judge_results {
-        let judge_result =
-            judge_result.map_err(|e| Error(ErrorKind::JudgingFailed { source: e.into() }))?;
-        print_result(quiet, &judge_result, display);
+    for handle in handles {
+        let (display, result) = handle.join().map_err(|_| {
+            Error(ErrorKind::JudgingFailed {
+                source: anyhow!("judge thread panicked"),
+            })
+        })?;
+        let result = result.map_err(|e| Error(ErrorKind::JudgingFailed { source: e.into() }))?;
+        print_result(quiet, &result, display);
 
         // update the whole result
-        let result = judge_result.result;
+        let result = result.result;
         if result.is_failed() && whole_result.is_accepted() {
             whole_result = result;
         }
@@ -181,8 +172,8 @@ async fn run<L: Language + ?Sized>(
     Ok(whole_result)
 }
 
-fn print_result(quiet: bool, judge_result: &JudgeResult, display: String) {
-    let JudgeResult { result, elapsed } = judge_result;
+fn print_result(quiet: bool, result: &JudgeResult, display: String) {
+    let JudgeResult { result, elapsed } = result;
 
     // get color and short result string
     let style = result_to_style(&result);

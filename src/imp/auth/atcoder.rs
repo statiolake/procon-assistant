@@ -1,7 +1,9 @@
 use crate::{eprintln_debug, eprintln_info};
+use reqwest::blocking::{Client, ClientBuilder, RequestBuilder, Response};
 use reqwest::header;
 use reqwest::header::{HeaderMap, HeaderValue};
-use reqwest::{RequestBuilder, StatusCode};
+use reqwest::redirect::Policy;
+use reqwest::StatusCode;
 use scraper::{Html, Selector};
 
 const SERVICE_NAME: &str = "atcoder";
@@ -62,11 +64,12 @@ pub fn login(quiet: bool, username: String, password: String) -> Result<()> {
     Ok(())
 }
 
-pub fn authenticated_get(quiet: bool, url: &str) -> Result<reqwest::Response> {
-    let client = reqwest::Client::new();
+pub fn authenticated_get(quiet: bool, url: &str) -> Result<Response> {
+    let client = Client::new();
     let mut builder = client.get(url);
     builder = add_auth_info_to_builder_if_possible(quiet, builder)?;
-    let mut res = async_std::task::block_on(builder.send())
+    let mut res = builder
+        .send()
         .map_err(|e| Error(ErrorKind::RequestingError { source: e.into() }))?;
     store_revel_session_from_response(&mut res)?;
     Ok(res)
@@ -104,7 +107,7 @@ fn add_auth_info_to_builder_if_possible(
     Ok(builder)
 }
 
-fn store_revel_session_from_response(res: &mut reqwest::Response) -> Result<()> {
+fn store_revel_session_from_response(res: &mut Response) -> Result<()> {
     let cookie = extract_setcookie(res.headers());
     let revel_session = find_revel_session(cookie)?;
     super::store_session_info(SERVICE_NAME, revel_session.as_bytes())
@@ -115,8 +118,10 @@ fn get_cookie_and_csrf_token(quiet: bool) -> Result<(Vec<(String, String)>, Stri
     if !quiet {
         eprintln_info!("fetching login page");
     }
-    let client = reqwest::Client::new();
-    let res = async_std::task::block_on(client.get("https://beta.atcoder.jp/login").send())
+    let client = Client::new();
+    let res = client
+        .get("https://beta.atcoder.jp/login")
+        .send()
         .map_err(|e| Error(ErrorKind::FetchingLoginPageFailed { source: e.into() }))?;
 
     result_check(&res)?;
@@ -127,8 +132,9 @@ fn get_cookie_and_csrf_token(quiet: bool) -> Result<(Vec<(String, String)>, Stri
     Ok((cookie, csrf_token))
 }
 
-fn get_csrf_token_from_response(res: reqwest::Response) -> Result<String> {
-    let doc = async_std::task::block_on(res.text())
+fn get_csrf_token_from_response(res: Response) -> Result<String> {
+    let doc = res
+        .text()
         .map(|res| Html::parse_document(&res))
         .map_err(|e| Error(ErrorKind::ParsingHtmlFailed { source: e.into() }))?;
     let sel_csrf_token = Selector::parse("input[name=csrf_token]").unwrap();
@@ -172,10 +178,8 @@ fn login_get_cookie(
     Ok(cookie)
 }
 
-fn make_client() -> reqwest::Result<reqwest::Client> {
-    reqwest::ClientBuilder::new()
-        .redirect(reqwest::redirect::Policy::none())
-        .build()
+fn make_client() -> reqwest::Result<Client> {
+    ClientBuilder::new().redirect(Policy::none()).build()
 }
 
 fn make_post_cookie(cookie: Vec<(String, String)>) -> Result<HeaderValue> {
@@ -188,18 +192,18 @@ fn make_post_cookie(cookie: Vec<(String, String)>) -> Result<HeaderValue> {
 }
 
 fn post(
-    client: reqwest::Client,
+    client: Client,
     params: &[(&str, &str)],
     post_cookie: HeaderValue,
-) -> reqwest::Result<reqwest::Response> {
+) -> reqwest::Result<Response> {
     let builder = client
         .post("https://beta.atcoder.jp/login")
         .form(params)
         .header(header::COOKIE, post_cookie);
-    async_std::task::block_on(builder.send())
+    builder.send()
 }
 
-fn is_login_succeeded(res: &reqwest::Response) -> Result<bool> {
+fn is_login_succeeded(res: &Response) -> Result<bool> {
     let loc = res.headers().get(header::LOCATION).unwrap();
     loc.to_str()
         .map(|loc| loc == "/")
@@ -233,7 +237,7 @@ fn find_revel_session(cookie: Vec<(String, String)>) -> Result<String> {
         .map(|c| c.1)
 }
 
-fn result_check(res: &reqwest::Response) -> Result<()> {
+fn result_check(res: &Response) -> Result<()> {
     eprintln_debug!("response: {:?}", res);
     let status = res.status();
     match status {
