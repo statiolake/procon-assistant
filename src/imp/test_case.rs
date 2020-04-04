@@ -1,5 +1,7 @@
 use crate::imp;
 use crate::ui::CONFIG;
+use anyhow::{anyhow, ensure};
+use anyhow::{Context as _, Result};
 use itertools::izip;
 use std::io::Read;
 use std::io::Write;
@@ -7,37 +9,6 @@ use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::usize;
 use std::{cmp, fmt, fs, io, iter, time};
-
-pub type Result<T> = std::result::Result<T, Error>;
-
-delegate_impl_error_error_kind! {
-    #[error("failed to operate with test case")]
-    pub struct Error(ErrorKind);
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ErrorKind {
-    #[error("collapsed test case; `{exist_of}` exists but `{inexist_if}` does not exist")]
-    MismatchingTestCases {
-        exist_of: String,
-        inexist_if: String,
-    },
-
-    #[error("failed to create `{name}`")]
-    FileCreationFailed { source: anyhow::Error, name: String },
-
-    #[error("failed to get the stdin of spawned binary")]
-    GetStdinFailed,
-
-    #[error("failed to write to stdin")]
-    WriteStdinFailed { source: anyhow::Error },
-
-    #[error("failed to get the stdout of spawned binary")]
-    GetStdoutFailed,
-
-    #[error("failed to execute compiled binary")]
-    ExecutionOfMainBinaryFailed { source: anyhow::Error },
-}
 
 pub struct JudgeResult {
     pub elapsed: time::Duration,
@@ -456,12 +427,12 @@ impl TestCase {
         let if_name = make_if_name(idx);
         let of_name = make_of_name(idx);
 
-        if Path::new(&of_name).exists() {
-            return Err(Error(ErrorKind::MismatchingTestCases {
-                exist_of: of_name,
-                inexist_if: if_name,
-            }));
-        }
+        ensure!(
+            !Path::new(&of_name).exists(),
+            "mismatching test cases: `{}` exists but `{}` does not exist",
+            of_name,
+            if_name
+        );
 
         Ok(idx)
     }
@@ -481,19 +452,10 @@ impl TestCase {
     }
 
     pub fn write(&self) -> Result<()> {
-        imp::fs::safe_write(&self.if_name, &self.if_contents).map_err(|e| {
-            Error(ErrorKind::FileCreationFailed {
-                source: e.into(),
-                name: self.if_name.clone(),
-            })
-        })?;
-
-        imp::fs::safe_write(&self.of_name, &self.of_contents).map_err(|e| {
-            Error(ErrorKind::FileCreationFailed {
-                source: e.into(),
-                name: self.of_name.clone(),
-            })
-        })?;
+        imp::fs::safe_write(&self.if_name, &self.if_contents)
+            .with_context(|| format!("failed to create `{}`", self.if_name))?;
+        imp::fs::safe_write(&self.of_name, &self.of_contents)
+            .with_context(|| format!("failed to create `{}`", self.if_name))?;
 
         Ok(())
     }
@@ -554,16 +516,16 @@ fn spawn(mut cmd: Command) -> Result<Child> {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| Error(ErrorKind::ExecutionOfMainBinaryFailed { source: e.into() }))
+        .context("failed to execute main binary")
 }
 
 fn input_to_child(child: &mut Child, if_contents: &[u8]) -> Result<()> {
     child
         .stdin
         .take()
-        .ok_or_else(|| Error(ErrorKind::GetStdinFailed))?
+        .ok_or_else(|| anyhow!("failed to get stdin"))?
         .write_all(if_contents)
-        .map_err(|e| Error(ErrorKind::WriteStdinFailed { source: e.into() }))
+        .context("failed to write to stdin")
 }
 
 fn wait_or_timeout(child: &mut Child) -> Result<(time::Duration, Option<TestResult>)> {

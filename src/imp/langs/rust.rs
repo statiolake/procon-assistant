@@ -3,7 +3,8 @@ use super::{Language, Progress};
 use crate::eprintln_debug;
 use crate::imp::config::RustProjectTemplate;
 use crate::ui::CONFIG;
-use anyhow::{anyhow, bail};
+use anyhow::ensure;
+use anyhow::{Context, Result};
 use fs_extra::dir;
 use fs_extra::dir::CopyOptions;
 use itertools::Itertools;
@@ -15,23 +16,6 @@ use std::env;
 use std::fs as stdfs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-
-pub type Result<T> = std::result::Result<T, Error>;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("creating directory `{}` failed", .path.display())]
-    CreateDestinationDirectoryFailed {
-        source: anyhow::Error,
-        path: PathBuf,
-    },
-
-    #[error("generating project failed")]
-    GeneratingProjectFailed { source: anyhow::Error },
-
-    #[error("building project failed")]
-    BuildingProjectFailed { source: anyhow::Error },
-}
 
 pub struct Rust;
 
@@ -60,7 +44,7 @@ impl Language for Rust {
         "rust"
     }
 
-    fn init_async(&self, path: &Path) -> Progress<anyhow::Result<FilesToOpen>> {
+    fn init_async(&self, path: &Path) -> Progress<Result<FilesToOpen>> {
         let path = path.to_path_buf();
         Progress::from_fn(move |sender| {
             let cwd = env::current_dir()?;
@@ -83,7 +67,7 @@ impl Language for Rust {
                 RustProjectTemplate::Git { repository, branch } => generate_git(repository, branch),
                 RustProjectTemplate::Local { path } => generate_local(path),
             }
-            .map_err(|source| Error::GeneratingProjectFailed { source })?;
+            .context("failed to generate a project")?;
 
             let _ = sender.send("building generated project".into());
             // pre-build the project
@@ -97,11 +81,11 @@ impl Language for Rust {
                 .stderr(Stdio::piped())
                 .spawn()?
                 .wait_with_output()?;
-            if !output.status.success() {
-                return Err(From::from(Error::BuildingProjectFailed {
-                    source: anyhow!("{}", String::from_utf8_lossy(&output.stderr)),
-                }));
-            }
+            ensure!(
+                output.status.success(),
+                "failed to build a project: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
 
             Ok(FilesToOpen {
                 files: vec![path.join("main").join("src").join("main.rs")],
@@ -110,7 +94,7 @@ impl Language for Rust {
         })
     }
 
-    fn get_source(&self) -> anyhow::Result<RawSource> {
+    fn get_source(&self) -> Result<RawSource> {
         stdfs::read_to_string("main/src/main.rs")
             .map(RawSource)
             .map_err(Into::into)
@@ -150,12 +134,12 @@ impl Language for Rust {
         })
     }
 
-    fn preprocess(&self, RawSource(source): &RawSource) -> anyhow::Result<Preprocessed> {
+    fn preprocess(&self, RawSource(source): &RawSource) -> Result<Preprocessed> {
         let source = resolve_mod(Path::new("main/src"), source.clone())?;
         Ok(Preprocessed(source))
     }
 
-    fn minify(&self, Preprocessed(processed): &Preprocessed) -> anyhow::Result<Minified> {
+    fn minify(&self, Preprocessed(processed): &Preprocessed) -> Result<Minified> {
         let minified = processed.lines().map(|x| x.trim()).join("");
         Ok(Minified(minified))
     }
@@ -166,13 +150,10 @@ impl Language for Rust {
 }
 
 fn create_project_directory(path: &Path) -> Result<()> {
-    std::fs::create_dir_all(path).map_err(|e| Error::CreateDestinationDirectoryFailed {
-        source: e.into(),
-        path: path.to_path_buf(),
-    })
+    std::fs::create_dir_all(path).with_context(|| format!("failed to create `{}`", path.display()))
 }
 
-fn generate_git(repository: &str, branch: &str) -> anyhow::Result<()> {
+fn generate_git(repository: &str, branch: &str) -> Result<()> {
     let output = Command::new("cargo")
         .arg("generate")
         .arg("--git")
@@ -186,14 +167,17 @@ fn generate_git(repository: &str, branch: &str) -> anyhow::Result<()> {
         .stderr(Stdio::piped())
         .spawn()?
         .wait_with_output()?;
-    if !output.status.success() {
-        bail!("{}", String::from_utf8_lossy(&output.stderr));
-    }
+
+    ensure!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     Ok(())
 }
 
-fn generate_local(path: &Path) -> anyhow::Result<()> {
+fn generate_local(path: &Path) -> Result<()> {
     eprintln_debug!("copying from `{}`", path.display());
 
     let options = CopyOptions {
@@ -226,7 +210,7 @@ fn generate_local(path: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn resolve_mod(cwd: &Path, source: String) -> anyhow::Result<String> {
+fn resolve_mod(cwd: &Path, source: String) -> Result<String> {
     let mut result = Vec::new();
     let mut path_attr = None;
     for line in source.lines() {

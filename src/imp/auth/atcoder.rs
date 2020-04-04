@@ -1,5 +1,7 @@
 use crate::eprintln_debug;
 use anyhow::anyhow;
+use anyhow::{bail, ensure};
+use anyhow::{Context, Result};
 use itertools::Itertools;
 use maplit::hashmap;
 use reqwest::blocking::{Client, ClientBuilder, RequestBuilder, Response};
@@ -13,37 +15,6 @@ use std::collections::HashMap;
 
 const SERVICE_NAME: &str = "atcoder";
 
-pub type Result<T> = std::result::Result<T, Error>;
-
-delegate_impl_error_error_kind! {
-    #[error("authenticated operation failed")]
-    pub struct Error(ErrorKind);
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ErrorKind {
-    #[error("failed to initialize a client")]
-    ClientInitializationFailed { source: anyhow::Error },
-
-    #[error("failed to load a session")]
-    LoadingSessionFailed { source: anyhow::Error },
-
-    #[error("failed to fetch login page")]
-    FetchingLoginPageFailed { source: anyhow::Error },
-
-    #[error("failed to post account info")]
-    PostingAccountInfoFailed { source: anyhow::Error },
-
-    #[error("failed to authenticate: invalid username or password")]
-    InvalidAuthInfo,
-
-    #[error("invalid HTTP status")]
-    HTTPStatusNotOk { status: StatusCode },
-
-    #[error("failed to fetch a page")]
-    RequestingError { source: anyhow::Error },
-}
-
 struct CookieStore {
     cookies: HashMap<String, String>,
 }
@@ -55,7 +26,7 @@ impl CookieStore {
         }
     }
 
-    pub fn load_from_session() -> anyhow::Result<CookieStore> {
+    pub fn load_from_session() -> Result<CookieStore> {
         let cookies = super::load_session_info(SERVICE_NAME)?;
         let cookies = String::from_utf8_lossy(&cookies).into_owned();
         let cookies = cookies
@@ -67,7 +38,7 @@ impl CookieStore {
         Ok(CookieStore { cookies })
     }
 
-    pub fn save_to_session(&self) -> anyhow::Result<()> {
+    pub fn save_to_session(&self) -> Result<()> {
         let cookies = self
             .cookies
             .iter()
@@ -78,7 +49,7 @@ impl CookieStore {
         Ok(())
     }
 
-    pub fn with_cookie(&mut self, req: RequestBuilder) -> anyhow::Result<Response> {
+    pub fn with_cookie(&mut self, req: RequestBuilder) -> Result<Response> {
         let cookies = self
             .cookies
             .iter()
@@ -120,16 +91,13 @@ pub fn login(username: &str, password: &str) -> Result<()> {
     let mut store = CookieStore::new();
 
     // access the login page and get csrf_token
-    let csrf_token = access_login_page(&mut store)
-        .map_err(|source| Error(ErrorKind::FetchingLoginPageFailed { source }))?;
+    let csrf_token = access_login_page(&mut store).context("fetching login page failed")?;
 
     // post user authentication info
     let success = post_account_info(&mut store, username, password, &csrf_token)
-        .map_err(|source| Error(ErrorKind::PostingAccountInfoFailed { source }))?;
+        .context("posting account info failed")?;
 
-    if !success {
-        return Err(Error(ErrorKind::InvalidAuthInfo));
-    }
+    ensure!(success, "invalid username or password");
 
     Ok(())
 }
@@ -138,10 +106,10 @@ fn new_client() -> Result<Client> {
     ClientBuilder::new()
         .redirect(Policy::none())
         .build()
-        .map_err(|e| Error(ErrorKind::ClientInitializationFailed { source: e.into() }))
+        .context("failed to initialize the client")
 }
 
-fn access_login_page(store: &mut CookieStore) -> anyhow::Result<String> {
+fn access_login_page(store: &mut CookieStore) -> Result<String> {
     eprintln_debug!("fetching login page");
     let req = new_client()?.get("https://atcoder.jp/login");
     let res = store.with_cookie(req)?;
@@ -157,7 +125,7 @@ fn post_account_info(
     username: &str,
     password: &str,
     csrf_token: &str,
-) -> anyhow::Result<bool> {
+) -> Result<bool> {
     let req = new_client()?
         .post("https://atcoder.jp/login")
         .form(&hashmap! {
@@ -171,7 +139,7 @@ fn post_account_info(
     Ok(store.cookies["REVEL_FLASH"].contains("success"))
 }
 
-fn parse_csrf_token(res: Response) -> anyhow::Result<String> {
+fn parse_csrf_token(res: Response) -> Result<String> {
     let text = res.text()?;
     let doc = Html::parse_document(&text);
     let sel_csrf_token = Selector::parse("input[name=csrf_token]").unwrap();
@@ -192,18 +160,14 @@ fn result_check(res: &Response) -> Result<()> {
     let status = res.status();
     match status {
         StatusCode::OK | StatusCode::FOUND | StatusCode::MOVED_PERMANENTLY => Ok(()),
-        _ => Err(Error(ErrorKind::HTTPStatusNotOk { status })),
+        status => bail!("unexpected HTTP status: {}", status),
     }
 }
 
 pub fn authenticated_get(url: &str) -> Result<Response> {
-    let mut store = CookieStore::load_from_session()
-        .map_err(|source| Error(ErrorKind::LoadingSessionFailed { source }))?;
-
+    let mut store = CookieStore::load_from_session().context("failed to load session")?;
     let req = new_client()?.get(url);
-    let res = store
-        .with_cookie(req)
-        .map_err(|source| Error(ErrorKind::RequestingError { source }))?;
+    let res = store.with_cookie(req).context("failed to request")?;
 
     if cfg!(debug_assertions) {
         let req = new_client().unwrap().get(url);

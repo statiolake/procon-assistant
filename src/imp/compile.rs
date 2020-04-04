@@ -1,24 +1,7 @@
 use crate::imp::langs::Language;
 use crate::ExitStatus;
-
-pub type Result<T> = std::result::Result<T, Error>;
-
-delegate_impl_error_error_kind! {
-    #[error("failed to compile")]
-    pub struct Error(ErrorKind);
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ErrorKind {
-    #[error("compile command is empty")]
-    CompileCommandEmpty,
-
-    #[error("failed to spawn compiler; check your installation")]
-    SpawningCompilerFailed { source: anyhow::Error },
-
-    #[error("failed to check the files metadata")]
-    CheckingMetadataFailed { source: anyhow::Error },
-}
+use anyhow::anyhow;
+use anyhow::{Context, Result};
 
 pub struct CompilerOutput {
     pub status: ExitStatus,
@@ -46,8 +29,8 @@ pub fn compile<L: Language + ?Sized>(lang: &L) -> Result<CompilerOutput> {
         .into_iter()
         .map(|mut cmd| cmd.output())
         .last()
-        .ok_or_else(|| Error(ErrorKind::CompileCommandEmpty))?
-        .map_err(|e| Error(ErrorKind::SpawningCompilerFailed { source: e.into() }))?;
+        .ok_or_else(|| anyhow!("compile command is empty"))?
+        .context("failed to spawn compiler")?;
 
     let stdout = wrap_output_to_option(&result.stdout).map(output_to_string);
     let stderr = wrap_output_to_option(&result.stderr).map(output_to_string);

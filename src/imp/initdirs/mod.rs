@@ -1,14 +1,6 @@
+use anyhow::{Context, Result};
 use std::fs;
-use std::io;
 use std::path::PathBuf;
-
-pub type Result<T> = std::result::Result<T, Error>;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("IO error")]
-    IOError { source: io::Error },
-}
 
 pub fn create_directories(
     contest_name: &str,
@@ -20,7 +12,7 @@ pub fn create_directories(
         let ch = (x as u8 + beginning_char as u8) as char;
         assert!(matches!(ch, 'a'..='z' | 'A'..='Z'));
         dir_path.push(ch.to_string());
-        fs::create_dir_all(&dir_path).map_err(|source| Error::IOError { source })?;
+        fs::create_dir_all(&dir_path).context("failed to create directories")?;
         dir_path.pop();
     }
 

@@ -14,6 +14,7 @@ mod run;
 use crate::imp::config::ConfigFile;
 use crate::ExitStatus;
 use crate::{eprintln_error, eprintln_info};
+use anyhow::Result;
 use clap::Clap;
 use lazy_static::lazy_static;
 use std::error;
@@ -65,19 +66,19 @@ enum SubCommand {
 }
 
 impl SubCommand {
-    fn run(self, quiet: bool) -> anyhow::Result<ExitStatus> {
+    fn run(self, quiet: bool) -> Result<ExitStatus> {
         match self {
-            SubCommand::InitDirs(cmd) => cmd.run(quiet).map_err(Into::into),
-            SubCommand::Init(cmd) => cmd.run(quiet).map_err(Into::into),
-            SubCommand::AddCase(cmd) => cmd.run(quiet).map_err(Into::into),
-            SubCommand::DelCase(cmd) => cmd.run(quiet).map_err(Into::into),
-            SubCommand::Preprocess(cmd) => cmd.run(quiet).map_err(Into::into),
-            SubCommand::Clip(cmd) => cmd.run(quiet).map_err(Into::into),
-            SubCommand::Fetch(cmd) => cmd.run(quiet).map_err(Into::into),
-            SubCommand::Download(cmd) => cmd.run(quiet).map_err(Into::into),
-            SubCommand::Run(cmd) => cmd.run(quiet).map_err(Into::into),
-            SubCommand::Compile(cmd) => cmd.run(quiet).map_err(Into::into),
-            SubCommand::Login(cmd) => cmd.run(quiet).map_err(Into::into),
+            SubCommand::InitDirs(cmd) => cmd.run(quiet),
+            SubCommand::Init(cmd) => cmd.run(quiet),
+            SubCommand::AddCase(cmd) => cmd.run(quiet),
+            SubCommand::DelCase(cmd) => cmd.run(quiet),
+            SubCommand::Preprocess(cmd) => cmd.run(quiet),
+            SubCommand::Clip(cmd) => cmd.run(quiet),
+            SubCommand::Fetch(cmd) => cmd.run(quiet),
+            SubCommand::Download(cmd) => cmd.run(quiet),
+            SubCommand::Run(cmd) => cmd.run(quiet),
+            SubCommand::Compile(cmd) => cmd.run(quiet),
+            SubCommand::Login(cmd) => cmd.run(quiet),
         }
     }
 }
@@ -88,7 +89,7 @@ lazy_static! {
             Ok(config) => config,
             Err(e) => {
                 eprintln_error!("{}", e);
-                print_causes(false, &e);
+                print_causes(false, &*e);
                 std::process::exit(1);
             }
         }

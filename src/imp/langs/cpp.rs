@@ -3,6 +3,7 @@ use super::{FilesToOpen, Minified, Preprocessed, Progress, RawSource};
 use crate::imp::fs as impfs;
 use crate::ui::CONFIG;
 use crate::{eprintln_debug, eprintln_debug_more};
+use anyhow::{Context, Result};
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -13,53 +14,6 @@ use std::mem;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use walkdir::WalkDir;
-
-type Result<T> = std::result::Result<T, Error>;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("failed to load `{}`; file not found", .path.display())]
-    FileNotFound {
-        source: anyhow::Error,
-        path: PathBuf,
-    },
-
-    #[error("failed to make the path `{}` absolute", .path.display())]
-    CanonicalizationFailed {
-        source: anyhow::Error,
-        path: PathBuf,
-    },
-
-    #[error("failed to read the file at `{}`", .path.display())]
-    ReadingSourceFailed {
-        source: anyhow::Error,
-        path: PathBuf,
-    },
-
-    #[error("reading template directory failed")]
-    ReadingTemplateDirectoryFailed { source: anyhow::Error },
-
-    #[error("reading from template `{}` failed", .path.display())]
-    ReadingTemplateFailed {
-        source: anyhow::Error,
-        path: PathBuf,
-    },
-
-    #[error("creating directory `{}` failed", .path.display())]
-    CreateDestinationDirectoryFailed {
-        source: anyhow::Error,
-        path: PathBuf,
-    },
-
-    #[error("writing `{}` failed", .path.display())]
-    WriteToDestinationFailed {
-        source: anyhow::Error,
-        path: PathBuf,
-    },
-
-    #[error("template variable substitution failed")]
-    TemplateVariableSubstitutionFailed { source: anyhow::Error },
-}
 
 lazy_static! {
     static ref RE_INCLUDE: Regex =
@@ -97,7 +51,7 @@ impl Language for Cpp {
         "cpp"
     }
 
-    fn get_source(&self) -> anyhow::Result<RawSource> {
+    fn get_source(&self) -> Result<RawSource> {
         stdfs::read_to_string(Path::new("main.cpp"))
             .map(RawSource)
             .map_err(Into::into)
@@ -112,22 +66,26 @@ impl Language for Cpp {
             create_project_directory(&path_project)?;
 
             for entry in WalkDir::new(template_dir).min_depth(1) {
-                let entry = entry
-                    .map_err(|e| Error::ReadingTemplateDirectoryFailed { source: e.into() })?;
+                let entry = entry.context("reading template directory failed")?;
 
                 let is_file = entry
                     .metadata()
-                    .map_err(|e| Error::ReadingTemplateDirectoryFailed { source: e.into() })?
+                    .with_context(|| {
+                        format!("getting metadata for `{}` failed", entry.path().display())
+                    })?
                     .is_file();
 
                 if !is_file {
                     continue;
                 }
 
-                let path = entry
-                    .path()
-                    .strip_prefix(template_dir)
-                    .map_err(|e| Error::ReadingTemplateDirectoryFailed { source: e.into() })?;
+                let path = entry.path().strip_prefix(template_dir).with_context(|| {
+                    format!(
+                        "failed to remove prefix `{}` from `{}`",
+                        template_dir.display(),
+                        entry.path().display()
+                    )
+                })?;
 
                 let _ = sender.send(format!("generating `{}`", path.display()));
                 safe_generate(&path_project, path)?;
@@ -190,7 +148,7 @@ impl Language for Cpp {
         }
     }
 
-    fn preprocess(&self, source: &RawSource) -> anyhow::Result<Preprocessed> {
+    fn preprocess(&self, source: &RawSource) -> Result<Preprocessed> {
         let content = parse_include(&libdir(), &mut HashSet::new(), source)?;
 
         let content = remove_block_comments(content);
@@ -202,7 +160,7 @@ impl Language for Cpp {
         Ok(Preprocessed(concat_safe_lines(removed).join("\n")))
     }
 
-    fn minify(&self, Preprocessed(processed): &Preprocessed) -> anyhow::Result<Minified> {
+    fn minify(&self, Preprocessed(processed): &Preprocessed) -> Result<Minified> {
         let mut result = processed
             .trim()
             .lines()
@@ -247,9 +205,11 @@ fn libdir() -> PathBuf {
 }
 
 fn create_project_directory(path_project: &Path) -> Result<()> {
-    stdfs::create_dir_all(path_project).map_err(|e| Error::CreateDestinationDirectoryFailed {
-        source: e.into(),
-        path: path_project.to_path_buf(),
+    stdfs::create_dir_all(path_project).with_context(|| {
+        format!(
+            "failed to create destination directories at `{}`",
+            path_project.display()
+        )
     })
 }
 
@@ -270,14 +230,20 @@ fn generate(path_project_root: &Path, path: &Path) -> Result<()> {
 
     eprintln_debug!("loading template from `{}`", path_template.display());
 
-    let template =
-        stdfs::read_to_string(&path_template).map_err(|e| Error::ReadingTemplateFailed {
-            source: e.into(),
-            path: path_template,
-        })?;
+    let template = stdfs::read_to_string(&path_template).with_context(|| {
+        format!(
+            "failed to read template directory `{}`",
+            path_template.display()
+        )
+    })?;
 
     let abs_path_project_root = to_absolute::to_absolute_from_current_dir(path_project_root)
-        .map_err(|e| Error::TemplateVariableSubstitutionFailed { source: e.into() })?;
+        .with_context(|| {
+            format!(
+                "get absolute path for `{}` failed",
+                path_project_root.display()
+            )
+        })?;
     let template = template
         .replace("$LIB_DIR", &libdir_escaped())
         .replace("$GDB_PATH", &gdbpath_escaped())
@@ -288,16 +254,15 @@ fn generate(path_project_root: &Path, path: &Path) -> Result<()> {
 
 fn write_file_ensure_parent_dirs(path: &Path, contents: &str) -> Result<()> {
     if let Some(parent) = path.parent() {
-        stdfs::create_dir_all(parent).map_err(|e| Error::CreateDestinationDirectoryFailed {
-            source: e.into(),
-            path: parent.to_path_buf(),
+        stdfs::create_dir_all(parent).with_context(|| {
+            format!(
+                "failed to create destination directories at `{}`",
+                parent.display()
+            )
         })?;
     }
 
-    stdfs::write(path, contents).map_err(|e| Error::WriteToDestinationFailed {
-        source: e.into(),
-        path: path.to_path_buf(),
-    })
+    stdfs::write(path, contents).with_context(|| format!("failed to write to `{}`", path.display()))
 }
 
 fn gdbpath_escaped() -> String {
@@ -334,10 +299,8 @@ fn parse_include(
                 let inc_file = caps.name("inc_file").unwrap().as_str();
                 let inc_path = lib_dir.join(Path::new(inc_file));
                 let inc_path: PathBuf = inc_path.components().collect();
-                to_absolute::canonicalize(&inc_path).map_err(|e| Error::CanonicalizationFailed {
-                    source: e.into(),
-                    path: inc_path,
-                })?
+                to_absolute::canonicalize(&inc_path)
+                    .with_context(|| format!("failed to canonicalize `{}`", inc_path.display()))?
             }
         };
 
@@ -355,11 +318,8 @@ fn parse_include(
                 .parent()
                 .expect("internal error: cannot extract parent");
 
-            let source =
-                stdfs::read_to_string(&inc_path).map_err(|e| Error::ReadingSourceFailed {
-                    source: e.into(),
-                    path: inc_path.clone(),
-                })?;
+            let source = stdfs::read_to_string(&inc_path)
+                .with_context(|| format!("failed to read `{}`", inc_path.display()))?;
 
             parse_include(next_lib_dir, included, &RawSource(source))?
         };

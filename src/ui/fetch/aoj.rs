@@ -1,31 +1,9 @@
 use crate::eprintln_debug;
 use crate::imp::auth::aoj as auth;
 use crate::imp::test_case::TestCase;
+use anyhow::ensure;
+use anyhow::{Context, Result};
 use scraper::{Html, Selector};
-use std::result;
-
-pub type Result<T> = std::result::Result<T, Error>;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("failed to fetch the problem `{problem_id}`")]
-    FetchingProblemFailed {
-        source: anyhow::Error,
-        problem_id: String,
-    },
-
-    #[error("unexpected number of <pre>: {detected}")]
-    UnexpectedNumberOfPreTag { detected: usize },
-
-    #[error("failed to determine test case file name")]
-    CouldNotDetermineTestCaseName { source: anyhow::Error },
-
-    #[error("failed to get the page at `{url}`")]
-    AuthenticatedGetFailed { source: anyhow::Error, url: String },
-
-    #[error("failed to get text from page")]
-    GettingTextFailed { source: anyhow::Error },
-}
 
 #[derive(Debug)]
 pub struct Aoj {
@@ -96,11 +74,9 @@ impl super::TestCaseProvider for Aoj {
         false
     }
 
-    fn fetch_test_case_files(&self) -> result::Result<Vec<TestCase>, anyhow::Error> {
-        let text = download_text(self.problem.url()).map_err(|e| Error::FetchingProblemFailed {
-            source: e.into(),
-            problem_id: self.problem.problem_id().to_string(),
-        })?;
+    fn fetch_test_case_files(&self) -> Result<Vec<TestCase>> {
+        let text = download_text(self.problem.url())
+            .with_context(|| format!("failed to fetch a problem: {}", self.problem.problem_id()))?;
 
         parse_text(text).map_err(Into::into)
     }
@@ -111,19 +87,18 @@ pub fn parse_text(text: String) -> Result<Vec<TestCase>> {
     let sel_pre = Selector::parse("pre").unwrap();
 
     let mut pres: Vec<_> = document.select(&sel_pre).collect();
-    if pres.len() <= 1 {
-        return Err(Error::UnexpectedNumberOfPreTag {
-            detected: pres.len(),
-        });
-    }
+    ensure!(
+        pres.len() > 1,
+        "unexpected number of <pre>: {} found",
+        pres.len()
+    );
 
     if pres.len() % 2 == 1 {
         pres = pres.into_iter().skip(1).collect();
     }
 
     let mut result = Vec::new();
-    let beginning = TestCase::next_unused_idx()
-        .map_err(|e| Error::CouldNotDetermineTestCaseName { source: e.into() })?;
+    let beginning = TestCase::next_unused_idx().context("failed to get unused index")?;
     for i in 0..(pres.len() / 2) {
         let tsf = TestCase::new_with_idx(
             beginning + i as i32,
@@ -138,10 +113,7 @@ pub fn parse_text(text: String) -> Result<Vec<TestCase>> {
 
 fn download_text(url: &str) -> Result<String> {
     auth::authenticated_get(url)
-        .map_err(|e| Error::AuthenticatedGetFailed {
-            source: e.into(),
-            url: url.to_string(),
-        })?
+        .with_context(|| format!("failed to get {} with logged in", url))?
         .text()
-        .map_err(|e| Error::GettingTextFailed { source: e.into() })
+        .context("failed to get text")
 }

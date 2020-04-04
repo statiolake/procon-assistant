@@ -6,9 +6,10 @@ use crate::ui::login;
 use crate::ui::login::LoginUI;
 use crate::ExitStatus;
 use crate::{eprintln_info, eprintln_tagged};
+use anyhow::bail;
+use anyhow::{Context, Result};
 use std::env;
 use std::ffi::OsStr;
-use std::fmt::Debug;
 
 pub mod aoj;
 
@@ -17,26 +18,6 @@ pub mod aoj;
 pub struct Fetch {
     #[clap(help = "The problem-id of the target problem.  ex) aoj:0123, atcoder:abc012a")]
     problem_id: Option<String>,
-}
-
-pub type Result<T> = std::result::Result<T, Error>;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("contest-site `{site}` is unknown")]
-    UnknownContestSite { site: String },
-
-    #[error("contest-site and problem-id are not specified")]
-    ProblemUnspecified,
-
-    #[error("failed to fetch")]
-    FetchFailed { source: anyhow::Error },
-
-    #[error("failed to create provider")]
-    ProviderCreationFailed { source: anyhow::Error },
-
-    #[error("failed to write test case file `{name}`")]
-    TestCaseWritionFailed { source: anyhow::Error, name: String },
 }
 
 impl Fetch {
@@ -69,12 +50,12 @@ pub fn fetch_test_case_files(
 
         login_ui
             .authenticate(quiet)
-            .map_err(|source| Error::ProviderCreationFailed { source })?;
+            .context("failed to create provider")?;
     }
 
     let test_case_files = provider
         .fetch_test_case_files()
-        .map_err(|source| Error::FetchFailed { source })?;
+        .context("failed to fetch test case")?;
 
     Ok(test_case_files)
 }
@@ -83,10 +64,8 @@ pub fn write_test_case_files(tcfs: Vec<TestCase>) -> Result<()> {
     let sample_cases = tcfs.len();
     for tcf in tcfs {
         eprintln_tagged!("Generating": "Sample Case: {}", tcf);
-        tcf.write().map_err(|e| Error::TestCaseWritionFailed {
-            source: e.into(),
-            name: tcf.to_string(),
-        })?;
+        tcf.write()
+            .with_context(|| format!("failed to write test case file: `{}`", tcf))?;
     }
     eprintln_tagged!("Finished": "generating {} Sample Case(s)", sample_cases);
 
@@ -140,7 +119,7 @@ fn handle_empty_arg() -> Result<ProblemDescriptor> {
         }
     }
 
-    Err(Error::ProblemUnspecified)
+    bail!("problem is not specified");
 }
 
 pub fn get_provider(
@@ -148,16 +127,14 @@ pub fn get_provider(
 ) -> Result<(Box<dyn TestCaseProvider>, Box<dyn LoginUI>)> {
     match &*dsc.contest_site {
         "aoj" => Aoj::new(dsc.problem_id)
-            .map_err(|e| Error::ProviderCreationFailed { source: e.into() })
+            .context("failed to create the provider Aoj")
             .map(|t| (t, login::aoj::Aoj))
             .map(provider_into_box),
         "atcoder" | "at" => AtCoder::new(dsc.problem_id)
-            .map_err(|e| Error::ProviderCreationFailed { source: e.into() })
+            .context("failed to create the provider AtCoder")
             .map(|t| (t, login::atcoder::AtCoder))
             .map(provider_into_box),
-        _ => Err(Error::UnknownContestSite {
-            site: dsc.contest_site,
-        }),
+        other => bail!("unknown contest site: {}", other),
     }
 }
 
@@ -169,8 +146,7 @@ fn provider_into_box<T: 'static + TestCaseProvider, L: 'static + LoginUI>(
 
 fn get_descriptor(problem_id: Option<String>) -> Result<ProblemDescriptor> {
     match problem_id {
-        Some(arg) => ProblemDescriptor::parse(arg)
-            .map_err(|e| Error::ProviderCreationFailed { source: e.into() }),
+        Some(arg) => ProblemDescriptor::parse(arg).context("failed parse problem descriptor"),
         None => handle_empty_arg(),
     }
 }

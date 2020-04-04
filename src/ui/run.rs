@@ -12,6 +12,7 @@ use crate::ui::CONFIG;
 use crate::ExitStatus;
 use crate::{eprintln_debug, eprintln_info, eprintln_more, eprintln_tagged, eprintln_warning};
 use anyhow::anyhow;
+use anyhow::{Context as _, Result};
 use console::Style;
 use itertools::Itertools as _;
 use std::cmp;
@@ -46,46 +47,13 @@ fn style_sep() -> Style {
     Style::new().black().bold()
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
-
-delegate_impl_error_error_kind! {
-    #[error("failed to run some test cases")]
-    pub struct Error(ErrorKind);
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ErrorKind {
-    #[error("failed to compile")]
-    CompilationFailed { source: anyhow::Error },
-
-    #[error("test running failed")]
-    RunningTestsFailed { source: anyhow::Error },
-
-    #[error("failed to get source file")]
-    GettingLanguageFailed { source: anyhow::Error },
-
-    #[error("failed to copy to clipboard")]
-    CopyingToClipboardFailed { source: anyhow::Error },
-
-    #[error("failed to parse the Accepted argument")]
-    InvalidArgument { source: anyhow::Error },
-
-    #[error("failed to load some test case")]
-    LoadingTestCaseFailed { source: anyhow::Error },
-
-    #[error("failed to judge")]
-    JudgingFailed { source: anyhow::Error },
-}
-
 impl Run {
     pub fn run(self, quiet: bool) -> Result<ExitStatus> {
-        let lang = langs::guess_language()
-            .map_err(|e| Error(ErrorKind::GettingLanguageFailed { source: e.into() }))?;
-        let status = compile::compile(quiet, &*lang, self.force_compile)
-            .map_err(|e| Error(ErrorKind::CompilationFailed { source: e.into() }))?;
+        let lang = langs::guess_language().context("failed to get language")?;
+        let status =
+            compile::compile(quiet, &*lang, self.force_compile).context("failed to compile")?;
         let result = if status == ExitStatus::Success {
-            run_tests(quiet, &*lang, &self.to_run)
-                .map_err(|e| Error(ErrorKind::RunningTestsFailed { source: e.into() }))?
+            run_tests(quiet, &*lang, &self.to_run).context("failed to run tests")?
         } else {
             TestResult::CompilationError
         };
@@ -98,8 +66,7 @@ impl Run {
         // copy the answer to the clipboard
         if result.is_accepted() {
             eprintln!("");
-            clip::copy_to_clipboard(quiet, &*lang)
-                .map_err(|e| Error(ErrorKind::CopyingToClipboardFailed { source: e.into() }))?;
+            clip::copy_to_clipboard(quiet, &*lang).context("failed to copy to the clipboard")?;
 
             Ok(ExitStatus::Success)
         } else {
@@ -116,11 +83,10 @@ fn run_tests<L: Language + ?Sized>(quiet: bool, lang: &L, args: &[String]) -> Re
 fn parse_argument_cases(args: &[String]) -> Result<Vec<TestCase>> {
     let mut result = vec![];
     for arg in args.iter() {
-        let n: i32 = arg
+        let n = arg
             .parse::<i32>()
-            .map_err(|e| Error(ErrorKind::InvalidArgument { source: e.into() }))?;
-        let tcf = TestCase::load_from_index_of(n)
-            .map_err(|e| Error(ErrorKind::LoadingTestCaseFailed { source: e.into() }))?;
+            .with_context(|| format!("argument is not a number: {}", arg))?;
+        let tcf = TestCase::load_from_index_of(n).context("failed to load test case")?;
         result.push(tcf);
     }
 
@@ -129,8 +95,7 @@ fn parse_argument_cases(args: &[String]) -> Result<Vec<TestCase>> {
 
 fn enumerate_test_cases(args: &[String]) -> Result<Vec<TestCase>> {
     let test_cases = if args.is_empty() {
-        test_case::enumerate_test_cases()
-            .map_err(|e| Error(ErrorKind::LoadingTestCaseFailed { source: e.into() }))?
+        test_case::enumerate_test_cases().context("failed to enumerate test cases")?
     } else {
         parse_argument_cases(args)?
     };
@@ -154,12 +119,11 @@ fn run<L: Language + ?Sized>(quiet: bool, lang: &L, tcs: Vec<TestCase>) -> Resul
     eprintln!("");
     let mut whole_result = TestResult::Accepted;
     for handle in handles {
-        let (display, result) = handle.join().map_err(|_| {
-            Error(ErrorKind::JudgingFailed {
-                source: anyhow!("judge thread panicked"),
-            })
-        })?;
-        let result = result.map_err(|e| Error(ErrorKind::JudgingFailed { source: e.into() }))?;
+        let (display, result) = handle
+            .join()
+            .map_err(|_| anyhow!("judge thread panicked"))
+            .context("failed to judge")?;
+        let result = result.context("failed to judge")?;
         print_result(quiet, &result, display);
 
         // update the whole result

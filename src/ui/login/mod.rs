@@ -2,6 +2,7 @@ pub mod aoj;
 pub mod atcoder;
 
 use crate::ExitStatus;
+use anyhow::{Context, Result};
 
 #[derive(clap::Clap)]
 #[clap(about = "Logs in to a contest-site")]
@@ -19,23 +20,11 @@ pub enum Site {
     Aoj(aoj::Aoj),
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("log in failed")]
-    LoginError { source: anyhow::Error },
-}
-
 impl Site {
     fn run(self, quiet: bool) -> Result<()> {
         match self {
-            Site::AtCoder(cmd) => cmd
-                .run(quiet)
-                .map_err(|e| Error::LoginError { source: e.into() }),
-            Site::Aoj(cmd) => cmd
-                .run(quiet)
-                .map_err(|e| Error::LoginError { source: e.into() }),
+            Site::AtCoder(cmd) => cmd.run(quiet).context("failed to login"),
+            Site::Aoj(cmd) => cmd.run(quiet).context("failed to login"),
         }
     }
 }
@@ -49,5 +38,5 @@ impl Login {
 }
 
 pub trait LoginUI {
-    fn authenticate(&self, quiet: bool) -> anyhow::Result<()>;
+    fn authenticate(&self, quiet: bool) -> Result<()>;
 }

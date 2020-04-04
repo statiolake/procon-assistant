@@ -4,6 +4,8 @@ pub mod rust;
 use self::cpp::Cpp;
 use self::rust::Rust;
 use crate::imp::progress::Progress;
+use anyhow::anyhow;
+use anyhow::Result;
 use indexmap::indexmap;
 use indexmap::IndexMap;
 use lazy_static::lazy_static;
@@ -34,11 +36,11 @@ pub trait Language {
 
     fn init_async(&self, path: &Path) -> Progress<anyhow::Result<FilesToOpen>>;
     fn needs_compile(&self) -> bool;
-    fn get_source(&self) -> anyhow::Result<RawSource>;
+    fn get_source(&self) -> Result<RawSource>;
     fn compile_command(&self) -> Vec<Command>;
     fn run_command(&self) -> Command;
-    fn preprocess(&self, source: &RawSource) -> anyhow::Result<Preprocessed>;
-    fn minify(&self, processed: &Preprocessed) -> anyhow::Result<Minified>;
+    fn preprocess(&self, source: &RawSource) -> Result<Preprocessed>;
+    fn minify(&self, processed: &Preprocessed) -> Result<Minified>;
     fn lint(&self, minified: &Minified) -> Vec<String>;
 }
 
@@ -57,24 +59,11 @@ lazy_static! {
     };
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
-
-delegate_impl_error_error_kind! {
-    #[error("failed to get the language for this project")]
-    pub struct Error(ErrorKind);
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ErrorKind {
-    #[error("there doesn't seem to have a supported file in the current dir")]
-    FileNotFound,
-}
-
 pub fn guess_language() -> Result<Box<dyn Language>> {
     LANGS_MAP
         .iter()
         .filter(|(_, (check, _))| check())
         .map(|(_, (_, ctor))| ctor())
         .next()
-        .ok_or_else(|| Error(ErrorKind::FileNotFound))
+        .ok_or_else(|| anyhow!("no language is match"))
 }
