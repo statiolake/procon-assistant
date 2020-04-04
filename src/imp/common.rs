@@ -1,5 +1,6 @@
 use crate::eprintln_debug;
 use crate::ui::CONFIG;
+use anyhow::{Context, Result};
 use itertools::Itertools;
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -7,17 +8,6 @@ use std::process::{Command, Stdio};
 pub fn colorize() -> bool {
     use atty::Stream;
     atty::is(Stream::Stderr)
-}
-
-pub type Result<T> = std::result::Result<T, Error>;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("failed to spawn command `{process_name}`")]
-    SpawningCommandFailed {
-        source: anyhow::Error,
-        process_name: String,
-    },
 }
 
 pub fn open_addcase<P: AsRef<Path>>(names: &[P]) -> Result<()> {
@@ -52,12 +42,7 @@ fn spawn_editor(process_name: &str, cmds: Vec<Command>) -> Result<()> {
             cmd.spawn().map(drop)
         };
 
-        if let Err(e) = res {
-            return Err(Error::SpawningCommandFailed {
-                source: e.into(),
-                process_name: process_name.to_string(),
-            });
-        }
+        res.with_context(|| format!("failed to spawn command `{}`", process_name))?;
     }
 
     Ok(())

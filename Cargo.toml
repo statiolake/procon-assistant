@@ -21,7 +21,6 @@ which = "3.1.1"
 current_exe = { git = "https://github.com/statiolake/current-exe-rs" }
 to_absolute = { git = "https://github.com/statiolake/to-absolute-rs" }
 anyhow = "1.0.27"
-thiserror = "1.0.12"
 clap = { git = "https://github.com/clap-rs/clap" }
 chrono = "0.4.11"
 console = "0.10.0"

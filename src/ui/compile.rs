@@ -4,6 +4,7 @@ use crate::imp::langs;
 use crate::imp::langs::Language;
 use crate::ExitStatus;
 use crate::{eprintln_info, eprintln_more, eprintln_tagged};
+use anyhow::{Context, Result};
 
 #[derive(clap::Clap)]
 #[clap(about = "Compiles the current solution;  the produced binary won't be tested automatically")]
@@ -16,26 +17,10 @@ pub struct Compile {
     force: bool,
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
-
-delegate_impl_error_error_kind! {
-    #[error("failed to compile")]
-    pub struct Error(ErrorKind);
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ErrorKind {
-    #[error("failed to run compilation task")]
-    CompilationFailed { source: anyhow::Error },
-
-    #[error("failed to get source file")]
-    GettingLanguageFailed { source: anyhow::Error },
-}
-
 impl Compile {
     pub fn run(self, quiet: bool) -> Result<ExitStatus> {
         let lang = langs::guess_language()
-            .map_err(|e| Error(ErrorKind::GettingLanguageFailed { source: e.into() }))?;
+            .context("failed to guess the language for the current project")?;
 
         let status = compile(quiet, &*lang, self.force)?;
         Ok(status)
@@ -51,10 +36,10 @@ pub fn compile<L: Language + ?Sized>(quiet: bool, lang: &L, force: bool) -> Resu
         return Ok(ExitStatus::Success);
     }
 
-    compile_src(quiet, lang).map_err(|e| Error(ErrorKind::CompilationFailed { source: e.into() }))
+    compile_src(quiet, lang).context("failed to compile")
 }
 
-pub fn compile_src<L: Language + ?Sized>(quiet: bool, lang: &L) -> compile::Result<ExitStatus> {
+pub fn compile_src<L: Language + ?Sized>(quiet: bool, lang: &L) -> Result<ExitStatus> {
     eprintln_tagged!("Compiling": "project");
     let CompilerOutput {
         status,

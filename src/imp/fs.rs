@@ -1,47 +1,20 @@
+use anyhow::{Context, Result};
 use std::cmp::Ordering;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::path::PathBuf;
 
-pub type Result<T> = std::result::Result<T, Error>;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("failed to create file `{file_name}`")]
-    CreatingFailed {
-        source: anyhow::Error,
-        file_name: String,
-    },
-
-    #[error("failed to write to file `{file_name}`")]
-    WritingFailed {
-        source: anyhow::Error,
-        file_name: String,
-    },
-
-    #[error("failed to check a metadata of file `{}`", .path.display())]
-    CheckingMetadataFailed {
-        source: anyhow::Error,
-        path: PathBuf,
-    },
-}
-
 /// Write the text into the specified file unless the file doesn't exist.  If
 /// exists, return error.
 pub fn safe_write(file_name: &str, text: &str) -> Result<()> {
-    let mut f = File::create(file_name).map_err(|e| Error::CreatingFailed {
-        source: e.into(),
-        file_name: file_name.into(),
-    })?;
+    let mut f =
+        File::create(file_name).with_context(|| format!("failed to create `{}`", file_name))?;
 
     // if text is not empty, write the text into the file.
     if !text.is_empty() {
         f.write_all(text.as_bytes())
-            .map_err(|e| Error::WritingFailed {
-                source: e.into(),
-                file_name: file_name.into(),
-            })?;
+            .with_context(|| format!("failed to write into `{}`", file_name))?;
     }
 
     Ok(())
@@ -58,18 +31,12 @@ pub fn cmp_modified_time<P: AsRef<Path>, Q: AsRef<Path>>(base: P, target: Q) -> 
     let base = File::open(base)
         .and_then(|f| f.metadata())
         .and_then(|m| m.modified())
-        .map_err(|e| Error::CheckingMetadataFailed {
-            source: e.into(),
-            path: base.to_path_buf(),
-        })?;
+        .with_context(|| format!("checking metadata of base `{}` failed", base.display()))?;
 
     let target = File::open(target)
         .and_then(|f| f.metadata())
         .and_then(|m| m.modified())
-        .map_err(|e| Error::CheckingMetadataFailed {
-            source: e.into(),
-            path: target.to_path_buf(),
-        })?;
+        .with_context(|| format!("checking metadata of target `{}` failed", target.display()))?;
 
     Ok(base.cmp(&target))
 }

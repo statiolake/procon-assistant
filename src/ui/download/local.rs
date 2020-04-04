@@ -1,33 +1,12 @@
 use super::Fetchers;
 use crate::imp::fetch::ProblemDescriptor;
 use crate::ui::fetch;
-use std::fs::File;
-use std::io::Read;
+use anyhow::ensure;
+use anyhow::{Context, Result};
+use itertools::Itertools;
+use std::fs;
 use std::path::Path;
 use std::str;
-
-pub type Result<T> = std::result::Result<T, Error>;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("problems.txt not found in this directory")]
-    AnythingNotSpecified,
-
-    #[error("couldn't open `{file_path}`")]
-    CouldNotOpenProblemsTxt {
-        source: anyhow::Error,
-        file_path: String,
-    },
-
-    #[error("couldn't read `{file_path}`")]
-    CouldNotReadProblemsTxt {
-        source: anyhow::Error,
-        file_path: String,
-    },
-
-    #[error("failed to parse specified problem")]
-    ParseFailed { source: anyhow::Error },
-}
 
 pub struct Local {
     file_path: String,
@@ -52,7 +31,7 @@ impl super::ContestProvider for Local {
         &self.file_path
     }
 
-    fn make_fetchers(&self) -> anyhow::Result<Fetchers> {
+    fn make_fetchers(&self) -> Result<Fetchers> {
         let problem_list = load_problem_list(self.file_path.clone())?;
         make_fetcher(problem_list).map_err(Into::into)
     }
@@ -61,14 +40,8 @@ impl super::ContestProvider for Local {
 fn make_fetcher(problem_list: Vec<String>) -> Result<Fetchers> {
     problem_list
         .into_iter()
-        .map(|problem| {
-            ProblemDescriptor::parse(problem).map_err(|e| Error::ParseFailed { source: e.into() })
-        })
-        .map(|pd| {
-            pd.and_then(|pd| {
-                fetch::get_provider(pd).map_err(|e| Error::ParseFailed { source: e.into() })
-            })
-        })
+        .map(|problem| ProblemDescriptor::parse(problem).context("failed to parse a problem"))
+        .map(|pd| pd.and_then(|pd| fetch::get_provider(pd).context("failed to get the provider")))
         .collect::<Result<_>>()
         .map(|fetchers| Fetchers {
             fetchers,
@@ -79,26 +52,16 @@ fn make_fetcher(problem_list: Vec<String>) -> Result<Fetchers> {
 
 fn load_problem_list(file_path: String) -> Result<Vec<String>> {
     let problems_path = Path::new(&file_path);
-    if !problems_path.exists() {
-        return Err(Error::AnythingNotSpecified);
-    }
-    let mut f = File::open(problems_path).map_err(|e| Error::CouldNotOpenProblemsTxt {
-        source: e.into(),
-        file_path: file_path.clone(),
-    })?;
-    let mut content = String::new();
-    f.read_to_string(&mut content)
-        .map_err(|e| Error::CouldNotReadProblemsTxt {
-            source: e.into(),
-            file_path: file_path.clone(),
-        })?;
-    let res: Vec<_> = content
+    ensure!(problems_path.exists(), "problem list is not specified");
+    let content = fs::read_to_string(problems_path)
+        .with_context(|| format!("failed to open problems: `{}`", problems_path.display()))?;
+    let res = content
         .split('\n')
         .map(str::trim)
         .filter(|&x| !x.starts_with('#'))
         .filter(|&x| x != "")
-        .map(|x| x.into())
-        .collect();
+        .map(Into::into)
+        .collect_vec();
 
     Ok(res)
 }

@@ -1,6 +1,8 @@
 use crate::imp::test_case;
 use crate::imp::test_case::TestCase;
 use crate::ExitStatus;
+use anyhow::ensure;
+use anyhow::{Context, Result};
 use std::fs;
 use std::io;
 
@@ -13,49 +15,26 @@ pub struct DelCase {
     indices: Vec<usize>,
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
-
-delegate_impl_error_error_kind! {
-    #[error("failed to delete the testcase")]
-    pub struct Error(ErrorKind);
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ErrorKind {
-    #[error("failed to open testcase file")]
-    OpeningTestCaseFailed { source: anyhow::Error },
-
-    #[error("the specified test case {idx} is out-of-range: there're only {num} test cases")]
-    IndexOutOfRange { idx: i32, num: usize },
-
-    #[error("failed to remove testcase file")]
-    RemovingTestCaseFailed { source: anyhow::Error },
-
-    #[error("failed to write testcase file into file")]
-    WritingTestCaseFailed { source: anyhow::Error },
-}
-
 impl DelCase {
     pub fn run(self, _quiet: bool) -> Result<ExitStatus> {
         // load all test cases
-        let mut test_cases = test_case::enumerate_test_cases()
-            .map_err(|e| Error(ErrorKind::OpeningTestCaseFailed { source: e.into() }))?;
+        let mut test_cases =
+            test_case::enumerate_test_cases().context("failed to enumerate test cases")?;
 
         // once remove all test case file
-        clean_test_cases(&test_cases)
-            .map_err(|e| Error(ErrorKind::RemovingTestCaseFailed { source: e.into() }))?;
+        clean_test_cases(&test_cases).context("failed to clean test cases")?;
 
         // remove test case from test cases
         let len = test_cases.len();
         let mut removed = 0;
         #[allow(clippy::explicit_counter_loop)]
         for idx in self.indices {
-            if idx >= len {
-                return Err(Error(ErrorKind::IndexOutOfRange {
-                    idx: (idx + 1) as _,
-                    num: len,
-                }));
-            }
+            ensure!(
+                idx < len,
+                "index is out of range: len is {} but idx is {}",
+                len,
+                idx
+            );
 
             assert!(idx >= removed);
             test_cases.remove(idx - removed);
@@ -71,7 +50,7 @@ impl DelCase {
             );
             new_test_case
                 .write()
-                .map_err(|e| Error(ErrorKind::WritingTestCaseFailed { source: e.into() }))?;
+                .context("failed to write to the test case")?;
         }
 
         Ok(ExitStatus::Success)

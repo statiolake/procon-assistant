@@ -2,33 +2,9 @@ use super::TestCaseProvider;
 use crate::eprintln_debug;
 use crate::imp::auth::atcoder as auth;
 use crate::imp::test_case::TestCase;
+use anyhow::ensure;
+use anyhow::{Context, Result};
 use easy_scraper::Pattern;
-
-pub type Result<T> = std::result::Result<T, Error>;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("missing tag: failed to find `{selector}`; are you successfully logged in?")]
-    FindingTagFailed { selector: String },
-
-    #[error("unexpected number of <pre>: {detected}")]
-    UnexpectedNumberOfPreTag { detected: usize },
-
-    #[error("failed to determine test case file name")]
-    CouldNotDetermineTestCaseName { source: anyhow::Error },
-
-    #[error("failed to get the page at `{url}`")]
-    AuthenticatedGetFailed { source: anyhow::Error, url: String },
-
-    #[error("failed to get text from page")]
-    GettingTextFailed { source: anyhow::Error },
-
-    #[error("invalid format for problem-id: `{problem}`;  example: `abc022a` for AtCoder Beginner Contest 022 Problem A")]
-    InvalidFormatForProblemId { problem: String },
-
-    #[error("logging in failed")]
-    LoginFailed { source: anyhow::Error },
-}
 
 #[derive(Debug)]
 pub struct AtCoder {
@@ -60,11 +36,12 @@ impl Problem {
         let problem = if problem_id.starts_with("http") {
             Problem::DirectUrl { url: problem_id }
         } else {
-            if problem_id.len() != 7 {
-                return Err(Error::InvalidFormatForProblemId {
-                    problem: problem_id,
-                });
-            }
+            ensure!(
+                problem_id.len() == 7,
+                "invalid format for problem id: {}",
+                problem_id
+            );
+
             let contest_name = problem_id[0..3].to_string();
             let contest_id = problem_id[0..6].to_string();
             let problem = problem_id[6..7].to_string();
@@ -119,7 +96,7 @@ impl TestCaseProvider for AtCoder {
         false
     }
 
-    fn fetch_test_case_files(&self) -> anyhow::Result<Vec<TestCase>> {
+    fn fetch_test_case_files(&self) -> Result<Vec<TestCase>> {
         let text = download_text(self.problem.url())?;
         parse_text(&text).map_err(Into::into)
     }
@@ -127,12 +104,9 @@ impl TestCaseProvider for AtCoder {
 
 fn download_text(url: &str) -> Result<String> {
     auth::authenticated_get(url)
-        .map_err(|e| Error::AuthenticatedGetFailed {
-            source: e.into(),
-            url: url.to_string(),
-        })?
+        .with_context(|| format!("failed to get `{}` with login", url))?
         .text()
-        .map_err(|e| Error::GettingTextFailed { source: e.into() })
+        .context("failed to get the text")
 }
 
 fn parse_text(text: &str) -> Result<Vec<TestCase>> {
@@ -162,8 +136,7 @@ fn parse_text(text: &str) -> Result<Vec<TestCase>> {
     )
     .unwrap();
 
-    let idx_start = TestCase::next_unused_idx()
-        .map_err(|e| Error::CouldNotDetermineTestCaseName { source: e.into() })?;
+    let idx_start = TestCase::next_unused_idx().context("failed to get unused index")?;
     Ok(pattern
         .matches(text)
         .into_iter()

@@ -1,23 +1,8 @@
+use anyhow::{Context, Result};
 use serde_derive::Deserialize;
 use std::fs::File;
 use std::path::PathBuf;
 use which::which;
-
-pub type Result<T> = std::result::Result<T, Error>;
-
-delegate_impl_error_error_kind! {
-    #[error("failed to get config")]
-    pub struct Error(ErrorKind);
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ErrorKind {
-    #[error("`config.json` is not found")]
-    ConfigFileMissing { source: anyhow::Error },
-
-    #[error("failed to parse `config.json`")]
-    ErrorInConfigFile { source: anyhow::Error },
-}
 
 #[derive(Deserialize, Default)]
 pub struct ConfigFile {
@@ -126,8 +111,7 @@ impl ConfigFile {
             Err(_) => return Ok(ConfigFile::default()),
         };
 
-        serde_json::from_reader(file)
-            .map_err(|e| Error(ErrorKind::ErrorInConfigFile { source: e.into() }))
+        serde_json::from_reader(file).context("error in config file")
     }
 }
 

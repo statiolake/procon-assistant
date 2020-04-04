@@ -9,6 +9,8 @@ use crate::imp::fetch::TestCaseProvider;
 use crate::ui::fetch;
 use crate::ui::login::LoginUI;
 use crate::ExitStatus;
+use anyhow::{bail, ensure};
+use anyhow::{Context, Result};
 use std::env;
 use std::path::Path;
 use std::str;
@@ -20,39 +22,6 @@ pub struct Download {
     contest_id: Option<String>,
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
-
-delegate_impl_error_error_kind! {
-    #[error("failed to download")]
-    pub struct Error(ErrorKind);
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ErrorKind {
-    #[error(
-        "argument's format is not correct: `{passed_arg}`;  example: `atcoder:abc022a` for AtCoder Beginner Contest 022 Problem A",
-    )]
-    ArgumentFormatError { passed_arg: String },
-
-    #[error("contest-site `{site}` is unknown")]
-    UnknownContestSite { site: String },
-
-    #[error("failed to make fetchers")]
-    MakingFetcherFailed { source: anyhow::Error },
-
-    #[error("failed to fetch the problem")]
-    FetchError { source: anyhow::Error },
-
-    #[error("failed to create provider")]
-    ProviderCreationFailed { source: anyhow::Error },
-
-    #[error("failed to write test case file")]
-    WritingTestCaseFailed { source: anyhow::Error },
-
-    #[error("failed to create contest directories")]
-    CreatingContestDirectoriesFailed { source: anyhow::Error },
-}
-
 impl Download {
     pub fn run(self, quiet: bool) -> Result<ExitStatus> {
         let provider = match self.contest_id {
@@ -62,7 +31,7 @@ impl Download {
 
         let fetchers = provider
             .make_fetchers()
-            .map_err(|source| Error(ErrorKind::MakingFetcherFailed { source }))?;
+            .context("failed to make the fetcher")?;
 
         eprintln_tagged!("Fetching": "{} (at {})", provider.contest_id(), provider.url());
         fetchers.prepare_generate()?;
@@ -87,11 +56,10 @@ fn provider_into_box<T: 'static + ContestProvider>(provider: T) -> Box<dyn Conte
 fn get_provider(arg: String) -> Result<Box<dyn ContestProvider>> {
     let (contest_site, contest_id) = parse_arg(&arg)?;
     match contest_site {
-        "atcoder" | "at" => AtCoder::new(contest_id.to_string())
-            .map_err(|e| Error(ErrorKind::ProviderCreationFailed { source: e.into() })),
-        _ => Err(Error(ErrorKind::UnknownContestSite {
-            site: contest_site.to_string(),
-        })),
+        "atcoder" | "at" => {
+            AtCoder::new(contest_id.to_string()).context("failed to create the provider")
+        }
+        site => bail!("unknown contest site: `{}`", site),
     }
     .map(provider_into_box)
 }
@@ -102,11 +70,8 @@ fn get_local_provider() -> Result<Box<dyn ContestProvider>> {
 
 fn parse_arg(arg: &str) -> Result<(&str, &str)> {
     let sp: Vec<_> = arg.split(':').collect();
-    if sp.len() != 2 {
-        return Err(Error(ErrorKind::ArgumentFormatError {
-            passed_arg: arg.to_string(),
-        }));
-    }
+    ensure!(sp.len() == 2, "argument format error: `{}`", arg);
+
     Ok((sp[0], sp[1]))
 }
 
@@ -152,7 +117,7 @@ fn adjust_current_dir(contest_id: &str, beginning_char: char, numof_problems: us
     }
 
     imp::initdirs::create_directories(contest_id, numof_problems, beginning_char)
-        .map_err(|e| Error(ErrorKind::CreatingContestDirectoriesFailed { source: e.into() }))?;
+        .context("failed to create contest directories")?;
 
     env::set_current_dir(&Path::new(contest_id)).unwrap();
 
@@ -175,9 +140,8 @@ pub fn generate_one(
     let curr_url = (b'a' + problem) as char;
     contest_id.push(curr_url);
     let tcfs = fetch::fetch_test_case_files(quiet, provider, login_ui)
-        .map_err(|e| Error(ErrorKind::FetchError { source: e.into() }))?;
-    fetch::write_test_case_files(tcfs)
-        .map_err(|e| Error(ErrorKind::WritingTestCaseFailed { source: e.into() }))?;
+        .context("failed to read test cases")?;
+    fetch::write_test_case_files(tcfs).context("failed to write test cases")?;
     contest_id.pop();
 
     env::set_current_dir(Path::new("..")).unwrap();
@@ -190,5 +154,5 @@ pub trait ContestProvider {
     fn contest_id(&self) -> &str;
     fn url(&self) -> &str;
 
-    fn make_fetchers(&self) -> anyhow::Result<Fetchers>;
+    fn make_fetchers(&self) -> Result<Fetchers>;
 }

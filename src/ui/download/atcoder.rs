@@ -4,36 +4,9 @@ use crate::imp::fetch::atcoder as fetch;
 use crate::imp::fetch::TestCaseProvider;
 use crate::ui::login::atcoder as login;
 use crate::ui::login::LoginUI;
+use anyhow::{anyhow, ensure};
+use anyhow::{Context, Result};
 use scraper::{Html, Selector};
-
-pub type Result<T> = std::result::Result<T, Error>;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("contest_id `{contest_id}` is invalid; the example format for AtCoder Grand Contest 022: agc022")]
-    InvalidFormatForContestId { contest_id: String },
-
-    #[error("failed to get contest page text")]
-    GettingProblemPageFailed { source: anyhow::Error },
-
-    #[error("failed to get tasks")]
-    GettingTasksFailed,
-
-    #[error("failed to get contest id")]
-    GettingProblemIdFailed,
-
-    #[error("contest id was empty")]
-    EmptyProblemId,
-
-    #[error("failed to get provider")]
-    GettingProviderFailed { source: anyhow::Error },
-
-    #[error("failed to get the page at `{url}`")]
-    AuthenticatedGetFailed { source: anyhow::Error, url: String },
-
-    #[error("failed to get text from page")]
-    GettingTextFailed { source: anyhow::Error },
-}
 
 pub struct AtCoder {
     contest: Contest,
@@ -57,9 +30,12 @@ impl Contest {
         let contest = if contest_id.starts_with("http") {
             Contest::DirectUrl { url: contest_id }
         } else {
-            if contest_id.len() != 6 {
-                return Err(Error::InvalidFormatForContestId { contest_id });
-            }
+            ensure!(
+                contest_id.len() == 6,
+                "invalid format for contest id: `{}`",
+                contest_id
+            );
+
             let url = format!("https://atcoder.jp/contests/{}/tasks", contest_id);
             Contest::ContestId { contest_id, url }
         };
@@ -94,7 +70,7 @@ impl ContestProvider for AtCoder {
         self.contest.url()
     }
 
-    fn make_fetchers(&self) -> anyhow::Result<Fetchers> {
+    fn make_fetchers(&self) -> Result<Fetchers> {
         let id = self.contest.contest_id();
         let (beginning_char, numof_problems) = get_range_of_problems(id)?;
 
@@ -127,8 +103,7 @@ fn fetcher_into_box<T: 'static + TestCaseProvider>(x: T) -> Box<dyn TestCaseProv
 fn get_range_of_problems(contest_id: &str) -> Result<(char, u8)> {
     // fetch the tasks
     let url = format!("https://atcoder.jp/contests/{}/tasks", contest_id);
-    let text =
-        download_text(&url).map_err(|e| Error::GettingProblemPageFailed { source: e.into() })?;
+    let text = download_text(&url).context("fetching problem list page failed")?;
 
     let document = Html::parse_document(&text);
     let sel_tbody = Selector::parse("tbody").unwrap();
@@ -139,7 +114,7 @@ fn get_range_of_problems(contest_id: &str) -> Result<(char, u8)> {
     let rows: Vec<_> = document
         .select(&sel_tbody)
         .next()
-        .ok_or_else(|| Error::GettingTasksFailed)?
+        .ok_or_else(|| anyhow!("failed to get a task"))?
         .select(&sel_tr)
         .collect();
 
@@ -147,11 +122,11 @@ fn get_range_of_problems(contest_id: &str) -> Result<(char, u8)> {
     let beginning_char_uppercase = rows[0]
         .select(&sel_a)
         .next()
-        .ok_or_else(|| Error::GettingProblemIdFailed)?
+        .ok_or_else(|| anyhow!("failed to get a problem-id"))?
         .inner_html()
         .chars()
         .next()
-        .ok_or_else(|| Error::EmptyProblemId)?;
+        .ok_or_else(|| anyhow!("problem-id is empty"))?;
 
     Ok((
         beginning_char_uppercase.to_lowercase().next().unwrap(),
@@ -160,15 +135,12 @@ fn get_range_of_problems(contest_id: &str) -> Result<(char, u8)> {
 }
 
 fn fetcher_for(problem_id: String) -> Result<fetch::AtCoder> {
-    fetch::AtCoder::new(problem_id).map_err(|e| Error::GettingProviderFailed { source: e.into() })
+    fetch::AtCoder::new(problem_id).context("failed to get the provider")
 }
 
 fn download_text(url: &str) -> Result<String> {
     auth::authenticated_get(url)
-        .map_err(|e| Error::AuthenticatedGetFailed {
-            source: e.into(),
-            url: url.to_string(),
-        })?
+        .with_context(|| format!("failed to fetch `{}` with logged in", url))?
         .text()
-        .map_err(|e| Error::GettingTextFailed { source: e.into() })
+        .context("failed to get the html")
 }
