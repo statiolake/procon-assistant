@@ -298,9 +298,7 @@ fn resolve_mod(cwd: &Path, source: String, mode: MinifyMode, depth: usize) -> Re
 
     let mut pped = result.join("\n");
     if !(mode == MinifyMode::TemplateOnly && depth == 0) {
-        if let Ok(fmted) = rustfmt(&pped) {
-            pped = fmted;
-        }
+        pped = rustfmt(&pped).context("failed to run rustfmt")?;
     }
 
     match (mode, depth) {
@@ -311,7 +309,10 @@ fn resolve_mod(cwd: &Path, source: String, mode: MinifyMode, depth: usize) -> Re
 }
 
 fn rustfmt(source: &str) -> Result<String> {
-    let mut child = Command::new("rustfmt")
+    let mut child = Command::new("rustup")
+        .arg("run")
+        .arg("stable")
+        .arg("rustfmt")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
