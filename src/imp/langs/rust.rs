@@ -1,6 +1,7 @@
-use super::{FilesToOpen, Minified, Preprocessed, RawSource};
+use super::{FilesToOpen, Preprocessed, RawSource};
 use super::{Language, Progress};
 use crate::eprintln_debug;
+use crate::imp::config::MinifyMode;
 use crate::imp::config::RustProjectTemplate;
 use crate::ui::CONFIG;
 use anyhow::{anyhow, ensure};
@@ -135,22 +136,18 @@ impl Language for Rust {
         })
     }
 
-    fn preprocess(&self, RawSource(source): &RawSource) -> Result<Preprocessed> {
-        let source = resolve_mod(Path::new("main/src"), source.clone())?;
-        let source = match rustfmt(&source) {
-            Err(_) => source,
-            Ok(formatted) => formatted,
-        };
+    fn preprocess(
+        &self,
+        RawSource(source): &RawSource,
+        minify: MinifyMode,
+    ) -> Result<Preprocessed> {
+        let source = resolve_mod(Path::new("main/src"), source.clone(), minify, 0)?;
 
         Ok(Preprocessed(source))
     }
 
-    fn minify(&self, Preprocessed(processed): &Preprocessed) -> Result<Minified> {
-        let minified = processed.lines().map(|x| x.trim()).join("");
-        Ok(Minified(minified))
-    }
-
-    fn lint(&self, _minified: &Minified) -> Vec<String> {
+    fn lint(&self, _pped: &Preprocessed) -> Vec<String> {
+        // TODO: implement
         vec![]
     }
 }
@@ -216,7 +213,7 @@ fn generate_local(path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn resolve_mod(cwd: &Path, source: String) -> Result<String> {
+fn resolve_mod(cwd: &Path, source: String, mode: MinifyMode, depth: usize) -> Result<String> {
     let mut result = Vec::new();
     let mut path_attr = None;
     for line in source.lines() {
@@ -263,7 +260,7 @@ fn resolve_mod(cwd: &Path, source: String) -> Result<String> {
                 };
                 let source = stdfs::read_to_string(&mod_path)?;
                 let next_cwd = cwd.join(&mod_name);
-                let replaced = resolve_mod(&next_cwd, source)?;
+                let replaced = resolve_mod(&next_cwd, source, mode, depth + 1)?;
                 result.push(format!("mod {} {{\n{}\n}}", mod_name, replaced));
 
                 path_attr = None;
@@ -271,7 +268,18 @@ fn resolve_mod(cwd: &Path, source: String) -> Result<String> {
         };
     }
 
-    Ok(result.join("\n"))
+    let mut pped = result.join("\n");
+    if !(mode == MinifyMode::TemplateOnly && depth == 0) {
+        if let Ok(fmted) = rustfmt(&pped) {
+            pped = fmted;
+        }
+    }
+
+    match (mode, depth) {
+        (MinifyMode::All, 0) => minify(&pped),
+        (MinifyMode::TemplateOnly, 1) => minify(&pped),
+        _ => Ok(pped),
+    }
 }
 
 fn rustfmt(source: &str) -> Result<String> {
@@ -288,4 +296,8 @@ fn rustfmt(source: &str) -> Result<String> {
     drop(stdin);
     let output = child.wait_with_output()?;
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+fn minify(source: &str) -> Result<String> {
+    Ok(source.lines().map(|x| x.trim().to_string()).join(""))
 }

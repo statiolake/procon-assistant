@@ -1,5 +1,6 @@
 use super::Language;
-use super::{FilesToOpen, Minified, Preprocessed, Progress, RawSource};
+use super::{FilesToOpen, Preprocessed, Progress, RawSource};
+use crate::imp::config::MinifyMode;
 use crate::imp::fs as impfs;
 use crate::ui::CONFIG;
 use crate::{eprintln_debug, eprintln_debug_more};
@@ -148,49 +149,15 @@ impl Language for Cpp {
         }
     }
 
-    fn preprocess(&self, source: &RawSource) -> Result<Preprocessed> {
-        let content = parse_include(&libdir(), &mut HashSet::new(), source)?;
+    fn preprocess(&self, source: &RawSource, minify: MinifyMode) -> Result<Preprocessed> {
+        let pped = parse_include(&libdir(), &mut HashSet::new(), source, minify, 0)?;
 
-        let content = remove_block_comments(content);
-        let lines: Vec<String> = content.split('\n').map(|x| x.into()).collect();
-        let comment_removed = remove_line_comments(lines);
-        let debug_statement_removed = remove_debug_statement(comment_removed);
-        let removed = remove_pragma_once(debug_statement_removed);
-
-        Ok(Preprocessed(concat_safe_lines(removed).join("\n")))
+        Ok(Preprocessed(pped))
     }
 
-    fn minify(&self, Preprocessed(processed): &Preprocessed) -> Result<Minified> {
-        let mut result = processed
-            .trim()
-            .lines()
-            .map(|x| x.trim().to_string())
-            .filter(|x| !x.is_empty())
-            .collect_vec();
-
-        let replaces = [
-            (&*RE_WHITESPACE_AFTER_BLOCK_COMMENT, "*/"),
-            (&*RE_WHITESPACE_AFTER_COLONS, "$col"),
-            (&*RE_MULTIPLE_SPACE, " "),
-            (&*RE_WHITESPACE_AROUND_OPERATOR, "$op"),
-            (&*RE_WHITESPACE_AROUND_PAREN, "$par"),
-        ];
-
-        for &(regex, replace) in replaces.iter() {
-            for line in &mut result {
-                let replaced = regex.replace_all(line, replace);
-                let replaced = replaced.trim();
-                *line = replaced.to_string();
-            }
-        }
-
-        Ok(Minified(result.join("\n")))
-    }
-
-    fn lint(&self, Minified(minified): &Minified) -> Vec<String> {
+    fn lint(&self, Preprocessed(pped): &Preprocessed) -> Vec<String> {
         let mut result = Vec::new();
-
-        if minified.contains("cerr") {
+        if pped.contains("cerr") {
             result.push("cerr found".into());
         }
 
@@ -287,6 +254,8 @@ fn parse_include(
     lib_dir: &Path,
     included: &mut HashSet<PathBuf>,
     RawSource(source): &RawSource,
+    mode: MinifyMode,
+    depth: usize,
 ) -> Result<String> {
     assert!(lib_dir.is_absolute());
 
@@ -321,18 +290,22 @@ fn parse_include(
             let source = stdfs::read_to_string(&inc_path)
                 .with_context(|| format!("failed to read `{}`", inc_path.display()))?;
 
-            parse_include(next_lib_dir, included, &RawSource(source))?
+            parse_include(next_lib_dir, included, &RawSource(source), mode, depth + 1)?
         };
 
         mem::replace(line, will_be_replaced);
     }
-    let modified_content = lines.join("\n");
+    let modified = lines.join("\n");
 
-    Ok(modified_content)
+    match (mode, depth) {
+        (MinifyMode::All, 0) => minify(&modified),
+        (MinifyMode::TemplateOnly, 1) => minify(&modified),
+        _ => Ok(modified),
+    }
 }
 
-fn remove_block_comments(content: String) -> String {
-    RE_BLOCK_COMMENT.replace_all(&content, "").into()
+fn remove_block_comments(content: &str) -> String {
+    RE_BLOCK_COMMENT.replace_all(content, "").into()
 }
 
 fn remove_line_comments(mut lines: Vec<String>) -> Vec<String> {
@@ -395,4 +368,36 @@ fn concat_safe_lines(lines: Vec<String>) -> Vec<String> {
     push_and_init(&mut res, &mut res_line);
 
     res
+}
+
+fn minify(source: &str) -> Result<String> {
+    let source = remove_block_comments(source);
+    let lines: Vec<String> = source.split('\n').map(|x| x.into()).collect();
+    let comment_removed = remove_line_comments(lines);
+    let debug_statement_removed = remove_debug_statement(comment_removed);
+    let removed = remove_pragma_once(debug_statement_removed);
+
+    let mut result = removed
+        .into_iter()
+        .map(|x| x.trim().to_string())
+        .filter(|x| !x.is_empty())
+        .collect_vec();
+
+    let replaces = [
+        (&*RE_WHITESPACE_AFTER_BLOCK_COMMENT, "*/"),
+        (&*RE_WHITESPACE_AFTER_COLONS, "$col"),
+        (&*RE_MULTIPLE_SPACE, " "),
+        (&*RE_WHITESPACE_AROUND_OPERATOR, "$op"),
+        (&*RE_WHITESPACE_AROUND_PAREN, "$par"),
+    ];
+
+    for &(regex, replace) in replaces.iter() {
+        for line in &mut result {
+            let replaced = regex.replace_all(line, replace);
+            let replaced = replaced.trim();
+            *line = replaced.to_string();
+        }
+    }
+
+    Ok(concat_safe_lines(result).join("\n"))
 }

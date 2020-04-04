@@ -67,7 +67,17 @@ pub struct Run {
 #[derive(Deserialize)]
 pub struct Clip {
     #[serde(default = "Clip::default_minify")]
-    pub minify: bool,
+    pub minify: MinifyMode,
+}
+
+#[derive(Deserialize, PartialEq, Eq, Hash, Clone, Copy)]
+pub enum MinifyMode {
+    #[serde(rename = "none")]
+    None,
+    #[serde(rename = "template_only")]
+    TemplateOnly,
+    #[serde(rename = "all")]
+    All,
 }
 
 #[derive(Deserialize, Default)]
@@ -227,8 +237,8 @@ impl Default for Clip {
 }
 
 impl Clip {
-    pub fn default_minify() -> bool {
-        true
+    pub fn default_minify() -> MinifyMode {
+        MinifyMode::TemplateOnly
     }
 }
 

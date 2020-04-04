@@ -3,6 +3,7 @@ pub mod rust;
 
 use self::cpp::Cpp;
 use self::rust::Rust;
+use crate::imp::config::MinifyMode;
 use crate::imp::progress::Progress;
 use anyhow::anyhow;
 use anyhow::Result;
@@ -14,7 +15,6 @@ use std::process::Command;
 
 pub struct RawSource(pub String);
 pub struct Preprocessed(pub String);
-pub struct Minified(pub String);
 
 pub struct FilesToOpen {
     pub files: Vec<PathBuf>,
@@ -39,9 +39,8 @@ pub trait Language {
     fn get_source(&self) -> Result<RawSource>;
     fn compile_command(&self) -> Vec<Command>;
     fn run_command(&self) -> Command;
-    fn preprocess(&self, source: &RawSource) -> Result<Preprocessed>;
-    fn minify(&self, processed: &Preprocessed) -> Result<Minified>;
-    fn lint(&self, minified: &Minified) -> Vec<String>;
+    fn preprocess(&self, source: &RawSource, minify: MinifyMode) -> Result<Preprocessed>;
+    fn lint(&self, pped: &Preprocessed) -> Vec<String>;
 }
 
 type CheckerType = fn() -> bool;

@@ -1,6 +1,6 @@
 use crate::imp::clip;
 use crate::imp::langs;
-use crate::imp::langs::{Language, Minified, Preprocessed};
+use crate::imp::langs::{Language, Preprocessed};
 use crate::ui::CONFIG;
 use crate::ExitStatus;
 use crate::{eprintln_info, eprintln_tagged, eprintln_warning};
@@ -22,26 +22,19 @@ impl Clip {
 pub fn copy_to_clipboard<L: Language + ?Sized>(quiet: bool, lang: &L) -> Result<()> {
     eprintln_tagged!("Copying": "source file to clipboard");
     let source = lang.get_source().context("failed to load source code")?;
-    let preprocessed = lang
-        .preprocess(&source)
+    let pped = lang
+        .preprocess(&source, CONFIG.clip.minify)
         .context("failed to preprocess the source")?;
-    let minified = if CONFIG.clip.minify {
-        lang.minify(&preprocessed)
-            .context("failed to minify the source")?
-    } else {
-        let Preprocessed(p) = preprocessed;
-        Minified(p)
-    };
 
-    let lints = lang.lint(&minified);
-    let Minified(minified) = minified;
-    let minified = minified + "\n";
-    clip::set_clipboard(minified.clone());
+    let lints = lang.lint(&pped);
+    let Preprocessed(pped) = pped;
+    let pped = pped + "\n";
+    clip::set_clipboard(pped.clone());
     eprintln_tagged!("Finished": "copying");
 
     if !quiet {
         eprintln_info!("the copied string is as follows:");
-        println!("{}", minified);
+        println!("{}", pped);
     }
 
     if !lints.is_empty() {
