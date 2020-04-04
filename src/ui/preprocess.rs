@@ -1,5 +1,6 @@
 use crate::imp::langs;
 use crate::imp::langs::Preprocessed;
+use crate::ui::CONFIG;
 use crate::ExitStatus;
 use anyhow::{Context, Result};
 
@@ -12,11 +13,11 @@ impl Preprocess {
         let lang =
             langs::guess_language().context("failed to guess the language used in this project")?;
         let source = lang.get_source().context("failed to read the sorce file")?;
-        let Preprocessed(preprocessed) = lang
-            .preprocess(&source)
+        let Preprocessed(pped) = lang
+            .preprocess(&source, CONFIG.clip.minify)
             .context("failed to preprocess the source")?;
 
-        println!("{}", preprocessed);
+        println!("{}", pped);
 
         Ok(ExitStatus::Success)
     }
