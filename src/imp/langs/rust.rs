@@ -215,15 +215,14 @@ fn resolve_mod(cwd: &Path, source: String, mode: MinifyMode, depth: usize) -> Re
     let mut result = Vec::new();
     let mut path_attr = None;
     let mut lines = source.lines();
-    while let Some(line) = lines.next() {
-        let mut line = line.trim();
-        if line.is_empty() {
+    while let Some(mut line) = lines.next() {
+        if line.trim().is_empty() {
             result.push("".to_string());
             continue;
         }
 
         // if #[cfg(test)], skip modules
-        if line == "#[cfg(test)]" {
+        if line.trim() == "#[cfg(test)]" {
             let mut brace_level = 0;
             let mut first = true;
             while let Some(mut peek) = lines.next() {
