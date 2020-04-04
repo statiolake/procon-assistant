@@ -3,7 +3,7 @@ use super::{Language, Progress};
 use crate::eprintln_debug;
 use crate::imp::config::RustProjectTemplate;
 use crate::ui::CONFIG;
-use anyhow::ensure;
+use anyhow::{anyhow, ensure};
 use anyhow::{Context, Result};
 use fs_extra::dir;
 use fs_extra::dir::CopyOptions;
@@ -14,6 +14,7 @@ use scopefunc::ScopeFunc;
 use scopeguard::defer;
 use std::env;
 use std::fs as stdfs;
+use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -136,6 +137,11 @@ impl Language for Rust {
 
     fn preprocess(&self, RawSource(source): &RawSource) -> Result<Preprocessed> {
         let source = resolve_mod(Path::new("main/src"), source.clone())?;
+        let source = match rustfmt(&source) {
+            Err(_) => source,
+            Ok(formatted) => formatted,
+        };
+
         Ok(Preprocessed(source))
     }
 
@@ -266,4 +272,20 @@ fn resolve_mod(cwd: &Path, source: String) -> Result<String> {
     }
 
     Ok(result.join("\n"))
+}
+
+fn rustfmt(source: &str) -> Result<String> {
+    let mut child = Command::new("rustfmt")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+    let mut stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| anyhow!("failed to get stdin"))?;
+    stdin.write_all(source.as_bytes())?;
+    drop(stdin);
+    let output = child.wait_with_output()?;
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
