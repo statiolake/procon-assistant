@@ -25,6 +25,12 @@ lazy_static! {
     static ref RE_MOD_PATH: Regex = Regex::new(r#"#\[path\s+=\s+"(?P<path>.*)"\]"#).unwrap();
     static ref RE_MOD: Regex = Regex::new(r#"(?:pub\s+)?mod (?P<name>\w+);"#).unwrap();
     static ref RE_COMMENT: Regex = Regex::new(r#"//.*"#).unwrap();
+    static ref RE_WHITESPACE_AFTER_COLONS: Regex = Regex::new(r#"\s*(?P<col>[;:])\s*"#).unwrap();
+    static ref RE_MULTIPLE_SPACE: Regex = Regex::new(r#"\s+"#).unwrap();
+    static ref RE_WHITESPACE_AROUND_OPERATOR: Regex =
+        Regex::new(r#"\s*(?P<op>[+\-*/%~^|&<>=,.!?]|<<|>>|<=|>=|==|!=|\+=|-=|\*=|/=|->)\s*"#)
+            .unwrap();
+    static ref RE_WHITESPACE_AROUND_PAREN: Regex = Regex::new(r#"\s*(?P<par>[({)}])\s*"#).unwrap();
 }
 
 impl Language for Rust {
@@ -208,10 +214,41 @@ fn generate_local(path: &Path) -> Result<()> {
 fn resolve_mod(cwd: &Path, source: String, mode: MinifyMode, depth: usize) -> Result<String> {
     let mut result = Vec::new();
     let mut path_attr = None;
-    for line in source.lines() {
-        if line.trim().is_empty() {
+    let mut lines = source.lines();
+    while let Some(line) = lines.next() {
+        let mut line = line.trim();
+        if line.is_empty() {
             result.push("".to_string());
             continue;
+        }
+
+        // if #[cfg(test)], skip modules
+        if line == "#[cfg(test)]" {
+            let mut brace_level = 0;
+            let mut first = true;
+            while let Some(mut peek) = lines.next() {
+                if let Some(pos) = peek.find("//") {
+                    peek = &peek[..pos];
+                }
+
+                let peek = peek.trim();
+                let mut chars = peek.chars();
+                while let Some(ch) = chars.next() {
+                    match ch {
+                        '{' => {
+                            brace_level += 1;
+                            first = false;
+                        }
+                        '}' => brace_level += -1,
+                        _ => (),
+                    }
+                }
+
+                if brace_level == 0 && !first {
+                    line = chars.as_str();
+                    break;
+                }
+            }
         }
 
         match RE_MOD.captures(&line) {
@@ -291,5 +328,25 @@ fn rustfmt(source: &str) -> Result<String> {
 }
 
 fn minify(source: &str) -> Result<String> {
-    Ok(source.lines().map(|x| x.trim().to_string()).join(""))
+    let replaces = [
+        (&*RE_MULTIPLE_SPACE, " "),
+        (&*RE_WHITESPACE_AFTER_COLONS, "$col"),
+        (&*RE_WHITESPACE_AROUND_OPERATOR, "$op"),
+        (&*RE_WHITESPACE_AROUND_PAREN, "$par"),
+    ];
+
+    let mut result = source
+        .lines()
+        .map(|x| x.trim().to_string())
+        .filter(|x| !x.is_empty())
+        .collect_vec();
+    for &(regex, replace) in replaces.iter() {
+        for line in &mut result {
+            let replaced = regex.replace_all(line, replace);
+            let replaced = replaced.trim();
+            *line = replaced.to_string();
+        }
+    }
+
+    Ok(result.join(""))
 }
