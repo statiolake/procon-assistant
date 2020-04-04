@@ -129,9 +129,7 @@ impl Language for Rust {
     }
 
     fn run_command(&self) -> Command {
-        Command::new("cargo").modify(|c| {
-            c.arg("run").arg("-q").current_dir("main");
-        })
+        Command::new("main/target/debug/main")
     }
 
     fn preprocess(
