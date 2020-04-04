@@ -76,11 +76,10 @@ impl Language for Rust {
             let output = Command::new("cargo")
                 .arg("build")
                 .arg("--quiet")
-                .arg("--manifest-path")
-                .arg("main/Cargo.toml")
                 .stdin(Stdio::null())
                 .stdout(Stdio::null())
                 .stderr(Stdio::piped())
+                .current_dir("main")
                 .spawn()?
                 .wait_with_output()?;
             ensure!(
@@ -113,15 +112,11 @@ impl Language for Rust {
 
     fn compile_command(&self) -> Vec<Command> {
         let clean = Command::new("cargo").modify(|c| {
-            c.arg("clean")
-                .arg("--manifest-path")
-                .arg("main/Cargo.toml")
-                .arg("-p")
-                .arg("main");
+            c.arg("clean").arg("-p").arg("main").current_dir("main");
         });
 
         let build = Command::new("cargo").modify(|c| {
-            c.arg("build").arg("--manifest-path").arg("main/Cargo.toml");
+            c.arg("build").current_dir("main");
         });
 
         vec![clean, build]
@@ -129,10 +124,7 @@ impl Language for Rust {
 
     fn run_command(&self) -> Command {
         Command::new("cargo").modify(|c| {
-            c.arg("run")
-                .arg("-q")
-                .arg("--manifest-path")
-                .arg("main/Cargo.toml");
+            c.arg("run").arg("-q").current_dir("main");
         })
     }
 
