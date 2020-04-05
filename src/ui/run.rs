@@ -2,8 +2,7 @@ use crate::imp::langs;
 use crate::imp::langs::Language;
 use crate::imp::test_case;
 use crate::imp::test_case::{
-    Context, JudgeResult, RuntimeErrorKind, Span, TestCase, TestResult, WrongAnswer,
-    WrongAnswerKind,
+    Context, JudgeResult, RuntimeError, Span, TestCase, TestResult, WrongAnswer, WrongAnswerKind,
 };
 use crate::ui::clip;
 use crate::ui::compile;
@@ -161,7 +160,7 @@ fn print_result(quiet: bool, result: &JudgeResult, display: String) {
         }
         TestResult::RuntimeError(re) => {
             if !quiet {
-                print_re(*re);
+                print_re(re);
             }
         }
         _ => {}
@@ -376,6 +375,10 @@ fn print_diffs(
         .for_each(|l| eprintln_more!("{}", l));
 }
 
-fn print_re(re: RuntimeErrorKind) {
-    eprintln_info!("{}", re);
+fn print_re(re: &RuntimeError) {
+    eprintln_info!("{}", re.kind);
+    eprintln_info!("child stderr:");
+    for line in re.stderr.lines() {
+        eprintln_more!("{}", line);
+    }
 }
