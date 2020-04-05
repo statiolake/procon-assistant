@@ -21,7 +21,7 @@ pub enum TestResult {
     WrongAnswer(WrongAnswer),
     PresentationError,
     TimeLimitExceeded,
-    RuntimeError(RuntimeErrorKind),
+    RuntimeError(RuntimeError),
     CompilationError,
 }
 
@@ -135,6 +135,12 @@ impl fmt::Display for RuntimeErrorKind {
 pub struct WrongAnswer {
     pub context: Context,
     pub errors: Vec<WrongAnswerKind>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RuntimeError {
+    pub stderr: String,
+    pub kind: RuntimeErrorKind,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -547,10 +553,18 @@ fn wait_or_timeout(child: &mut Child) -> Result<(time::Duration, Option<TestResu
                     None
                 } else if status.code().is_none() {
                     // RE: signal termination. consider it as a runtime error here.
-                    Some(RE(RuntimeErrorKind::SignalTerminated))
+                    let stderr = read_child_stderr(child);
+                    Some(RE(RuntimeError {
+                        stderr,
+                        kind: RuntimeErrorKind::SignalTerminated,
+                    }))
                 } else {
                     // RE: some error occurs, returning runtime error.
-                    Some(RE(RuntimeErrorKind::ChildUnsuccessful))
+                    let stderr = read_child_stderr(child);
+                    Some(RE(RuntimeError {
+                        stderr,
+                        kind: RuntimeErrorKind::ChildUnsuccessful,
+                    }))
                 };
 
                 return Ok((elapsed, test_result));
@@ -561,7 +575,11 @@ fn wait_or_timeout(child: &mut Child) -> Result<(time::Duration, Option<TestResu
 
             // failed to check the child status.  treat this as a runtime error.
             Err(_) => {
-                let test_result = Some(RE(RuntimeErrorKind::WaitingFinishFailed));
+                let stderr = read_child_stderr(child);
+                let test_result = Some(RE(RuntimeError {
+                    stderr,
+                    kind: RuntimeErrorKind::WaitingFinishFailed,
+                }));
                 return Ok((elapsed, test_result));
             }
         }
@@ -580,4 +598,12 @@ fn read_child_stdout(child: &mut Child) -> String {
     stdout.read_to_string(&mut childstdout).unwrap();
 
     childstdout
+}
+
+fn read_child_stderr(child: &mut Child) -> String {
+    let mut childstderr = String::new();
+    let stderr = child.stderr.as_mut().unwrap();
+    stderr.read_to_string(&mut childstderr).unwrap();
+
+    childstderr
 }
