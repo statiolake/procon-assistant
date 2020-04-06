@@ -23,8 +23,8 @@ impl InitDirs {
         // to limit the number of problems in order to avoid the problem id
         // exceeding `Z`.
         let max_numof_problems = match self.beginning_char {
-            'a'..='z' => (self.beginning_char as u8 - b'a') as usize,
-            'A'..='Z' => (self.beginning_char as u8 - b'A') as usize,
+            'a'..='z' => (b'z' - self.beginning_char as u8 + 1) as usize,
+            'A'..='Z' => (b'Z' - self.beginning_char as u8 + 1) as usize,
             ch => bail!("invalid start character: {}", ch),
         };
 
