@@ -231,7 +231,7 @@ fn resolve_mod(cwd: &Path, source: String, mode: MinifyMode, depth: usize) -> Re
         if line.trim() == "#[cfg(test)]" {
             let mut brace_level = 0;
             let mut first = true;
-            while let Some(mut peek) = lines.next() {
+            for mut peek in lines.by_ref() {
                 if let Some(pos) = peek.find("//") {
                     peek = &peek[..pos];
                 }
