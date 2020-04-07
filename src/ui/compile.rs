@@ -32,14 +32,13 @@ pub fn compile<L: Lang + ?Sized>(quiet: bool, lang: &L, force: bool) -> Result<E
         if !quiet {
             eprintln_info!("no need to compile");
         }
-
         return Ok(ExitStatus::Success);
     }
 
-    compile_src(quiet, lang).context("failed to compile")
+    do_compile(quiet, lang).context("failed to compile")
 }
 
-pub fn compile_src<L: Lang + ?Sized>(quiet: bool, lang: &L) -> Result<ExitStatus> {
+fn do_compile<L: Lang + ?Sized>(quiet: bool, lang: &L) -> Result<ExitStatus> {
     eprintln_tagged!("Compiling": "project");
     let CompilerOutput {
         status,
