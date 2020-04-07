@@ -255,7 +255,7 @@ fn print_diffs(
 
     if least_width > width {
         eprintln_warning!(
-            "Terminal size is too narrow (at least: {} chars per line, actual: {} chars).  Diff view is disabled.",
+            "Terminal size is too narrow (at least: {} chars per line, actual: {} chars). Diff view is disabled.",
             least_width,
             width
         );

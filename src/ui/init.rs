@@ -13,7 +13,7 @@ use std::path::Path;
 pub struct Init {
     #[clap(
         default_value = ".",
-        help = "The name of directory;  if `.`, files will be generated in the current directory"
+        help = "The name of directory; if `.`, files will be generated in the current directory"
     )]
     dirname: String,
 

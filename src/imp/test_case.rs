@@ -178,7 +178,7 @@ impl Context {
         let is_presentation_error = self.check_presentation_error();
         self.fix_last_newline();
 
-        // check the number of lines are equal.  if it doesn't, it's already a wrong answer.
+        // check the number of lines are equal. if it doesn't, it's already a wrong answer.
         if let Some(err) = Context::verify_num_lines(self.expected.len(), self.actual.len()) {
             return TestResult::WrongAnswer(WrongAnswer {
                 context: self,
@@ -210,7 +210,7 @@ impl Context {
         TestResult::Accepted
     }
 
-    /// Checks if it could be a presentation error.  Check is meaningful only
+    /// Checks if it could be a presentation error. Check is meaningful only
     /// before calling `fix_last_newline()` as that function "fixes" the
     /// presentation error if any.
     fn check_presentation_error(&self) -> bool {
@@ -221,13 +221,13 @@ impl Context {
     /// Fixes the presentation error if any.
     fn fix_last_newline(&mut self) {
         // if last line has a newline in the end, `expected` will have an
-        // extra blank line.  remove this.
+        // extra blank line. remove this.
         if self.expected.last().map(String::as_str) == Some("") {
             self.expected.pop();
         }
 
         // if the last line has a newline in the end, `actual` will have an
-        // extra blank line.  if it doesn't, that's a presentation error (last
+        // extra blank line. if it doesn't, that's a presentation error (last
         // newline is always required).
         if self.actual.last().map(String::as_str) == Some("") {
             self.actual.pop();
@@ -296,7 +296,7 @@ impl Token {
         Token { kind, span }
     }
 
-    /// Checks if two tokens are "equal".  Note that this equality doesn't
+    /// Checks if two tokens are "equal". Note that this equality doesn't
     /// satisfy the transitivity (because a certain amount of error is allowed
     /// for floating point numbers).
     fn is_equal(a: &Token, b: &Token) -> bool {
@@ -377,7 +377,7 @@ impl Token {
 
     fn parse(token: &str, span: Span) -> Token {
         // A token starting with zero is rarely intended to be a number, so
-        // treat it as a string.  But there are some corner cases (ex: `0`,
+        // treat it as a string. But there are some corner cases (ex: `0`,
         // `0.1`) so check that.
         if token.starts_with('0') && !(token == "0" || token.starts_with("0.")) {
             return Token::new(TokenKind::String(token.into()), span);
@@ -618,7 +618,7 @@ fn wait_or_timeout(child: &mut Child) -> Result<(time::Duration, Option<TestResu
         // check if the binary has finished.
         let try_wait_result = child.try_wait();
         match try_wait_result {
-            // child has somehow finished.  check the reason.
+            // child has somehow finished. check the reason.
             Ok(Some(status)) => {
                 let test_result = if status.success() {
                     // OK: child succesfully exited in time.
@@ -642,10 +642,10 @@ fn wait_or_timeout(child: &mut Child) -> Result<(time::Duration, Option<TestResu
                 return Ok((elapsed, test_result));
             }
 
-            // child hasn't finished.  continue to polling
+            // child hasn't finished. continue to polling
             Ok(None) => {}
 
-            // failed to check the child status.  treat this as a runtime error.
+            // failed to check the child status. treat this as a runtime error.
             Err(_) => {
                 let stderr = read_child_stderr(child);
                 let test_result = Some(RE(RuntimeError {

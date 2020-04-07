@@ -7,7 +7,7 @@ use crate::{eprintln_info, eprintln_more, eprintln_tagged};
 use anyhow::{Context, Result};
 
 #[derive(clap::Clap)]
-#[clap(about = "Compiles the current solution;  the produced binary won't be tested automatically")]
+#[clap(about = "Compiles the current solution; the produced binary won't be tested automatically")]
 pub struct Compile {
     #[clap(
         short,

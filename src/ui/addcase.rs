@@ -5,7 +5,7 @@ use crate::ExitStatus;
 use anyhow::{Context, Result};
 
 #[derive(clap::Clap)]
-#[clap(about = "Adds a new test case;  creates `inX.txt` and `outX.txt` in the current directory")]
+#[clap(about = "Adds a new test case; creates `inX.txt` and `outX.txt` in the current directory")]
 pub struct AddCase;
 
 impl AddCase {
