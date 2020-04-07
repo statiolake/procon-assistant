@@ -16,7 +16,6 @@ use crate::ExitStatus;
 use crate::{eprintln_error, eprintln_info};
 use anyhow::Result;
 use clap::Clap;
-use lazy_static::lazy_static;
 use std::error;
 
 #[derive(Clap)]
@@ -83,21 +82,15 @@ impl SubCommand {
     }
 }
 
-lazy_static! {
-    pub static ref CONFIG: ConfigFile = {
-        match ConfigFile::get_config() {
-            Ok(config) => config,
-            Err(e) => {
-                eprintln_error!("{}", e);
-                print_causes(false, &*e);
-                std::process::exit(1);
-            }
+pub fn main() -> ExitStatus {
+    let _ = match ConfigFile::get_config() {
+        Ok(config) => config,
+        Err(e) => {
+            eprintln_error!("{}", e);
+            print_causes(false, &*e);
+            std::process::exit(1);
         }
     };
-}
-
-pub fn main() -> ExitStatus {
-    lazy_static::initialize(&CONFIG);
 
     let opts = Options::parse();
     match opts.subcommand.run(opts.quiet) {

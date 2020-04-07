@@ -1,8 +1,17 @@
 use anyhow::{Context, Result};
+use lazy_static::lazy_static;
 use serde_derive::Deserialize;
 use std::fs::File;
 use std::path::PathBuf;
 use which::which;
+
+lazy_static! {
+    pub static ref CONFIG: ConfigFile = ConfigFile::get_config().expect(concat!(
+        "critical error: failed to get the config;",
+        " Make sure you get config once before using CONFIG",
+        " and handle errors earlier"
+    ));
+}
 
 #[derive(Deserialize, Default)]
 pub struct ConfigFile {

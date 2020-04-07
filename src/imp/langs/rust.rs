@@ -3,7 +3,7 @@ use super::{Language, Progress};
 use crate::eprintln_debug;
 use crate::imp::config::MinifyMode;
 use crate::imp::config::RustProjectTemplate;
-use crate::ui::CONFIG;
+use crate::imp::config::CONFIG;
 use anyhow::{anyhow, ensure};
 use anyhow::{Context, Result};
 use fs_extra::dir;

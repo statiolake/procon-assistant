@@ -1,8 +1,8 @@
 use super::Language;
 use super::{FilesToOpen, Preprocessed, Progress, RawSource};
 use crate::imp::config::MinifyMode;
+use crate::imp::config::CONFIG;
 use crate::imp::fs as impfs;
-use crate::ui::CONFIG;
 use crate::{eprintln_debug, eprintln_debug_more};
 use anyhow::{Context, Result};
 use itertools::Itertools;

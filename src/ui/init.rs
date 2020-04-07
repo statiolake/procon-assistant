@@ -1,8 +1,8 @@
 use crate::eprintln_progress;
 use crate::imp::common;
 use crate::imp::config::OpenTarget;
+use crate::imp::config::CONFIG;
 use crate::imp::langs;
-use crate::ui::CONFIG;
 use crate::ExitStatus;
 use anyhow::anyhow;
 use anyhow::{Context, Result};

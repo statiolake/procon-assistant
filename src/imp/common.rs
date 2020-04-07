@@ -1,5 +1,5 @@
 use crate::eprintln_debug;
-use crate::ui::CONFIG;
+use crate::imp::config::CONFIG;
 use anyhow::{Context, Result};
 use itertools::Itertools;
 use std::path::Path;
