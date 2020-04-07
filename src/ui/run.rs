@@ -191,6 +191,11 @@ fn print_wa(wa: &WrongAnswer) {
         eprintln_more!("{}", style.apply_to(l));
     }
 
+    eprintln_info!("stderr:");
+    for l in wa.stderr.lines() {
+        eprintln_more!("{}", style.apply_to(l));
+    }
+
     eprintln_info!("errors:");
     print_wa_errors(wa);
 }
