@@ -7,14 +7,15 @@ use self::local::Local;
 use crate::eprintln_debug;
 use crate::eprintln_tagged;
 use crate::imp::fetch::TestCaseProvider;
+use crate::imp::fs;
 use crate::ui::fetch;
 use crate::ExitStatus;
 use anyhow::bail;
 use anyhow::{Context, Result};
+use itertools::Itertools;
 use scopeguard::defer;
 use std::env;
 use std::fmt;
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::str;
 
@@ -127,20 +128,9 @@ impl Fetchers {
 
     /// Create directories and return the root directory
     fn create_dirs(&self) -> Result<PathBuf> {
-        let current_dir = env::current_dir().expect("critical error: failed to get current dir");
-        let execuded_from_inside =
-            matches!(current_dir.file_name(), Some(name) if name == &*self.contest_id);
-        let root = if execuded_from_inside {
-            Path::new("..")
-        } else {
-            Path::new(".")
-        };
-
-        let root = root.join(&self.contest_id);
-        fs::create_dir_all(&root)?;
-        for fetcher in &self.fetchers {
-            fs::create_dir_all(root.join(&fetcher.problem))?;
-        }
+        let dirnames = self.fetchers.iter().map(|f| &f.problem).collect_vec();
+        let root = fs::create_dirs(&self.contest_id, &dirnames, true)
+            .context("failed to create directories")?;
 
         Ok(root)
     }
