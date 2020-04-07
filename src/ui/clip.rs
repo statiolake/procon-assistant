@@ -26,8 +26,12 @@ pub fn copy_to_clipboard<L: Lang + ?Sized>(quiet: bool, lang: &L) -> Result<()> 
         .preprocess(&source, CONFIG.clip.minify)
         .context("failed to preprocess the source")?;
 
-    let Preprocessed(pped) = pped;
-    let pped = pped + "\n";
+    let Preprocessed(mut pped) = pped;
+
+    // Make sure the copied source ends with '\n'.
+    pped.push('\n');
+
+    // Set to the clipboard
     clip::set_clipboard(pped.clone());
     eprintln_tagged!("Finished": "copying");
 
@@ -39,7 +43,6 @@ pub fn copy_to_clipboard<L: Lang + ?Sized>(quiet: bool, lang: &L) -> Result<()> 
     let lints = lang.lint(&source).context("failed to lint")?;
     if !lints.is_empty() {
         eprintln_warning!("linter found {} errors, is this OK?", lints.len());
-
         for lint in lints {
             eprintln_tagged!("Lint": "{}", lint);
         }
