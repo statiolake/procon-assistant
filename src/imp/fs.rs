@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 /// Creates directories under `root`. If `override_if_cwd` is `true` and current
 /// working directory name is equal to the root's name, the root directory is
-/// not created (the current directory is assumed to be the root).  Returns
+/// not created (the current directory is assumed to be the root). Returns
 /// actual root directory.
 pub fn create_dirs(
     root: impl AsRef<str>,
@@ -40,7 +40,7 @@ pub fn create_dirs(
     Ok(root.to_path_buf())
 }
 
-/// Write the text into the specified file unless the file doesn't exist.  If
+/// Write the text into the specified file unless the file doesn't exist. If
 /// exists, return error.
 pub fn safe_write(file_name: &str, text: &str) -> Result<()> {
     let mut f =
