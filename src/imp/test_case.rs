@@ -1,5 +1,5 @@
 use crate::imp;
-use crate::ui::CONFIG;
+use crate::imp::config::CONFIG;
 use anyhow::{anyhow, ensure};
 use anyhow::{Context as _, Result};
 use itertools::izip;

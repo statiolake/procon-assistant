@@ -1,7 +1,7 @@
 use crate::imp::clip;
+use crate::imp::config::CONFIG;
 use crate::imp::langs;
 use crate::imp::langs::{Language, Preprocessed};
-use crate::ui::CONFIG;
 use crate::ExitStatus;
 use crate::{eprintln_info, eprintln_tagged, eprintln_warning};
 use anyhow::{Context, Result};

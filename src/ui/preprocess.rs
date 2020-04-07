@@ -1,6 +1,6 @@
+use crate::imp::config::CONFIG;
 use crate::imp::langs;
 use crate::imp::langs::Preprocessed;
-use crate::ui::CONFIG;
 use crate::ExitStatus;
 use anyhow::{Context, Result};
 

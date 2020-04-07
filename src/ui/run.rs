@@ -1,3 +1,4 @@
+use crate::imp::config::CONFIG;
 use crate::imp::langs;
 use crate::imp::langs::Language;
 use crate::imp::test_case;
@@ -7,7 +8,6 @@ use crate::imp::test_case::{
 use crate::ui::clip;
 use crate::ui::compile;
 use crate::ui::print_macros::TAG_WIDTH;
-use crate::ui::CONFIG;
 use crate::ExitStatus;
 use crate::{eprintln_debug, eprintln_info, eprintln_more, eprintln_tagged, eprintln_warning};
 use anyhow::anyhow;
