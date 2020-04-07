@@ -142,9 +142,9 @@ impl Language for Rust {
         Ok(Preprocessed(source))
     }
 
-    fn lint(&self, _pped: &Preprocessed) -> Vec<String> {
+    fn lint(&self, _source: &RawSource) -> Result<Vec<String>> {
         // TODO: implement
-        vec![]
+        Ok(vec![])
     }
 }
 
