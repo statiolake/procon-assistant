@@ -1,4 +1,4 @@
-use crate::imp::langs::Language;
+use crate::imp::langs::Lang;
 use crate::ExitStatus;
 use anyhow::anyhow;
 use anyhow::{Context, Result};
@@ -23,7 +23,7 @@ impl CompilerOutput {
     }
 }
 
-pub fn compile<L: Language + ?Sized>(lang: &L) -> Result<CompilerOutput> {
+pub fn compile<L: Lang + ?Sized>(lang: &L) -> Result<CompilerOutput> {
     let result = lang
         .compile_command()
         .into_iter()

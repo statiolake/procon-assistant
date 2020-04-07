@@ -26,7 +26,7 @@ pub struct ConfigFile {
     #[serde(default)]
     pub clip: Clip,
     #[serde(default)]
-    pub languages: Languages,
+    pub langs: Langs,
 }
 
 #[derive(Deserialize)]
@@ -90,7 +90,7 @@ pub enum MinifyMode {
 }
 
 #[derive(Deserialize, Default)]
-pub struct Languages {
+pub struct Langs {
     #[serde(default)]
     pub cpp: Cpp,
     #[serde(default)]

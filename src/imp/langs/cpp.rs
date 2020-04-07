@@ -1,4 +1,4 @@
-use super::Language;
+use super::Lang;
 use super::{FilesToOpen, Preprocessed, Progress, RawSource};
 use crate::imp::config::MinifyMode;
 use crate::imp::config::CONFIG;
@@ -33,19 +33,19 @@ lazy_static! {
 
 pub struct Cpp;
 
-impl Language for Cpp {
+impl Lang for Cpp {
     fn check() -> bool {
         Path::new("main.cpp").exists()
     }
 
-    fn new_boxed() -> Box<dyn Language>
+    fn new_boxed() -> Box<dyn Lang>
     where
         Self: Sized,
     {
         Box::new(Cpp)
     }
 
-    fn language_name() -> &'static str
+    fn lang_name() -> &'static str
     where
         Self: Sized,
     {
@@ -61,7 +61,7 @@ impl Language for Cpp {
     fn init_async(&self, path: &Path) -> Progress<anyhow::Result<FilesToOpen>> {
         let path_project = path.to_path_buf();
         Progress::from_fn(move |sender| {
-            let template_dir = &CONFIG.languages.cpp.template_dir;
+            let template_dir = &CONFIG.langs.cpp.template_dir;
 
             let _ = sender.send("creating project directory".into());
             create_project_directory(&path_project)?;
@@ -195,7 +195,7 @@ fn safe_generate(path_project: &Path, path: &Path) -> Result<()> {
 }
 
 fn generate(path_project_root: &Path, path: &Path) -> Result<()> {
-    let path_template = CONFIG.languages.cpp.template_dir.join(path);
+    let path_template = CONFIG.langs.cpp.template_dir.join(path);
     let path_project = path_project_root.join(path);
 
     eprintln_debug!("loading template from `{}`", path_template.display());

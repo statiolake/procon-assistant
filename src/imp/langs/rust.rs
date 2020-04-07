@@ -1,5 +1,5 @@
 use super::{FilesToOpen, Preprocessed, RawSource};
-use super::{Language, Progress};
+use super::{Lang, Progress};
 use crate::eprintln_debug;
 use crate::imp::config::MinifyMode;
 use crate::imp::config::RustProjectTemplate;
@@ -33,19 +33,19 @@ lazy_static! {
     static ref RE_WHITESPACE_AROUND_PAREN: Regex = Regex::new(r#"\s*(?P<par>[({)}])\s*"#).unwrap();
 }
 
-impl Language for Rust {
+impl Lang for Rust {
     fn check() -> bool {
         Path::new("main/Cargo.toml").exists()
     }
 
-    fn new_boxed() -> Box<dyn Language>
+    fn new_boxed() -> Box<dyn Lang>
     where
         Self: Sized,
     {
         Box::new(Rust)
     }
 
-    fn language_name() -> &'static str
+    fn lang_name() -> &'static str
     where
         Self: Sized,
     {
@@ -71,7 +71,7 @@ impl Language for Rust {
 
             let _ = sender.send("generating new cargo project".into());
             // generate a project
-            match &CONFIG.languages.rust.project_template {
+            match &CONFIG.langs.rust.project_template {
                 RustProjectTemplate::Git { repository, branch } => generate_git(repository, branch),
                 RustProjectTemplate::Local { path } => generate_local(path),
             }
