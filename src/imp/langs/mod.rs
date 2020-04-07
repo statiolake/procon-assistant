@@ -70,7 +70,7 @@ pub fn guess_lang() -> Result<Box<dyn Lang>> {
 pub fn get_from_alias(alias: &str) -> Result<Box<dyn Lang>> {
     let lang = FILETYPE_ALIAS
         .get(alias)
-        .with_context(|| format!("unknown language: {}", alias))?;
+        .ok_or_else(|| anyhow!("unknown language: {}", alias))?;
     let (_, ctor) = LANGS_MAP
         .get(lang)
         .unwrap_or_else(|| panic!("internal error: unknown file type {}", lang));
