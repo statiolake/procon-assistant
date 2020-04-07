@@ -1,7 +1,7 @@
 use crate::imp::clip;
 use crate::imp::config::CONFIG;
 use crate::imp::langs;
-use crate::imp::langs::{Language, Preprocessed};
+use crate::imp::langs::{Lang, Preprocessed};
 use crate::ExitStatus;
 use crate::{eprintln_info, eprintln_tagged, eprintln_warning};
 use anyhow::{Context, Result};
@@ -12,14 +12,14 @@ pub struct Clip;
 
 impl Clip {
     pub fn run(self, quiet: bool) -> Result<ExitStatus> {
-        let lang = langs::guess_language().context("failed to guess the current language")?;
+        let lang = langs::guess_lang().context("failed to guess the current language")?;
         copy_to_clipboard(quiet, &*lang).context("failed to copy to the clipboard")?;
 
         Ok(ExitStatus::Success)
     }
 }
 
-pub fn copy_to_clipboard<L: Language + ?Sized>(quiet: bool, lang: &L) -> Result<()> {
+pub fn copy_to_clipboard<L: Lang + ?Sized>(quiet: bool, lang: &L) -> Result<()> {
     eprintln_tagged!("Copying": "source file to clipboard");
     let source = lang.get_source().context("failed to load source code")?;
     let pped = lang

@@ -21,16 +21,16 @@ pub struct FilesToOpen {
     pub directory: PathBuf,
 }
 
-pub trait Language {
+pub trait Lang {
     fn check() -> bool
     where
         Self: Sized;
 
-    fn new_boxed() -> Box<dyn Language>
+    fn new_boxed() -> Box<dyn Lang>
     where
         Self: Sized;
 
-    fn language_name() -> &'static str
+    fn lang_name() -> &'static str
     where
         Self: Sized;
 
@@ -44,25 +44,36 @@ pub trait Language {
 }
 
 type CheckerType = fn() -> bool;
-type CtorType = fn() -> Box<dyn Language>;
+type CtorType = fn() -> Box<dyn Lang>;
 
 lazy_static! {
     pub static ref LANGS_MAP: IndexMap<&'static str, (CheckerType, CtorType)> = indexmap! {
-        Cpp::language_name() => (Cpp::check as CheckerType, Cpp::new_boxed as CtorType),
-        Rust::language_name() => (Rust::check as CheckerType, Rust::new_boxed as CtorType),
+        Cpp::lang_name() => (Cpp::check as CheckerType, Cpp::new_boxed as CtorType),
+        Rust::lang_name() => (Rust::check as CheckerType, Rust::new_boxed as CtorType),
     };
     pub static ref FILETYPE_ALIAS: IndexMap<&'static str, &'static str> = indexmap! {
-        Cpp::language_name() => Cpp::language_name(),
-        Rust::language_name() => Rust::language_name(),
-        "r" => Rust::language_name(),
+        Cpp::lang_name() => Cpp::lang_name(),
+        Rust::lang_name() => Rust::lang_name(),
+        "r" => Rust::lang_name(),
     };
 }
 
-pub fn guess_language() -> Result<Box<dyn Language>> {
+pub fn guess_lang() -> Result<Box<dyn Lang>> {
     LANGS_MAP
         .iter()
         .filter(|(_, (check, _))| check())
         .map(|(_, (_, ctor))| ctor())
         .next()
         .ok_or_else(|| anyhow!("no language is match"))
+}
+
+pub fn get_from_alias(alias: &str) -> Result<Box<dyn Lang>> {
+    let lang = FILETYPE_ALIAS
+        .get(alias)
+        .with_context(|| format!("unknown language: {}", alias))?;
+    let (_, ctor) = LANGS_MAP
+        .get(lang)
+        .unwrap_or_else(|| panic!("internal error: unknown file type {}", lang));
+
+    Ok(ctor())
 }

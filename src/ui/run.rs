@@ -1,6 +1,6 @@
 use crate::imp::config::CONFIG;
 use crate::imp::langs;
-use crate::imp::langs::Language;
+use crate::imp::langs::Lang;
 use crate::imp::test_case;
 use crate::imp::test_case::{
     Context, JudgeResult, RuntimeError, Span, TestCase, TestResult, WrongAnswer, WrongAnswerKind,
@@ -48,7 +48,7 @@ fn style_sep() -> Style {
 
 impl Run {
     pub fn run(self, quiet: bool) -> Result<ExitStatus> {
-        let lang = langs::guess_language().context("failed to get language")?;
+        let lang = langs::guess_lang().context("failed to get language")?;
         let status =
             compile::compile(quiet, &*lang, self.force_compile).context("failed to compile")?;
         let result = if status == ExitStatus::Success {
@@ -74,7 +74,7 @@ impl Run {
     }
 }
 
-fn run_tests<L: Language + ?Sized>(quiet: bool, lang: &L, args: &[String]) -> Result<TestResult> {
+fn run_tests<L: Lang + ?Sized>(quiet: bool, lang: &L, args: &[String]) -> Result<TestResult> {
     let tcs = enumerate_test_cases(&args)?;
     run(quiet, lang, tcs)
 }
@@ -102,7 +102,7 @@ fn enumerate_test_cases(args: &[String]) -> Result<Vec<TestCase>> {
     Ok(test_cases)
 }
 
-fn run<L: Language + ?Sized>(quiet: bool, lang: &L, tcs: Vec<TestCase>) -> Result<TestResult> {
+fn run<L: Lang + ?Sized>(quiet: bool, lang: &L, tcs: Vec<TestCase>) -> Result<TestResult> {
     eprintln_tagged!(
         "Running": "{} test cases (current timeout is {} millisecs)",
         tcs.len(),
