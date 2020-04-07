@@ -155,13 +155,16 @@ impl Language for Cpp {
         Ok(Preprocessed(pped))
     }
 
-    fn lint(&self, Preprocessed(pped): &Preprocessed) -> Vec<String> {
+    fn lint(&self, source: &RawSource) -> Result<Vec<String>> {
+        let Preprocessed(pped) = self
+            .preprocess(source, MinifyMode::All)
+            .context("failed to preprocess the raw source")?;
         let mut result = Vec::new();
         if pped.contains("cerr") {
             result.push("cerr found".into());
         }
 
-        result
+        Ok(result)
     }
 }
 

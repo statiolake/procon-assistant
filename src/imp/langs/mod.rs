@@ -40,7 +40,7 @@ pub trait Language {
     fn compile_command(&self) -> Vec<Command>;
     fn run_command(&self) -> Command;
     fn preprocess(&self, source: &RawSource, minify: MinifyMode) -> Result<Preprocessed>;
-    fn lint(&self, pped: &Preprocessed) -> Vec<String>;
+    fn lint(&self, source: &RawSource) -> Result<Vec<String>>;
 }
 
 type CheckerType = fn() -> bool;
