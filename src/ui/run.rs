@@ -85,7 +85,7 @@ fn parse_argument_cases(args: &[String]) -> Result<Vec<TestCase>> {
         let n = arg
             .parse::<i32>()
             .with_context(|| format!("argument is not a number: {}", arg))?;
-        let tcf = TestCase::load_from_index_of(n).context("failed to load test case")?;
+        let tcf = TestCase::load_from_index(n).context("failed to load test case")?;
         result.push(tcf);
     }
 
