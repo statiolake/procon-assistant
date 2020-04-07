@@ -1,3 +1,4 @@
+pub mod aoj;
 pub mod atcoder;
 
 use crate::imp::test_case::TestCase;
@@ -6,11 +7,26 @@ use anyhow::Result;
 use std::fmt::Debug;
 
 // atcoder:abc092a
-// ^^^^^^^ contest-site
+// atcoder
+// ^^^^^^^         contest-site
+//               a
+//               ^ problem-name
+//         abc092
+//         ^^^^^^  contest-id
+//         abc
+//         ^^^     contest-name
+//         abc092a
 //         ^^^^^^^ problem-id
-//         ^^^ contest-name
-//         ^^^^^^ contest-id
-//               ^ problem
+// atcoder:abc092a
+// ^^^^^^^^^^^^^^^ problem-descriptor
+
+// aoj:0000
+// aoj
+// ^^^      contest-site
+//     0000
+//     ^^^^ problem-id
+// aoj:0000
+// ^^^^^^^^ problem-descriptor
 
 pub struct ProblemDescriptor {
     pub contest_site: String,
