@@ -52,14 +52,13 @@ fn make_fetcher(problem_list: Vec<String>) -> Result<Fetchers> {
     let fetchers = pds
         .into_iter()
         .enumerate()
-        .map(|(idx, (fetcher, login_ui))| super::Fetcher {
-            fetcher,
-            login_ui,
-            problem: (b'a'
+        .map(|(idx, fetcher)| {
+            let problem = b'a'
                 .checked_add(idx as u8)
-                .expect("internal error: this must not overflow as it's checked before.")
-                as char)
-                .to_string(),
+                .expect("internal error: this must not overflow as it's checked before.");
+            let problem = (problem as char).to_string();
+
+            super::Fetcher { fetcher, problem }
         })
         .collect_vec();
 

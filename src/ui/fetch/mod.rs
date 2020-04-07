@@ -1,12 +1,10 @@
+use crate::eprintln_tagged;
 use crate::imp::fetch::atcoder::AtCoder;
 use crate::imp::fetch::atcoder::Problem as AtCoderProblem;
 use crate::imp::fetch::{ProblemDescriptor, TestCaseProvider};
 use crate::imp::test_case::TestCase;
 use crate::ui::fetch::aoj::Aoj;
-use crate::ui::login;
-use crate::ui::login::LoginUI;
 use crate::ExitStatus;
-use crate::{eprintln_info, eprintln_tagged};
 use anyhow::bail;
 use anyhow::{Context, Result};
 use std::env;
@@ -22,37 +20,23 @@ pub struct Fetch {
 }
 
 impl Fetch {
-    pub fn run(self, quiet: bool) -> Result<ExitStatus> {
+    pub fn run(self, _quiet: bool) -> Result<ExitStatus> {
         let dsc = get_descriptor(self.problem_id)?;
-        let (provider, login_ui) = get_provider(dsc)?;
-        let tcfs = fetch_test_case_files(quiet, provider, login_ui)?;
+        let provider = get_provider(dsc)?;
+        let tcfs = fetch_test_case_files(provider)?;
         write_test_case_files(tcfs)?;
 
         Ok(ExitStatus::Success)
     }
 }
 
-pub fn fetch_test_case_files(
-    quiet: bool,
-    provider: Box<dyn TestCaseProvider>,
-    login_ui: Box<dyn LoginUI>,
-) -> Result<Vec<TestCase>> {
+pub fn fetch_test_case_files(provider: Box<dyn TestCaseProvider>) -> Result<Vec<TestCase>> {
     eprintln_tagged!(
         "Fetching": "{} id {} (at {})",
         provider.site_name(),
         provider.problem_id(),
         provider.url()
     );
-
-    if provider.needs_authenticate() {
-        if !quiet {
-            eprintln_info!("authentication is needed");
-        }
-
-        login_ui
-            .authenticate(quiet)
-            .context("failed to create provider")?;
-    }
 
     let test_case_files = provider
         .fetch_test_case_files()
@@ -123,27 +107,16 @@ fn handle_empty_arg() -> Result<ProblemDescriptor> {
     bail!("problem is not specified");
 }
 
-pub fn get_provider(
-    dsc: ProblemDescriptor,
-) -> Result<(Box<dyn TestCaseProvider>, Box<dyn LoginUI>)> {
+pub fn get_provider(dsc: ProblemDescriptor) -> Result<Box<dyn TestCaseProvider>> {
     match &*dsc.contest_site {
         "aoj" => Aoj::new(dsc.problem_id)
             .context("failed to create the provider Aoj")
-            .map(|t| (t, login::aoj::Aoj))
-            .map(provider_into_box),
+            .map(|p| Box::new(p) as _),
         "atcoder" | "at" => AtCoderProblem::from_problem_id(dsc.problem_id)
             .context("failed to create the provider AtCoder")
-            .map(|p| AtCoder::new(p))
-            .map(|t| (t, login::atcoder::AtCoder))
-            .map(provider_into_box),
+            .map(|p| Box::new(AtCoder::new(p)) as _),
         other => bail!("unknown contest site: {}", other),
     }
-}
-
-fn provider_into_box<T: 'static + TestCaseProvider, L: 'static + LoginUI>(
-    (t, l): (T, L),
-) -> (Box<dyn TestCaseProvider>, Box<dyn LoginUI>) {
-    (Box::new(t), Box::new(l))
 }
 
 fn get_descriptor(problem_id: Option<String>) -> Result<ProblemDescriptor> {
