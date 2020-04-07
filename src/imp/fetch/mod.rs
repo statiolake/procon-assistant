@@ -40,6 +40,5 @@ pub trait TestCaseProvider: Debug {
     fn site_name(&self) -> &str;
     fn problem_id(&self) -> &str;
     fn url(&self) -> &str;
-    fn needs_authenticate(&self) -> bool;
     fn fetch_test_case_files(&self) -> Result<Vec<TestCase>>;
 }

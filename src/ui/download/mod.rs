@@ -8,7 +8,6 @@ use crate::eprintln_debug;
 use crate::eprintln_tagged;
 use crate::imp::fetch::TestCaseProvider;
 use crate::ui::fetch;
-use crate::ui::login::LoginUI;
 use crate::ExitStatus;
 use anyhow::bail;
 use anyhow::{Context, Result};
@@ -27,7 +26,7 @@ pub struct Download {
 }
 
 impl Download {
-    pub fn run(self, quiet: bool) -> Result<ExitStatus> {
+    pub fn run(self, _quiet: bool) -> Result<ExitStatus> {
         let provider = match self.contest_id {
             Some(arg) => get_provider(arg),
             None => handle_empty_arg(),
@@ -41,7 +40,7 @@ impl Download {
         fetchers.prepare_generate()?;
         eprintln_debug!("fetchers: {:?}", fetchers.fetchers);
         for fetcher in fetchers.fetchers {
-            generate_one(quiet, &fetcher.problem, fetcher.fetcher, fetcher.login_ui)?;
+            generate_one(&fetcher.problem, fetcher.fetcher)?;
         }
 
         Ok(ExitStatus::Success)
@@ -101,7 +100,6 @@ fn handle_empty_arg() -> Result<Box<dyn ContestProvider>> {
 
 pub struct Fetcher {
     pub fetcher: Box<dyn TestCaseProvider>,
-    pub login_ui: Box<dyn LoginUI>,
     pub problem: String,
 }
 
@@ -148,19 +146,13 @@ impl Fetchers {
     }
 }
 
-pub fn generate_one(
-    quiet: bool,
-    problem: &str,
-    provider: Box<dyn TestCaseProvider>,
-    login_ui: Box<dyn LoginUI>,
-) -> Result<()> {
+pub fn generate_one(problem: &str, provider: Box<dyn TestCaseProvider>) -> Result<()> {
     env::set_current_dir(Path::new(problem)).expect("critical error: failed to chdir");
     defer! {
          env::set_current_dir("..").expect("critical error: failed to chdir");
     }
 
-    let tcfs = fetch::fetch_test_case_files(quiet, provider, login_ui)
-        .context("failed to read test cases")?;
+    let tcfs = fetch::fetch_test_case_files(provider).context("failed to read test cases")?;
     fetch::write_test_case_files(tcfs).context("failed to write test cases")?;
 
     Ok(())

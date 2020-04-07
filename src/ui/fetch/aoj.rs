@@ -1,4 +1,3 @@
-use crate::eprintln_debug;
 use crate::imp::auth::aoj as auth;
 use crate::imp::test_case::TestCase;
 use anyhow::ensure;
@@ -64,14 +63,6 @@ impl super::TestCaseProvider for Aoj {
 
     fn url(&self) -> &str {
         self.problem.url()
-    }
-
-    fn needs_authenticate(&self) -> bool {
-        eprintln_debug!(
-            "needs_authenticate() is not implemetented for now, always returns `false`"
-        );
-
-        false
     }
 
     fn fetch_test_case_files(&self) -> Result<Vec<TestCase>> {

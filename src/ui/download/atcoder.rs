@@ -2,7 +2,6 @@ use super::{ContestProvider, Fetchers};
 use crate::imp::auth::atcoder as auth;
 use crate::imp::fetch::atcoder as fetch;
 use crate::imp::fetch::atcoder::ATCODER_TOP;
-use crate::ui::login::atcoder as login;
 use anyhow::ensure;
 use anyhow::{Context, Result};
 use easy_scraper::Pattern;
@@ -74,12 +73,10 @@ impl ContestProvider for AtCoder {
             .map(|mut row| {
                 let problem = fetch::Problem::from_url(format!("{}{}", ATCODER_TOP, row.url));
                 let fetcher = Box::new(fetch::AtCoder::new(problem));
-                let login_ui = Box::new(login::AtCoder);
 
                 row.problem.make_ascii_lowercase();
                 super::Fetcher {
                     fetcher: fetcher as _,
-                    login_ui: login_ui as _,
                     problem: row.problem,
                 }
             })
