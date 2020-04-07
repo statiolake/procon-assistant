@@ -2,17 +2,21 @@ pub mod atcoder;
 pub mod local;
 
 use self::atcoder::AtCoder;
+use self::atcoder::Contest as AtCoderContest;
 use self::local::Local;
+use crate::eprintln_debug;
 use crate::eprintln_tagged;
-use crate::imp;
 use crate::imp::fetch::TestCaseProvider;
 use crate::ui::fetch;
 use crate::ui::login::LoginUI;
 use crate::ExitStatus;
-use anyhow::{bail, ensure};
+use anyhow::bail;
 use anyhow::{Context, Result};
+use scopeguard::defer;
 use std::env;
-use std::path::Path;
+use std::fmt;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::str;
 
 #[derive(clap::Clap)]
@@ -35,33 +39,33 @@ impl Download {
 
         eprintln_tagged!("Fetching": "{} (at {})", provider.contest_id(), provider.url());
         fetchers.prepare_generate()?;
-        for (problem, fetcher) in fetchers.fetchers.into_iter().enumerate() {
-            generate_one(
-                quiet,
-                fetchers.contest_id.clone(),
-                fetchers.beginning_char,
-                problem as u8,
-                fetcher,
-            )?;
+        eprintln_debug!("fetchers: {:?}", fetchers.fetchers);
+        for fetcher in fetchers.fetchers {
+            generate_one(quiet, &fetcher.problem, fetcher.fetcher, fetcher.login_ui)?;
         }
 
         Ok(ExitStatus::Success)
     }
 }
 
-fn provider_into_box<T: 'static + ContestProvider>(provider: T) -> Box<dyn ContestProvider> {
-    Box::new(provider)
-}
-
 fn get_provider(arg: String) -> Result<Box<dyn ContestProvider>> {
     let (contest_site, contest_id) = parse_arg(&arg)?;
+
     match contest_site {
         "atcoder" | "at" => {
-            AtCoder::new(contest_id.to_string()).context("failed to create the provider")
+            if contest_id.starts_with("http") {
+                let contest = AtCoderContest::from_url(contest_id.to_string());
+                let provider = AtCoder::new(contest);
+                Ok(Box::new(provider) as _)
+            } else {
+                let contest = AtCoderContest::from_contest_id(contest_id.to_string())
+                    .context("failed to parse contest-id")?;
+                let provider = AtCoder::new(contest);
+                Ok(Box::new(provider) as _)
+            }
         }
         site => bail!("unknown contest site: `{}`", site),
     }
-    .map(provider_into_box)
 }
 
 fn get_local_provider() -> Result<Box<dyn ContestProvider>> {
@@ -69,8 +73,7 @@ fn get_local_provider() -> Result<Box<dyn ContestProvider>> {
 }
 
 fn parse_arg(arg: &str) -> Result<(&str, &str)> {
-    let sp: Vec<_> = arg.split(':').collect();
-    ensure!(sp.len() == 2, "argument format error: `{}`", arg);
+    let sp: Vec<_> = arg.splitn(2, ':').collect();
 
     Ok((sp[0], sp[1]))
 }
@@ -85,66 +88,80 @@ fn handle_empty_arg() -> Result<Box<dyn ContestProvider>> {
             .map(ToString::to_string)?;
 
         if ["abc", "arc", "agc"].contains(&&file_name[0..3]) {
-            AtCoder::new(file_name).map(provider_into_box).ok()
+            AtCoderContest::from_contest_id(file_name)
+                .map(|contest| Box::new(AtCoder::new(contest)) as _)
+                .ok()
         } else {
             None
         }
     }
+
     Ok(handle_empty_arg_impl().unwrap_or(get_local_provider()?))
 }
 
+pub struct Fetcher {
+    pub fetcher: Box<dyn TestCaseProvider>,
+    pub login_ui: Box<dyn LoginUI>,
+    pub problem: String,
+}
+
+impl fmt::Debug for Fetcher {
+    fn fmt(&self, b: &mut fmt::Formatter) -> fmt::Result {
+        b.debug_struct("Fetcher")
+            .field("problem", &self.problem)
+            .field("fetcher", &self.fetcher.url())
+            .finish()
+    }
+}
+
 pub struct Fetchers {
-    fetchers: Vec<(Box<dyn TestCaseProvider>, Box<dyn LoginUI>)>,
+    fetchers: Vec<Fetcher>,
     contest_id: String,
-    beginning_char: char,
 }
 
 impl Fetchers {
     pub fn prepare_generate(&self) -> Result<()> {
-        let numof_problems = self.fetchers.len();
-        adjust_current_dir(&self.contest_id, self.beginning_char, numof_problems)?;
+        let root = self.create_dirs().context("failed to create directories")?;
+        env::set_current_dir(root)?;
 
         Ok(())
     }
-}
 
-/// Generates directory tree if needed and ensure that we are in the contest directory.
-fn adjust_current_dir(contest_id: &str, beginning_char: char, numof_problems: usize) -> Result<()> {
-    let current_dir = env::current_dir().unwrap();
-    let execuded_from_inside = matches!(current_dir.file_name(), Some(name) if name == contest_id);
-    if execuded_from_inside {
-        env::set_current_dir("..").unwrap();
+    /// Create directories and return the root directory
+    fn create_dirs(&self) -> Result<PathBuf> {
+        let current_dir = env::current_dir().expect("critical error: failed to get current dir");
+        let execuded_from_inside =
+            matches!(current_dir.file_name(), Some(name) if name == &*self.contest_id);
+        let root = if execuded_from_inside {
+            Path::new("..")
+        } else {
+            Path::new(".")
+        };
+
+        let root = root.join(&self.contest_id);
+        fs::create_dir_all(&root)?;
+        for fetcher in &self.fetchers {
+            fs::create_dir_all(root.join(&fetcher.problem))?;
+        }
+
+        Ok(root)
     }
-
-    imp::initdirs::create_directories(contest_id, numof_problems, beginning_char)
-        .context("failed to create contest directories")?;
-
-    env::set_current_dir(&Path::new(contest_id)).unwrap();
-
-    Ok(())
 }
 
 pub fn generate_one(
     quiet: bool,
-    mut contest_id: String,
-    beginning_char: char,
-    problem: u8,
-    (provider, login_ui): (
-        Box<dyn TestCaseProvider + 'static>,
-        Box<dyn LoginUI + 'static>,
-    ),
+    problem: &str,
+    provider: Box<dyn TestCaseProvider>,
+    login_ui: Box<dyn LoginUI>,
 ) -> Result<()> {
-    let curr_actual = (beginning_char as u8 + problem) as char;
-    env::set_current_dir(Path::new(&curr_actual.to_string())).unwrap();
+    env::set_current_dir(Path::new(problem)).expect("critical error: failed to chdir");
+    defer! {
+         env::set_current_dir("..").expect("critical error: failed to chdir");
+    }
 
-    let curr_url = (b'a' + problem) as char;
-    contest_id.push(curr_url);
     let tcfs = fetch::fetch_test_case_files(quiet, provider, login_ui)
         .context("failed to read test cases")?;
     fetch::write_test_case_files(tcfs).context("failed to write test cases")?;
-    contest_id.pop();
-
-    env::set_current_dir(Path::new("..")).unwrap();
 
     Ok(())
 }
@@ -153,6 +170,5 @@ pub trait ContestProvider {
     fn site_name(&self) -> &str;
     fn contest_id(&self) -> &str;
     fn url(&self) -> &str;
-
     fn make_fetchers(&self) -> Result<Fetchers>;
 }

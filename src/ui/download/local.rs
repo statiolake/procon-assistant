@@ -38,16 +38,35 @@ impl super::ContestProvider for Local {
 }
 
 fn make_fetcher(problem_list: Vec<String>) -> Result<Fetchers> {
-    problem_list
+    ensure!(
+        problem_list.len() <= 26,
+        "too many problems; max is 26 (a - z) but listed {} problems",
+        problem_list.len()
+    );
+    let pds: Vec<_> = problem_list
         .into_iter()
         .map(|problem| ProblemDescriptor::parse(problem).context("failed to parse a problem"))
         .map(|pd| pd.and_then(|pd| fetch::get_provider(pd).context("failed to get the provider")))
-        .collect::<Result<_>>()
-        .map(|fetchers| Fetchers {
-            fetchers,
-            contest_id: ".".to_string(),
-            beginning_char: 'a',
+        .collect::<Result<_>>()?;
+
+    let fetchers = pds
+        .into_iter()
+        .enumerate()
+        .map(|(idx, (fetcher, login_ui))| super::Fetcher {
+            fetcher,
+            login_ui,
+            problem: (b'a'
+                .checked_add(idx as u8)
+                .expect("internal error: this must not overflow as it's checked before.")
+                as char)
+                .to_string(),
         })
+        .collect_vec();
+
+    Ok(Fetchers {
+        fetchers,
+        contest_id: "local".to_string(),
+    })
 }
 
 fn load_problem_list(file_path: String) -> Result<Vec<String>> {

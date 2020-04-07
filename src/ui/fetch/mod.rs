@@ -1,4 +1,5 @@
 use crate::imp::fetch::atcoder::AtCoder;
+use crate::imp::fetch::atcoder::Problem as AtCoderProblem;
 use crate::imp::fetch::{ProblemDescriptor, TestCaseProvider};
 use crate::imp::test_case::TestCase;
 use crate::ui::fetch::aoj::Aoj;
@@ -130,8 +131,9 @@ pub fn get_provider(
             .context("failed to create the provider Aoj")
             .map(|t| (t, login::aoj::Aoj))
             .map(provider_into_box),
-        "atcoder" | "at" => AtCoder::new(dsc.problem_id)
+        "atcoder" | "at" => AtCoderProblem::from_problem_id(dsc.problem_id)
             .context("failed to create the provider AtCoder")
+            .map(|p| AtCoder::new(p))
             .map(|t| (t, login::atcoder::AtCoder))
             .map(provider_into_box),
         other => bail!("unknown contest site: {}", other),
