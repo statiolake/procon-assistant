@@ -134,6 +134,7 @@ impl fmt::Display for RuntimeErrorKind {
 #[derive(Debug, Clone)]
 pub struct WrongAnswer {
     pub context: Context,
+    pub stderr: String,
     pub errors: Vec<WrongAnswerKind>,
 }
 
@@ -170,14 +171,18 @@ impl Context {
         Context { expected, actual }
     }
 
-    pub fn verify(mut self) -> TestResult {
+    pub fn verify(mut self, stderr: String) -> TestResult {
         // fix last newline at first
         let is_presentation_error = self.check_presentation_error();
         self.fix_last_newline();
 
         // check the number of lines are equal.  if it doesn't, it's already a wrong answer.
-        if let Some(wa) = self.verify_num_lines(self.expected.len(), self.actual.len()) {
-            return wa;
+        if let Some(err) = Context::verify_num_lines(self.expected.len(), self.actual.len()) {
+            return TestResult::WrongAnswer(WrongAnswer {
+                context: self,
+                stderr,
+                errors: vec![err],
+            });
         }
 
         // check each line and collect errors
@@ -191,6 +196,7 @@ impl Context {
         if !errors.is_empty() {
             return TestResult::WrongAnswer(WrongAnswer {
                 context: self,
+                stderr,
                 errors,
             });
         }
@@ -226,12 +232,9 @@ impl Context {
         }
     }
 
-    fn verify_num_lines(&self, expected: usize, actual: usize) -> Option<TestResult> {
+    fn verify_num_lines(expected: usize, actual: usize) -> Option<WrongAnswerKind> {
         if expected != actual {
-            Some(TestResult::WrongAnswer(WrongAnswer {
-                context: self.clone(),
-                errors: vec![WrongAnswerKind::NumOfLineDiffers { expected, actual }],
-            }))
+            Some(WrongAnswerKind::NumOfLineDiffers { expected, actual })
         } else {
             None
         }
@@ -485,8 +488,8 @@ impl TestCase {
         let expected = split_into_lines(&self.of_contents)
             .map(ToString::to_string)
             .collect();
-
-        let result = Context::new(expected, actual).verify();
+        let stderr = read_child_stderr(&mut child);
+        let result = Context::new(expected, actual).verify(stderr);
 
         Ok(JudgeResult { elapsed, result })
     }
