@@ -142,9 +142,17 @@ impl Language for Rust {
         Ok(Preprocessed(source))
     }
 
-    fn lint(&self, _source: &RawSource) -> Result<Vec<String>> {
-        // TODO: implement
-        Ok(vec![])
+    fn lint(&self, source: &RawSource) -> Result<Vec<String>> {
+        let Preprocessed(pped) = self
+            .preprocess(source, MinifyMode::All)
+            .context("failed to preprocess the source")?;
+
+        let mut res = Vec::new();
+        if pped.contains("eprintln!") {
+            res.push("eprintln! found".to_string());
+        }
+
+        Ok(res)
     }
 }
 
