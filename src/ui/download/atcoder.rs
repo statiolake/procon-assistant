@@ -1,22 +1,20 @@
 use super::{ContestProvider, Fetchers};
 use crate::imp::auth::atcoder as auth;
 use crate::imp::fetch::atcoder as fetch;
-use crate::imp::fetch::TestCaseProvider;
+use crate::imp::fetch::atcoder::ATCODER_TOP;
 use crate::ui::login::atcoder as login;
-use crate::ui::login::LoginUI;
-use anyhow::{anyhow, ensure};
+use anyhow::ensure;
 use anyhow::{Context, Result};
-use scraper::{Html, Selector};
+use easy_scraper::Pattern;
+use itertools::Itertools;
 
 pub struct AtCoder {
     contest: Contest,
 }
 
 impl AtCoder {
-    pub fn new(contest_id: String) -> Result<AtCoder> {
-        Ok(AtCoder {
-            contest: Contest::from_contest_id(contest_id)?,
-        })
+    pub fn new(contest: Contest) -> AtCoder {
+        AtCoder { contest }
     }
 }
 
@@ -27,19 +25,18 @@ pub enum Contest {
 
 impl Contest {
     pub fn from_contest_id(contest_id: String) -> Result<Contest> {
-        let contest = if contest_id.starts_with("http") {
-            Contest::DirectUrl { url: contest_id }
-        } else {
-            ensure!(
-                contest_id.len() == 6,
-                "invalid format for contest id: `{}`",
-                contest_id
-            );
+        ensure!(
+            contest_id.len() == 6,
+            "invalid format for contest id: `{}`",
+            contest_id
+        );
+        let url = format!("{}/contests/{}/tasks", ATCODER_TOP, contest_id);
 
-            let url = format!("https://atcoder.jp/contests/{}/tasks", contest_id);
-            Contest::ContestId { contest_id, url }
-        };
-        Ok(contest)
+        Ok(Contest::ContestId { contest_id, url })
+    }
+
+    pub fn from_url(url: String) -> Contest {
+        Contest::DirectUrl { url }
     }
 
     pub fn contest_id(&self) -> &str {
@@ -71,71 +68,28 @@ impl ContestProvider for AtCoder {
     }
 
     fn make_fetchers(&self) -> Result<Fetchers> {
-        let id = self.contest.contest_id();
-        let (beginning_char, numof_problems) = get_range_of_problems(id)?;
+        let text = download_text(self.url())?;
+        let fetchers = parse_table(&text)
+            .into_iter()
+            .map(|mut row| {
+                let problem = fetch::Problem::from_url(format!("{}{}", ATCODER_TOP, row.url));
+                let fetcher = Box::new(fetch::AtCoder::new(problem));
+                let login_ui = Box::new(login::AtCoder);
 
-        let fetchers = (0..numof_problems).map(|problem| {
-            let problem = (b'a' + problem) as char; // hack: atcoder regular contest starts 'a' while it's showed as 'c'
-            let problem_id = format!("{}{}", self.contest.contest_id(), problem);
-            fetcher_for(problem_id)
-                .map(fetcher_into_box)
-                .map(|t| (t, Box::new(login::AtCoder) as Box<dyn LoginUI>))
-        });
+                row.problem.make_ascii_lowercase();
+                super::Fetcher {
+                    fetcher: fetcher as _,
+                    login_ui: login_ui as _,
+                    problem: row.problem,
+                }
+            })
+            .collect_vec();
 
-        let fetchers: Result<Vec<_>> = fetchers.collect();
-        let fetchers = fetchers?;
-
-        let fetchers = super::Fetchers {
-            contest_id: self.contest.contest_id().to_string(),
+        Ok(Fetchers {
             fetchers,
-            beginning_char,
-        };
-
-        Ok(fetchers)
+            contest_id: self.contest_id().to_string(),
+        })
     }
-}
-
-fn fetcher_into_box<T: 'static + TestCaseProvider>(x: T) -> Box<dyn TestCaseProvider> {
-    Box::new(x)
-}
-
-// Result<(beginning_char, numof_problems)>
-fn get_range_of_problems(contest_id: &str) -> Result<(char, u8)> {
-    // fetch the tasks
-    let url = format!("https://atcoder.jp/contests/{}/tasks", contest_id);
-    let text = download_text(&url).context("fetching problem list page failed")?;
-
-    let document = Html::parse_document(&text);
-    let sel_tbody = Selector::parse("tbody").unwrap();
-    let sel_tr = Selector::parse("tr").unwrap();
-    let sel_a = Selector::parse("a").unwrap();
-
-    // get rows in table
-    let rows: Vec<_> = document
-        .select(&sel_tbody)
-        .next()
-        .ok_or_else(|| anyhow!("failed to get a task"))?
-        .select(&sel_tr)
-        .collect();
-
-    let numof_problems = rows.len() as u8;
-    let beginning_char_uppercase = rows[0]
-        .select(&sel_a)
-        .next()
-        .ok_or_else(|| anyhow!("failed to get a problem-id"))?
-        .inner_html()
-        .chars()
-        .next()
-        .ok_or_else(|| anyhow!("problem-id is empty"))?;
-
-    Ok((
-        beginning_char_uppercase.to_lowercase().next().unwrap(),
-        numof_problems,
-    ))
-}
-
-fn fetcher_for(problem_id: String) -> Result<fetch::AtCoder> {
-    fetch::AtCoder::new(problem_id).context("failed to get the provider")
 }
 
 fn download_text(url: &str) -> Result<String> {
@@ -143,4 +97,38 @@ fn download_text(url: &str) -> Result<String> {
         .with_context(|| format!("failed to fetch `{}` with logged in", url))?
         .text()
         .context("failed to get the html")
+}
+
+struct TableRow {
+    problem: String,
+    url: String,
+}
+
+fn parse_table(text: &str) -> Vec<TableRow> {
+    let pat = Pattern::new(
+        r#"<h2>Tasks</h2>
+...
+<div>
+<table><tbody>
+<tr>
+<td class="text-center no-break">
+<a href="{{url}}">{{problem}}</a>
+</td>
+<td>
+<a href="{{url}}"
+>{{name}}</a
+>
+</td>
+</tr>
+</tbody></table></div>"#,
+    )
+    .unwrap();
+
+    pat.matches(text)
+        .into_iter()
+        .map(|r| TableRow {
+            problem: r["problem"].clone(),
+            url: r["url"].clone(),
+        })
+        .collect()
 }

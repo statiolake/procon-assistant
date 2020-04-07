@@ -6,14 +6,16 @@ use anyhow::ensure;
 use anyhow::{Context, Result};
 use easy_scraper::Pattern;
 
+pub const ATCODER_TOP: &str = "https://atcoder.jp";
+
 #[derive(Debug)]
 pub struct AtCoder {
     problem: Problem,
 }
 
 impl AtCoder {
-    pub fn new(problem_id: String) -> Result<AtCoder> {
-        Problem::from_problem_id(problem_id).map(|problem| AtCoder { problem })
+    pub fn new(problem: Problem) -> AtCoder {
+        AtCoder { problem }
     }
 }
 
@@ -33,31 +35,32 @@ pub enum Problem {
 
 impl Problem {
     pub fn from_problem_id(problem_id: String) -> Result<Problem> {
-        let problem = if problem_id.starts_with("http") {
-            Problem::DirectUrl { url: problem_id }
-        } else {
-            ensure!(
-                problem_id.len() == 7,
-                "invalid format for problem id: {}",
-                problem_id
-            );
+        ensure!(
+            problem_id.len() == 7,
+            "invalid format for problem id: {}",
+            problem_id
+        );
 
-            let contest_name = problem_id[0..3].to_string();
-            let contest_id = problem_id[0..6].to_string();
-            let problem = problem_id[6..7].to_string();
-            let url = format!(
-                "https://atcoder.jp/contests/{}/tasks/{}_{}",
-                contest_id, contest_id, problem
-            );
-            Problem::ProblemId {
-                problem_id,
-                contest_name,
-                contest_id,
-                problem,
-                url,
-            }
+        let contest_name = problem_id[0..3].to_string();
+        let contest_id = problem_id[0..6].to_string();
+        let problem = problem_id[6..7].to_string();
+        let url = format!(
+            "{}/contests/{}/tasks/{}_{}",
+            ATCODER_TOP, contest_id, contest_id, problem
+        );
+        let problem = Problem::ProblemId {
+            problem_id,
+            contest_name,
+            contest_id,
+            problem,
+            url,
         };
+
         Ok(problem)
+    }
+
+    pub fn from_url(url: String) -> Problem {
+        Problem::DirectUrl { url }
     }
 
     pub fn problem_id(&self) -> &str {
