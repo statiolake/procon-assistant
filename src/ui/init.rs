@@ -6,6 +6,7 @@ use crate::imp::langs;
 use crate::ExitStatus;
 use anyhow::anyhow;
 use anyhow::{Context, Result};
+use itertools::Itertools;
 use std::path::Path;
 
 #[derive(clap::Clap)]
@@ -41,12 +42,24 @@ impl Init {
             .context("init failed")?;
 
         if CONFIG.init.auto_open {
-            let to_open = match CONFIG.init.open_target {
-                OpenTarget::Directory => vec![to_open.directory],
-                OpenTarget::Files => to_open.files,
+            let (to_open, cwd) = match CONFIG.init.open_target {
+                OpenTarget::Directory => (vec![to_open.directory], None),
+                OpenTarget::Files => {
+                    let cwd = Path::new(&to_open.directory);
+                    let files = to_open
+                        .files
+                        .into_iter()
+                        .map(|file| {
+                            file.strip_prefix(cwd)
+                                .expect("critical error: files are not under the base directory")
+                                .to_path_buf()
+                        })
+                        .collect_vec();
+                    (files, Some(cwd))
+                }
             };
 
-            common::open_general(&to_open).context("failed to open the editor")?;
+            common::open_general(&to_open, cwd).context("failed to open the editor")?;
         }
 
         Ok(ExitStatus::Success)
