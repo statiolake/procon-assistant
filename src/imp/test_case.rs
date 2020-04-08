@@ -5,12 +5,10 @@ use anyhow::{Context as _, Result};
 use itertools::izip;
 use scopeguard::defer;
 use std::cell::RefCell;
-use std::io::Read;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
-use std::usize;
-use std::{cmp, fmt, fs, iter, time};
+use std::{cmp, fmt, fs, iter, time, usize};
 
 pub struct JudgeResult {
     pub elapsed: time::Duration,

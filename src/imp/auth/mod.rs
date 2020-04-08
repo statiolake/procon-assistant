@@ -1,10 +1,9 @@
 use crate::eprintln_debug;
 use crate::imp::config;
-use std::fs;
 use std::fs::File;
-use std::io;
 use std::io::{Read, Write};
 use std::path::PathBuf;
+use std::{fs, io};
 
 pub mod aoj;
 pub mod atcoder;

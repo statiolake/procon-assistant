@@ -3,9 +3,8 @@ use crate::imp::fetch::ProblemDescriptor;
 use anyhow::ensure;
 use anyhow::{Context, Result};
 use itertools::Itertools;
-use std::fs;
 use std::path::Path;
-use std::str;
+use std::{fs, str};
 
 pub struct Local {
     file_path: String,

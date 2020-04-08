@@ -5,17 +5,15 @@ use crate::imp::test_case;
 use crate::imp::test_case::{
     Context, JudgeResult, RuntimeError, Span, TestCase, TestResult, WrongAnswer, WrongAnswerKind,
 };
-use crate::ui::clip;
-use crate::ui::compile;
 use crate::ui::print_macros::TAG_WIDTH;
+use crate::ui::{clip, compile};
 use crate::ExitStatus;
 use crate::{eprintln_debug, eprintln_info, eprintln_more, eprintln_tagged, eprintln_warning};
 use anyhow::anyhow;
 use anyhow::{Context as _, Result};
 use console::Style;
 use itertools::Itertools as _;
-use std::cmp;
-use std::thread;
+use std::{cmp, thread};
 
 const PANE_MINIMUM_SIZE: usize = 3;
 
