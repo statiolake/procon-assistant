@@ -161,6 +161,11 @@ fn create_project_directory(path: &Path) -> Result<()> {
 }
 
 fn generate_git(repository: &str, branch: &str) -> Result<()> {
+    if Path::new("main").exists() {
+        // skip generating everything if main directory exists
+        return Ok(());
+    }
+
     let output = Command::new("cargo")
         .arg("generate")
         .arg("--git")
