@@ -76,8 +76,8 @@ impl ContestProvider for AtCoder {
 
                 row.problem.make_ascii_lowercase();
                 super::Fetcher {
-                    fetcher: fetcher as _,
-                    problem: row.problem,
+                    provider: fetcher as _,
+                    problem_name: row.problem,
                 }
             })
             .collect_vec();
@@ -85,6 +85,7 @@ impl ContestProvider for AtCoder {
         Ok(Fetchers {
             fetchers,
             contest_id: self.contest_id().to_string(),
+            unique_contest_id: true,
         })
     }
 }
