@@ -21,6 +21,7 @@ pub trait ContestProvider {
 pub struct Fetchers {
     pub fetchers: Vec<Fetcher>,
     pub contest_id: String,
+    pub unique_contest_id: bool,
 }
 
 pub struct Fetcher {
@@ -50,8 +51,21 @@ impl Fetchers {
     /// Create directories and return the root directory
     fn create_dirs(&self) -> Result<PathBuf> {
         let dirnames = self.fetchers.iter().map(|f| &f.problem_name).collect_vec();
-        let root = fs::create_dirs(&self.contest_id, &dirnames, true)
-            .context("failed to create directories")?;
+
+        // if the contest id is not unique, the root directory should be "." to
+        // avoid creating meaningless contest directory. For example, the
+        // "Local" contest provider always returns "local" or something like
+        // this as a contest name, but the user would rather wants the problem
+        // directories created under the current directory than deepen the
+        // directory tree by newly created "local" directory.
+        let root = if !self.unique_contest_id {
+            "."
+        } else {
+            &self.contest_id
+        };
+
+        let root =
+            fs::create_dirs(root, &dirnames, true).context("failed to create directories")?;
 
         Ok(root)
     }

@@ -85,6 +85,7 @@ impl ContestProvider for AtCoder {
         Ok(Fetchers {
             fetchers,
             contest_id: self.contest_id().to_string(),
+            unique_contest_id: true,
         })
     }
 }
