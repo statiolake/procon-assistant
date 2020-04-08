@@ -66,6 +66,7 @@ fn make_fetcher(problem_list: Vec<String>) -> Result<Fetchers> {
     Ok(Fetchers {
         fetchers,
         contest_id: "local".to_string(),
+        unique_contest_id: false,
     })
 }
 
