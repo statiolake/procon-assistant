@@ -1,11 +1,10 @@
 use anyhow::{Context, Result};
 use if_chain::if_chain;
 use std::cmp::Ordering;
-use std::env;
-use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
+use std::{env, fs};
 
 /// Creates directories under `root`. If `override_if_cwd` is `true` and current
 /// working directory name is equal to the root's name, the root directory is

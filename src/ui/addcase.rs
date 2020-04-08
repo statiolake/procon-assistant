@@ -1,6 +1,5 @@
 use crate::eprintln_tagged;
-use crate::imp::common;
-use crate::imp::test_case;
+use crate::imp::{common, test_case};
 use crate::ExitStatus;
 use anyhow::{Context, Result};
 

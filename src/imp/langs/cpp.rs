@@ -10,10 +10,9 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use std::cmp::Ordering;
 use std::collections::HashSet;
-use std::fs as stdfs;
-use std::mem;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::{fs as stdfs, mem};
 use walkdir::WalkDir;
 
 lazy_static! {

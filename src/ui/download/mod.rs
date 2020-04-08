@@ -6,9 +6,8 @@ use crate::ui::fetch;
 use crate::ExitStatus;
 use anyhow::{Context, Result};
 use scopeguard::defer;
-use std::env;
 use std::path::Path;
-use std::str;
+use std::{env, str};
 
 #[derive(clap::Clap)]
 #[clap(about = "Fetches sample cases of all problems in a contest")]
