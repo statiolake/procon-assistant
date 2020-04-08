@@ -1,6 +1,5 @@
 use super::Fetchers;
 use crate::imp::fetch::ProblemDescriptor;
-use crate::ui::fetch;
 use anyhow::ensure;
 use anyhow::{Context, Result};
 use itertools::Itertools;
@@ -43,13 +42,13 @@ fn make_fetcher(problem_list: Vec<String>) -> Result<Fetchers> {
         "too many problems; max is 26 (a - z) but listed {} problems",
         problem_list.len()
     );
-    let pds: Vec<_> = problem_list
+    let dscs = problem_list
         .into_iter()
-        .map(|problem| ProblemDescriptor::parse(problem).context("failed to parse a problem"))
-        .map(|pd| pd.and_then(|pd| fetch::get_provider(pd).context("failed to get the provider")))
-        .collect::<Result<_>>()?;
+        .map(|dsc| ProblemDescriptor::parse(&dsc).context("failed to parse a problem"))
+        .map(|dsc| dsc.and_then(|dsc| dsc.resolve_provider().context("failed to get the provider")))
+        .collect::<Result<Vec<_>>>()?;
 
-    let fetchers = pds
+    let fetchers = dscs
         .into_iter()
         .enumerate()
         .map(|(idx, fetcher)| {
@@ -58,7 +57,10 @@ fn make_fetcher(problem_list: Vec<String>) -> Result<Fetchers> {
                 .expect("internal error: this must not overflow as it's checked before.");
             let problem = (problem as char).to_string();
 
-            super::Fetcher { fetcher, problem }
+            super::Fetcher {
+                provider: fetcher,
+                problem_name: problem,
+            }
         })
         .collect_vec();
 

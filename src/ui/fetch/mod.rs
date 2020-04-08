@@ -1,7 +1,4 @@
 use crate::eprintln_tagged;
-use crate::imp::fetch::aoj::Aoj;
-use crate::imp::fetch::atcoder::AtCoder;
-use crate::imp::fetch::atcoder::Problem as AtCoderProblem;
 use crate::imp::fetch::{ProblemDescriptor, TestCaseProvider};
 use crate::imp::test_case::TestCase;
 use crate::ExitStatus;
@@ -19,8 +16,14 @@ pub struct Fetch {
 
 impl Fetch {
     pub fn run(self, _quiet: bool) -> Result<ExitStatus> {
-        let dsc = parse_descriptor(self.problem_descriptor)?;
-        let provider = get_provider(dsc)?;
+        let dsc = parse_descriptor(self.problem_descriptor)
+            .context("failed to parse problem descriptor")?;
+        let provider = dsc.clone().resolve_provider().with_context(|| {
+            format!(
+                "failed to resolve problem provider from problem-descriptor `{:?}`",
+                dsc
+            )
+        })?;
         let tcfs = fetch_test_case_files(provider)?;
         write_test_case_files(tcfs)?;
 
@@ -102,21 +105,9 @@ fn handle_empty_arg() -> Result<ProblemDescriptor> {
     bail!("problem is not specified");
 }
 
-pub fn get_provider(dsc: ProblemDescriptor) -> Result<Box<dyn TestCaseProvider>> {
-    match &*dsc.contest_site {
-        "aoj" => Aoj::new(dsc.problem_id)
-            .context("failed to create the provider Aoj")
-            .map(|p| Box::new(p) as _),
-        "atcoder" | "at" => AtCoderProblem::from_problem_id(dsc.problem_id)
-            .context("failed to create the provider AtCoder")
-            .map(|p| Box::new(AtCoder::new(p)) as _),
-        other => bail!("unknown contest site: {}", other),
-    }
-}
-
-fn parse_descriptor(problem_id: Option<String>) -> Result<ProblemDescriptor> {
-    match problem_id {
-        Some(arg) => ProblemDescriptor::parse(arg).context("failed parse problem descriptor"),
+fn parse_descriptor(dsc: Option<String>) -> Result<ProblemDescriptor> {
+    match dsc {
+        Some(dsc) => ProblemDescriptor::parse(&dsc).context("failed parse problem descriptor"),
         None => handle_empty_arg(),
     }
 }
