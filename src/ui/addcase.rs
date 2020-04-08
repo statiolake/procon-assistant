@@ -1,25 +1,20 @@
 use crate::eprintln_tagged;
-use crate::imp::common;
-use crate::imp::test_case::TestCase;
+use crate::imp::{common, test_case};
 use crate::ExitStatus;
 use anyhow::{Context, Result};
 
 #[derive(clap::Clap)]
-#[clap(about = "Adds a new test case;  creates `inX.txt` and `outX.txt` in the current directory")]
+#[clap(about = "Adds a new test case; creates `inX.txt` and `outX.txt` in the current directory")]
 pub struct AddCase;
 
 impl AddCase {
     pub fn run(self, _quiet: bool) -> Result<ExitStatus> {
-        // Create empty test case
-        let idx = TestCase::next_unused_idx().context("failed to get unused index")?;
-        let tsf = TestCase::new_with_idx(idx, String::new(), String::new());
+        // Create and write an empty test case
+        let test_case = test_case::add_test_case(String::new(), String::new())
+            .context("failed to create a new test case")?;
+        eprintln_tagged!("Created": "{}, {}", test_case.if_name, test_case.of_name);
 
-        // Write empty test case into file
-        tsf.write().context("failed to write the test case")?;
-
-        eprintln_tagged!("Created": "{}, {}", tsf.if_name, tsf.of_name);
-
-        common::open_addcase(&[&tsf.if_name, &tsf.of_name])
+        common::open_addcase(&[&test_case.if_name, &test_case.of_name])
             .context("failed to open the generated file")?;
 
         Ok(ExitStatus::Success)

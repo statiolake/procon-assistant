@@ -1,7 +1,6 @@
-use crate::imp::clip;
-use crate::imp::langs;
-use crate::imp::langs::{Language, Preprocessed};
-use crate::ui::CONFIG;
+use crate::imp::config::CONFIG;
+use crate::imp::langs::{Lang, Preprocessed};
+use crate::imp::{clip, langs};
 use crate::ExitStatus;
 use crate::{eprintln_info, eprintln_tagged, eprintln_warning};
 use anyhow::{Context, Result};
@@ -12,22 +11,26 @@ pub struct Clip;
 
 impl Clip {
     pub fn run(self, quiet: bool) -> Result<ExitStatus> {
-        let lang = langs::guess_language().context("failed to guess the current language")?;
+        let lang = langs::guess_lang().context("failed to guess the current language")?;
         copy_to_clipboard(quiet, &*lang).context("failed to copy to the clipboard")?;
 
         Ok(ExitStatus::Success)
     }
 }
 
-pub fn copy_to_clipboard<L: Language + ?Sized>(quiet: bool, lang: &L) -> Result<()> {
+pub fn copy_to_clipboard<L: Lang + ?Sized>(quiet: bool, lang: &L) -> Result<()> {
     eprintln_tagged!("Copying": "source file to clipboard");
     let source = lang.get_source().context("failed to load source code")?;
     let pped = lang
         .preprocess(&source, CONFIG.clip.minify)
         .context("failed to preprocess the source")?;
 
-    let Preprocessed(pped) = pped;
-    let pped = pped + "\n";
+    let Preprocessed(mut pped) = pped;
+
+    // Make sure the copied source ends with '\n'.
+    pped.push('\n');
+
+    // Set to the clipboard
     clip::set_clipboard(pped.clone());
     eprintln_tagged!("Finished": "copying");
 
@@ -39,7 +42,6 @@ pub fn copy_to_clipboard<L: Language + ?Sized>(quiet: bool, lang: &L) -> Result<
     let lints = lang.lint(&source).context("failed to lint")?;
     if !lints.is_empty() {
         eprintln_warning!("linter found {} errors, is this OK?", lints.len());
-
         for lint in lints {
             eprintln_tagged!("Lint": "{}", lint);
         }

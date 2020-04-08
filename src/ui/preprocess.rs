@@ -1,6 +1,6 @@
+use crate::imp::config::CONFIG;
 use crate::imp::langs;
 use crate::imp::langs::Preprocessed;
-use crate::ui::CONFIG;
 use crate::ExitStatus;
 use anyhow::{Context, Result};
 
@@ -11,7 +11,7 @@ pub struct Preprocess;
 impl Preprocess {
     pub fn run(self, _quiet: bool) -> Result<ExitStatus> {
         let lang =
-            langs::guess_language().context("failed to guess the language used in this project")?;
+            langs::guess_lang().context("failed to guess the language used in this project")?;
         let source = lang.get_source().context("failed to read the sorce file")?;
         let Preprocessed(pped) = lang
             .preprocess(&source, CONFIG.clip.minify)

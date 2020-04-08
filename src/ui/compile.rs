@@ -1,13 +1,13 @@
 use crate::imp::compile;
 use crate::imp::compile::CompilerOutput;
 use crate::imp::langs;
-use crate::imp::langs::Language;
+use crate::imp::langs::Lang;
 use crate::ExitStatus;
 use crate::{eprintln_info, eprintln_more, eprintln_tagged};
 use anyhow::{Context, Result};
 
 #[derive(clap::Clap)]
-#[clap(about = "Compiles the current solution;  the produced binary won't be tested automatically")]
+#[clap(about = "Compiles the current solution; the produced binary won't be tested automatically")]
 pub struct Compile {
     #[clap(
         short,
@@ -19,27 +19,26 @@ pub struct Compile {
 
 impl Compile {
     pub fn run(self, quiet: bool) -> Result<ExitStatus> {
-        let lang = langs::guess_language()
-            .context("failed to guess the language for the current project")?;
+        let lang =
+            langs::guess_lang().context("failed to guess the language for the current project")?;
 
         let status = compile(quiet, &*lang, self.force)?;
         Ok(status)
     }
 }
 
-pub fn compile<L: Language + ?Sized>(quiet: bool, lang: &L, force: bool) -> Result<ExitStatus> {
+pub fn compile<L: Lang + ?Sized>(quiet: bool, lang: &L, force: bool) -> Result<ExitStatus> {
     if !force && !lang.needs_compile() {
         if !quiet {
             eprintln_info!("no need to compile");
         }
-
         return Ok(ExitStatus::Success);
     }
 
-    compile_src(quiet, lang).context("failed to compile")
+    do_compile(quiet, lang).context("failed to compile")
 }
 
-pub fn compile_src<L: Language + ?Sized>(quiet: bool, lang: &L) -> Result<ExitStatus> {
+fn do_compile<L: Lang + ?Sized>(quiet: bool, lang: &L) -> Result<ExitStatus> {
     eprintln_tagged!("Compiling": "project");
     let CompilerOutput {
         status,

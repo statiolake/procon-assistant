@@ -1,14 +1,14 @@
 use crate::imp;
-use crate::ui::CONFIG;
-use anyhow::{anyhow, ensure};
+use crate::imp::config::CONFIG;
+use anyhow::{anyhow, bail, ensure};
 use anyhow::{Context as _, Result};
 use itertools::izip;
-use std::io::Read;
-use std::io::Write;
+use scopeguard::defer;
+use std::cell::RefCell;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
-use std::usize;
-use std::{cmp, fmt, fs, io, iter, time};
+use std::{cmp, fmt, fs, iter, time, usize};
 
 pub struct JudgeResult {
     pub elapsed: time::Duration,
@@ -176,7 +176,7 @@ impl Context {
         let is_presentation_error = self.check_presentation_error();
         self.fix_last_newline();
 
-        // check the number of lines are equal.  if it doesn't, it's already a wrong answer.
+        // check the number of lines are equal. if it doesn't, it's already a wrong answer.
         if let Some(err) = Context::verify_num_lines(self.expected.len(), self.actual.len()) {
             return TestResult::WrongAnswer(WrongAnswer {
                 context: self,
@@ -208,7 +208,7 @@ impl Context {
         TestResult::Accepted
     }
 
-    /// Checks if it could be a presentation error.  Check is meaningful only
+    /// Checks if it could be a presentation error. Check is meaningful only
     /// before calling `fix_last_newline()` as that function "fixes" the
     /// presentation error if any.
     fn check_presentation_error(&self) -> bool {
@@ -219,13 +219,13 @@ impl Context {
     /// Fixes the presentation error if any.
     fn fix_last_newline(&mut self) {
         // if last line has a newline in the end, `expected` will have an
-        // extra blank line.  remove this.
+        // extra blank line. remove this.
         if self.expected.last().map(String::as_str) == Some("") {
             self.expected.pop();
         }
 
         // if the last line has a newline in the end, `actual` will have an
-        // extra blank line.  if it doesn't, that's a presentation error (last
+        // extra blank line. if it doesn't, that's a presentation error (last
         // newline is always required).
         if self.actual.last().map(String::as_str) == Some("") {
             self.actual.pop();
@@ -294,7 +294,7 @@ impl Token {
         Token { kind, span }
     }
 
-    /// Checks if two tokens are "equal".  Note that this equality doesn't
+    /// Checks if two tokens are "equal". Note that this equality doesn't
     /// satisfy the transitivity (because a certain amount of error is allowed
     /// for floating point numbers).
     fn is_equal(a: &Token, b: &Token) -> bool {
@@ -375,7 +375,7 @@ impl Token {
 
     fn parse(token: &str, span: Span) -> Token {
         // A token starting with zero is rarely intended to be a number, so
-        // treat it as a string.  But there are some corner cases (ex: `0`,
+        // treat it as a string. But there are some corner cases (ex: `0`,
         // `0.1`) so check that.
         if token.starts_with('0') && !(token == "0" || token.starts_with("0.")) {
             return Token::new(TokenKind::String(token.into()), span);
@@ -446,14 +446,14 @@ impl TestCase {
         Ok(idx)
     }
 
-    pub fn load_from(if_name: String, of_name: String) -> io::Result<TestCase> {
+    pub fn load_from(if_name: String, of_name: String) -> Result<TestCase> {
         let if_contents = fs::read_to_string(&if_name)?;
         let of_contents = fs::read_to_string(&of_name)?;
 
         Ok(TestCase::new(if_name, if_contents, of_name, of_contents))
     }
 
-    pub fn load_from_index_of(idx: i32) -> io::Result<TestCase> {
+    pub fn load_from_index(idx: i32) -> Result<TestCase> {
         let if_name = make_if_name(idx);
         let of_name = make_of_name(idx);
 
@@ -465,6 +465,13 @@ impl TestCase {
             .with_context(|| format!("failed to create `{}`", self.if_name))?;
         imp::fs::safe_write(&self.of_name, &self.of_contents)
             .with_context(|| format!("failed to create `{}`", self.if_name))?;
+
+        Ok(())
+    }
+
+    pub fn remove(&self) -> Result<()> {
+        fs::remove_file(&self.if_name)?;
+        fs::remove_file(&self.of_name)?;
 
         Ok(())
     }
@@ -501,15 +508,75 @@ impl fmt::Display for TestCase {
     }
 }
 
-pub fn enumerate_test_cases() -> io::Result<Vec<TestCase>> {
+pub fn enumerate_test_cases() -> Result<Vec<TestCase>> {
     let mut result = vec![];
     let mut i = 1;
     while Path::new(&make_if_name(i)).exists() {
-        result.push(TestCase::load_from_index_of(i)?);
+        result.push(TestCase::load_from_index(i)?);
         i += 1;
     }
 
     Ok(result)
+}
+
+pub fn add_test_case(if_contents: String, of_contents: String) -> Result<TestCase> {
+    let idx = TestCase::next_unused_idx()?;
+    let test_case = TestCase::new_with_idx(idx, if_contents, of_contents);
+    test_case.write()?;
+
+    Ok(test_case)
+}
+
+/// Remove all specified test cases
+pub fn remove_test_cases(indices: &[i32]) -> Result<()> {
+    let test_cases = RefCell::new(enumerate_test_cases()?);
+    // Make sure to restore test cases before exit
+    defer! {
+        for (idx, test_case) in test_cases.borrow().iter().enumerate() {
+            let idx = (idx + 1) as i32;
+            let test_case = TestCase::new_with_idx(
+                idx,
+                test_case.if_contents.clone(),
+                test_case.of_contents.clone(),
+            );
+            let _ = test_case.write();
+        }
+    }
+
+    // !! BE CAREFUL !! Remove all test cases.
+    clean_test_cases(&*test_cases.borrow())?;
+
+    let len = test_cases.borrow().len() as i32;
+    let mut removed = 0;
+    let mut err_indices = Vec::new();
+    for &idx1 in indices {
+        // translate index into zero-origin
+        let idx0 = idx1 - 1;
+
+        if !(0..len).contains(&idx0) {
+            // translate index into one-origin
+            err_indices.push(idx1);
+            continue;
+        }
+
+        assert!(idx0 >= removed);
+        test_cases.borrow_mut().remove((idx0 - removed) as _);
+        removed += 1;
+    }
+
+    if !err_indices.is_empty() {
+        bail!("some of indices are out of range: {:?}", err_indices);
+    }
+
+    Ok(())
+}
+
+fn clean_test_cases(test_cases: &[TestCase]) -> Result<()> {
+    for test_case in test_cases {
+        test_case.remove()?;
+    }
+
+    Ok(())
 }
 
 fn make_if_name(num: i32) -> String {
@@ -549,7 +616,7 @@ fn wait_or_timeout(child: &mut Child) -> Result<(time::Duration, Option<TestResu
         // check if the binary has finished.
         let try_wait_result = child.try_wait();
         match try_wait_result {
-            // child has somehow finished.  check the reason.
+            // child has somehow finished. check the reason.
             Ok(Some(status)) => {
                 let test_result = if status.success() {
                     // OK: child succesfully exited in time.
@@ -573,10 +640,10 @@ fn wait_or_timeout(child: &mut Child) -> Result<(time::Duration, Option<TestResu
                 return Ok((elapsed, test_result));
             }
 
-            // child hasn't finished.  continue to polling
+            // child hasn't finished. continue to polling
             Ok(None) => {}
 
-            // failed to check the child status.  treat this as a runtime error.
+            // failed to check the child status. treat this as a runtime error.
             Err(_) => {
                 let stderr = read_child_stderr(child);
                 let test_result = Some(RE(RuntimeError {

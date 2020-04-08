@@ -4,6 +4,7 @@ pub mod common;
 pub mod compile;
 pub mod config;
 pub mod debug_macros;
+pub mod download;
 pub mod fetch;
 pub mod fs;
 pub mod initdirs;

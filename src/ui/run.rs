@@ -1,21 +1,19 @@
+use crate::imp::config::CONFIG;
 use crate::imp::langs;
-use crate::imp::langs::Language;
+use crate::imp::langs::Lang;
 use crate::imp::test_case;
 use crate::imp::test_case::{
     Context, JudgeResult, RuntimeError, Span, TestCase, TestResult, WrongAnswer, WrongAnswerKind,
 };
-use crate::ui::clip;
-use crate::ui::compile;
 use crate::ui::print_macros::TAG_WIDTH;
-use crate::ui::CONFIG;
+use crate::ui::{clip, compile};
 use crate::ExitStatus;
 use crate::{eprintln_debug, eprintln_info, eprintln_more, eprintln_tagged, eprintln_warning};
 use anyhow::anyhow;
 use anyhow::{Context as _, Result};
 use console::Style;
 use itertools::Itertools as _;
-use std::cmp;
-use std::thread;
+use std::{cmp, thread};
 
 const PANE_MINIMUM_SIZE: usize = 3;
 
@@ -48,7 +46,7 @@ fn style_sep() -> Style {
 
 impl Run {
     pub fn run(self, quiet: bool) -> Result<ExitStatus> {
-        let lang = langs::guess_language().context("failed to get language")?;
+        let lang = langs::guess_lang().context("failed to get language")?;
         let status =
             compile::compile(quiet, &*lang, self.force_compile).context("failed to compile")?;
         let result = if status == ExitStatus::Success {
@@ -74,7 +72,7 @@ impl Run {
     }
 }
 
-fn run_tests<L: Language + ?Sized>(quiet: bool, lang: &L, args: &[String]) -> Result<TestResult> {
+fn run_tests<L: Lang + ?Sized>(quiet: bool, lang: &L, args: &[String]) -> Result<TestResult> {
     let tcs = enumerate_test_cases(&args)?;
     run(quiet, lang, tcs)
 }
@@ -85,7 +83,7 @@ fn parse_argument_cases(args: &[String]) -> Result<Vec<TestCase>> {
         let n = arg
             .parse::<i32>()
             .with_context(|| format!("argument is not a number: {}", arg))?;
-        let tcf = TestCase::load_from_index_of(n).context("failed to load test case")?;
+        let tcf = TestCase::load_from_index(n).context("failed to load test case")?;
         result.push(tcf);
     }
 
@@ -102,7 +100,7 @@ fn enumerate_test_cases(args: &[String]) -> Result<Vec<TestCase>> {
     Ok(test_cases)
 }
 
-fn run<L: Language + ?Sized>(quiet: bool, lang: &L, tcs: Vec<TestCase>) -> Result<TestResult> {
+fn run<L: Lang + ?Sized>(quiet: bool, lang: &L, tcs: Vec<TestCase>) -> Result<TestResult> {
     eprintln_tagged!(
         "Running": "{} test cases (current timeout is {} millisecs)",
         tcs.len(),
@@ -255,7 +253,7 @@ fn print_diffs(
 
     if least_width > width {
         eprintln_warning!(
-            "Terminal size is too narrow (at least: {} chars per line, actual: {} chars).  Diff view is disabled.",
+            "Terminal size is too narrow (at least: {} chars per line, actual: {} chars). Diff view is disabled.",
             least_width,
             width
         );
