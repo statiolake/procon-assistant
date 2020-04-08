@@ -10,17 +10,17 @@ pub fn colorize() -> bool {
     atty::is(Stream::Stderr)
 }
 
-pub fn open_addcase<P: AsRef<Path>>(names: &[P]) -> Result<()> {
+pub fn open_addcase<P: AsRef<Path>>(names: &[P], cwd: Option<&Path>) -> Result<()> {
     let names = names
         .iter()
         .map(|p| p.as_ref().display().to_string())
         .collect_vec();
     let names = names.iter().map(String::as_str).collect_vec();
     let (process_name, cmds) = open_addcase_cmds(&names)?;
-    spawn_editor(process_name, cmds)
+    spawn_editor(process_name, cmds, cwd.as_ref().map(AsRef::as_ref))
 }
 
-pub fn open_general<P: AsRef<Path>>(names: &[P]) -> Result<()> {
+pub fn open_general<P: AsRef<Path>>(names: &[P], cwd: Option<&Path>) -> Result<()> {
     let names = names
         .iter()
         .map(|p| p.as_ref().display().to_string())
@@ -28,14 +28,19 @@ pub fn open_general<P: AsRef<Path>>(names: &[P]) -> Result<()> {
         .collect_vec();
     let names = names.iter().map(String::as_str).collect_vec();
     let (process_name, cmds) = open_general_cmds(&names)?;
-    spawn_editor(process_name, cmds)
+    spawn_editor(process_name, cmds, cwd.as_ref().map(AsRef::as_ref))
 }
 
-fn spawn_editor(process_name: &str, cmds: Vec<Command>) -> Result<()> {
+fn spawn_editor(process_name: &str, cmds: Vec<Command>, cwd: Option<&Path>) -> Result<()> {
     for mut cmd in cmds {
         cmd.stdin(Stdio::inherit())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
+
+        if let Some(cwd) = cwd {
+            cmd.current_dir(cwd);
+        }
+
         let res = if CONFIG.general.wait_for_editor_finish {
             cmd.spawn().and_then(|mut child| child.wait()).map(drop)
         } else {
