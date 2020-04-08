@@ -14,7 +14,7 @@ impl AddCase {
             .context("failed to create a new test case")?;
         eprintln_tagged!("Created": "{}, {}", test_case.if_name, test_case.of_name);
 
-        common::open_addcase(&[&test_case.if_name, &test_case.of_name])
+        common::open_addcase(&[&test_case.if_name, &test_case.of_name], None)
             .context("failed to open the generated file")?;
 
         Ok(ExitStatus::Success)
