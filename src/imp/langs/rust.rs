@@ -194,23 +194,31 @@ fn generate_local(path: &Path) -> Result<()> {
     };
 
     let base_path = Path::new("main");
-    stdfs::create_dir(base_path)?;
+    stdfs::create_dir_all(base_path)?;
     for entry in stdfs::read_dir(path)? {
         let entry = entry?;
         let entry_path = entry.path();
-        let entry_name = entry_path.file_name().unwrap();
+        let entry_name = entry_path
+            .file_name()
+            .expect("critical error: file has no name");
+        let target = base_path.join(entry_name);
+        if target.exists() {
+            // skip existing file or folder
+            continue;
+        }
+
         let entry_metadata = entry.metadata()?;
         if entry_metadata.is_file() {
-            stdfs::copy(&entry_path, base_path.join(entry_name))?;
+            stdfs::copy(&entry_path, &target)?;
         } else if entry_metadata.is_dir() && entry_name != "target" {
-            dir::copy(&entry_path, base_path.join(entry_name), &options)?;
+            dir::copy(&entry_path, &target, &options)?;
         }
     }
 
     // symlink target directory
     let template_target_path = path.join("target");
     let project_target_path = base_path.join("target");
-    if template_target_path.exists() {
+    if template_target_path.exists() && !project_target_path.exists() {
         symlink::symlink_dir(template_target_path, project_target_path)?;
     }
 
