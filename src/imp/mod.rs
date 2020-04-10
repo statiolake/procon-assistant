@@ -9,5 +9,6 @@ pub mod fetch;
 pub mod fs;
 pub mod initdirs;
 pub mod langs;
+pub mod process;
 pub mod progress;
 pub mod test_case;

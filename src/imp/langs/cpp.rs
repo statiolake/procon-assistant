@@ -98,6 +98,10 @@ impl Lang for Cpp {
         })
     }
 
+    fn doc_urls(&self) -> Result<Vec<String>> {
+        Ok(vec!["https://cpprefjp.github.io/".to_string()])
+    }
+
     fn needs_compile(&self) -> bool {
         let target = if cfg!(windows) { "main.exe" } else { "main" };
         impfs::cmp_modified_time("main.cpp", target)
