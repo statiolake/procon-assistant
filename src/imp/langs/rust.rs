@@ -16,7 +16,7 @@ use scopeguard::defer;
 use std::env;
 use std::fs as stdfs;
 use std::io::prelude::*;
-use std::path::{Path, PathBuf};
+use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 use std::process::{Command, Stdio};
 
 pub struct Rust;
@@ -99,6 +99,14 @@ impl Lang for Rust {
                 directory: path.join("main"),
             })
         })
+    }
+
+    fn doc_urls(&self) -> Result<Vec<String>> {
+        let path = to_absolute::to_absolute_from_current_dir("main/target/doc/main/index.html")
+            .context("failed to get the absolute path for the document")?;
+        let path_url_base = path.display().to_string().replace(MAIN_SEPARATOR, "/");
+
+        Ok(vec![format!("file:///{}", path_url_base)])
     }
 
     fn get_source(&self) -> Result<RawSource> {

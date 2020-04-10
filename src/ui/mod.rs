@@ -2,6 +2,7 @@ mod addcase;
 mod clip;
 mod compile;
 mod delcase;
+mod doc;
 mod download;
 mod fetch;
 mod init;
@@ -42,6 +43,9 @@ enum SubCommand {
     #[clap(name = "delcase", aliases = &["dc"])]
     DelCase(delcase::DelCase),
 
+    #[clap(name = "doc", aliases = &["do"])]
+    Doc(doc::Doc),
+
     #[clap(name = "preprocess", aliases = &["si", "pp"])]
     Preprocess(preprocess::Preprocess),
 
@@ -78,6 +82,7 @@ impl SubCommand {
             SubCommand::Run(cmd) => cmd.run(quiet),
             SubCommand::Compile(cmd) => cmd.run(quiet),
             SubCommand::Login(cmd) => cmd.run(quiet),
+            SubCommand::Doc(cmd) => cmd.run(quiet),
         }
     }
 }
