@@ -27,6 +27,8 @@ pub struct ConfigFile {
     pub clip: Clip,
     #[serde(default)]
     pub langs: Langs,
+    #[serde(default)]
+    pub doc: Doc,
 }
 
 #[derive(Deserialize)]
@@ -119,6 +121,12 @@ pub enum RustProjectTemplate {
 
     #[serde(rename = "local")]
     Local { path: PathBuf },
+}
+
+#[derive(Deserialize, Default)]
+pub struct Doc {
+    #[serde(default)]
+    pub browser: Option<Vec<String>>,
 }
 
 impl ConfigFile {

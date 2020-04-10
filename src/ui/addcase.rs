@@ -1,5 +1,5 @@
 use crate::eprintln_tagged;
-use crate::imp::{common, test_case};
+use crate::imp::{process, test_case};
 use crate::ExitStatus;
 use anyhow::{Context, Result};
 
@@ -14,7 +14,7 @@ impl AddCase {
             .context("failed to create a new test case")?;
         eprintln_tagged!("Created": "{}, {}", test_case.if_name, test_case.of_name);
 
-        common::open_addcase(&[&test_case.if_name, &test_case.of_name], None)
+        process::open_addcase(&[&test_case.if_name, &test_case.of_name], None)
             .context("failed to open the generated file")?;
 
         Ok(ExitStatus::Success)

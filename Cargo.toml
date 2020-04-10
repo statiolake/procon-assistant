@@ -16,7 +16,6 @@ serde = "1.0.105"
 serde_derive = "1.0.105"
 serde_json = "1.0.48"
 lazy_static = "1.4.0"
-atty = "0.2.14"
 which = "3.1.1"
 current_exe = { git = "https://github.com/statiolake/current-exe-rs" }
 to_absolute = { git = "https://github.com/statiolake/to-absolute-rs" }

@@ -1,8 +1,8 @@
 use crate::eprintln_progress;
-use crate::imp::common;
 use crate::imp::config::OpenTarget;
 use crate::imp::config::CONFIG;
 use crate::imp::langs;
+use crate::imp::process;
 use crate::ExitStatus;
 use anyhow::anyhow;
 use anyhow::{Context, Result};
@@ -59,7 +59,7 @@ impl Init {
                 }
             };
 
-            common::open_general(&to_open, cwd).context("failed to open the editor")?;
+            process::open_general(&to_open, cwd).context("failed to open the editor")?;
         }
 
         Ok(ExitStatus::Success)
