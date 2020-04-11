@@ -3,6 +3,7 @@ use super::{FilesToOpen, Preprocessed, Progress, RawSource};
 use crate::imp::config::MinifyMode;
 use crate::imp::config::CONFIG;
 use crate::imp::fs as impfs;
+use crate::imp::process;
 use crate::{eprintln_debug, eprintln_debug_more};
 use anyhow::{Context, Result};
 use itertools::Itertools;
@@ -98,8 +99,10 @@ impl Lang for Cpp {
         })
     }
 
-    fn doc_urls(&self) -> Result<Vec<String>> {
-        Ok(vec!["https://cpprefjp.github.io/".to_string()])
+    fn open_docs(&self) -> Result<()> {
+        process::open_browser("https://cpprefjp.github.io/").context("failed to start browser")?;
+
+        Ok(())
     }
 
     fn needs_compile(&self) -> bool {
