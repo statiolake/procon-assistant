@@ -35,7 +35,7 @@ pub trait Lang {
         Self: Sized;
 
     fn init_async(&self, path: &Path) -> Progress<anyhow::Result<FilesToOpen>>;
-    fn doc_urls(&self) -> Result<Vec<String>>;
+    fn open_docs(&self) -> Result<()>;
     fn needs_compile(&self) -> bool;
     fn get_source(&self) -> Result<RawSource>;
     fn compile_command(&self) -> Vec<Command>;

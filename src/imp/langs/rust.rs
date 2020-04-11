@@ -4,6 +4,7 @@ use crate::eprintln_debug;
 use crate::imp::config::MinifyMode;
 use crate::imp::config::RustProjectTemplate;
 use crate::imp::config::CONFIG;
+use crate::imp::process;
 use anyhow::{anyhow, ensure};
 use anyhow::{Context, Result};
 use fs_extra::dir;
@@ -101,12 +102,22 @@ impl Lang for Rust {
         })
     }
 
-    fn doc_urls(&self) -> Result<Vec<String>> {
+    fn open_docs(&self) -> Result<()> {
+        // open crate docs
         let path = to_absolute::to_absolute_from_current_dir("main/target/doc/main/index.html")
             .context("failed to get the absolute path for the document")?;
         let path_url_base = path.display().to_string().replace(MAIN_SEPARATOR, "/");
+        let crate_docs = format!("file:///{}", path_url_base);
+        process::open_browser(&crate_docs).context("failed to open crate docs")?;
 
-        Ok(vec![format!("file:///{}", path_url_base)])
+        // open std docs
+        Command::new("rustup")
+            .arg("doc")
+            .arg("--std")
+            .spawn()
+            .context("failed to open std doc")?;
+
+        Ok(())
     }
 
     fn get_source(&self) -> Result<RawSource> {
