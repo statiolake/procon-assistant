@@ -13,6 +13,7 @@ pub mod print_macros;
 mod run;
 
 use crate::imp::config::ConfigFile;
+use crate::imp::fs;
 use crate::ExitStatus;
 use crate::{eprintln_error, eprintln_info};
 use anyhow::Result;
@@ -98,6 +99,9 @@ pub fn main() -> ExitStatus {
             std::process::exit(1);
         }
     };
+
+    // adjust current directory
+    fs::adjust_workspace_root();
 
     let opts = Options::parse();
     match opts.subcommand.run(opts.quiet) {

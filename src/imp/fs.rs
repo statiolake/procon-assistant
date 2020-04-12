@@ -1,3 +1,4 @@
+use crate::imp::langs;
 use anyhow::{Context, Result};
 use if_chain::if_chain;
 use std::cmp::Ordering;
@@ -5,6 +6,27 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
+
+/// Infers workspace root and sets the current directory to it.
+pub fn adjust_workspace_root() {
+    let orig = env::current_dir().expect("critical error: failed to get current dir");
+    let mut root = orig.as_path();
+    loop {
+        env::set_current_dir(root).expect("critical error: failed to set current dir");
+        if langs::guess_lang().is_ok() {
+            // Done adjustment.
+            return;
+        }
+
+        root = match root.parent() {
+            Some(parent) => parent,
+            None => break,
+        };
+    }
+
+    // Fallback - restore original current directory
+    env::set_current_dir(orig).expect("critical error: failed to restore original dir");
+}
 
 /// Creates directories under `root`. If `override_if_cwd` is `true` and current
 /// working directory name is equal to the root's name, the root directory is
