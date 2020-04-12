@@ -88,6 +88,8 @@ impl SubCommand {
 }
 
 pub fn main() -> ExitStatus {
+    // load config for the first time and ensure that the real config read does
+    // not fail.
     let _ = match ConfigFile::get_config() {
         Ok(config) => config,
         Err(e) => {
