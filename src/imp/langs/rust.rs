@@ -148,7 +148,9 @@ impl Lang for Rust {
     }
 
     fn run_command(&self) -> Command {
-        Command::new("main/target/debug/main")
+        Command::new("main/target/debug/main").modify(|cmd| {
+            cmd.env("RUST_BACKTRACE", "1");
+        })
     }
 
     fn preprocess(
