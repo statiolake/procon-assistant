@@ -379,14 +379,12 @@ fn minify(source: &str) -> Result<String> {
         .lines()
         .map(|x| x.trim().to_string())
         .filter(|x| !x.is_empty())
-        .collect_vec();
+        .join(" ");
     for &(regex, replace) in replaces.iter() {
-        for line in &mut result {
-            let replaced = regex.replace_all(line, replace);
-            let replaced = replaced.trim();
-            *line = replaced.to_string();
-        }
+        let replaced = regex.replace_all(&result, replace);
+        let replaced = replaced.trim();
+        result = replaced.to_string();
     }
 
-    Ok(result.join(""))
+    Ok(result)
 }
