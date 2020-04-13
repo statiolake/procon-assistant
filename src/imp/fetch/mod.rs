@@ -4,7 +4,7 @@ pub mod atcoder;
 use self::aoj::Aoj;
 use self::atcoder::{AtCoder, Problem as AtCoderProblem};
 use crate::imp::test_case::TestCase;
-use anyhow::bail;
+use anyhow::{bail, ensure};
 use anyhow::{Context, Result};
 use std::fmt::Debug;
 
@@ -49,6 +49,11 @@ impl ProblemDescriptor {
     pub fn parse(dsc: &str) -> Result<ProblemDescriptor> {
         let (contest_site, problem_id) = {
             let sp: Vec<_> = dsc.splitn(2, ':').collect();
+            ensure!(
+                sp.len() == 2,
+                "problem-descriptor `{}` does not contain separator `:`",
+                dsc
+            );
             (sp[0].to_string(), sp[1].to_string())
         };
 
