@@ -24,7 +24,7 @@ pub struct Rust;
 
 lazy_static! {
     static ref RE_MOD_PATH: Regex = Regex::new(r#"#\[path\s+=\s+"(?P<path>.*)"\]"#).unwrap();
-    static ref RE_MOD: Regex = Regex::new(r#"(?:pub\s+)?mod (?P<name>\w+);"#).unwrap();
+    static ref RE_MOD: Regex = Regex::new(r#"\bmod\s+(?P<name>\w+);"#).unwrap();
     static ref RE_COMMENT: Regex = Regex::new(r#"//.*"#).unwrap();
     static ref RE_WHITESPACE_AFTER_COLONS: Regex = Regex::new(r#"\s*(?P<col>[;:])\s*"#).unwrap();
     static ref RE_MULTIPLE_SPACE: Regex = Regex::new(r#"\s+"#).unwrap();
@@ -328,8 +328,11 @@ fn resolve_mod(cwd: &Path, source: String, mode: MinifyMode, depth: usize) -> Re
                 };
                 let source = stdfs::read_to_string(&mod_path)?;
                 let next_cwd = cwd.join(&mod_name);
-                let replaced = resolve_mod(&next_cwd, source, mode, depth + 1)?;
-                result.push(format!("mod {} {{\n{}\n}}", mod_name, replaced));
+                let resolved = resolve_mod(&next_cwd, source, mode, depth + 1)?;
+                let replace = format!("mod {} {{\n{}\n}}", mod_name, resolved.trim());
+                // prevent macro variables from confused by Regex capture variable
+                let replace = replace.replace('$', "$$");
+                result.push(RE_MOD.replace_all(line, &*replace).into_owned());
 
                 path_attr = None;
             }
