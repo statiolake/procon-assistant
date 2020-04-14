@@ -159,7 +159,7 @@ impl Lang for Rust {
         RawSource(source): &RawSource,
         minify: MinifyMode,
     ) -> Result<Preprocessed> {
-        let source = expand_source(Path::new("main/src"), &source, minify, 0)?;
+        let source = expand_source(Path::new("main/src"), &source, minify)?;
         Ok(Preprocessed(source))
     }
 
@@ -251,9 +251,9 @@ fn generate_local(path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn expand_source(cwd: &Path, source: &str, mode: MinifyMode, depth: usize) -> Result<String> {
+fn expand_source(cwd: &Path, source: &str, mode: MinifyMode) -> Result<String> {
     let file = syn::parse_file(&source).context("failed to parse the source code")?;
-    let file = expand_file(cwd, file, mode, depth)?;
+    let file = expand_file(cwd, file)?;
 
     match mode {
         MinifyMode::None => rustfmt(&file.into_token_stream().to_string()),
@@ -293,17 +293,12 @@ fn expand_source(cwd: &Path, source: &str, mode: MinifyMode, depth: usize) -> Re
     }
 }
 
-fn expand_file(
-    cwd: &Path,
-    mut file: syn::File,
-    mode: MinifyMode,
-    depth: usize,
-) -> Result<syn::File> {
+fn expand_file(cwd: &Path, mut file: syn::File) -> Result<syn::File> {
     file.items = file
         .items
         .into_iter()
         .map(|item| match item {
-            syn::Item::Mod(imod) => expand_mod(cwd, imod, mode, depth).map(Into::into),
+            syn::Item::Mod(imod) => expand_mod(cwd, imod).map(Into::into),
             item => Ok(item),
         })
         .collect::<Result<_>>()?;
@@ -311,12 +306,7 @@ fn expand_file(
     Ok(file)
 }
 
-fn expand_mod(
-    cwd: &Path,
-    imod: syn::ItemMod,
-    mode: MinifyMode,
-    depth: usize,
-) -> Result<syn::ItemMod> {
+fn expand_mod(cwd: &Path, imod: syn::ItemMod) -> Result<syn::ItemMod> {
     let semi_span = match imod.semi {
         Some(semi) => semi.spans[0],
         None => return Ok(imod),
@@ -384,8 +374,7 @@ fn expand_mod(
         )
     })?;
     let file = syn::parse_file(&source).context("failed to parse next module file")?;
-    let expanded = expand_file(&next_cwd, file, mode, depth + 1)
-        .context("failed to expand next module file")?;
+    let expanded = expand_file(&next_cwd, file).context("failed to expand next module file")?;
 
     rest_attrs.extend(expanded.attrs);
     Ok(syn::ItemMod {
