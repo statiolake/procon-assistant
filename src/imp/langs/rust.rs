@@ -155,8 +155,8 @@ impl Lang for Rust2016 {
 
 fn check(ver: RustVersion) -> bool {
     match ver {
-        RustVersion::Rust2016 => Path::new("rust2016").exists(),
-        RustVersion::Rust2020 => Path::new("rust2020").exists(),
+        RustVersion::Rust2016 => Path::new("main/rust2016").exists(),
+        RustVersion::Rust2020 => Path::new("main/rust2020").exists(),
     }
 }
 
