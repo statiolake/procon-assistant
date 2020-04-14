@@ -290,13 +290,14 @@ fn resolve_mod(cwd: &Path, source: String, mode: MinifyMode, depth: usize) -> Re
             }
         }
 
-        match RE_MOD.captures(&line) {
+        let line = RE_COMMENT.replace_all(line, "");
+        match RE_MOD.captures(&*line) {
             None => {
                 match RE_MOD_PATH.captures(&line) {
                     Some(caps) => path_attr = Some(caps.name("path").unwrap().as_str().to_string()),
                     None => {
                         path_attr = None;
-                        result.push(RE_COMMENT.replace_all(line, "").to_string());
+                        result.push(line.to_string());
                     }
                 }
                 continue;
@@ -332,7 +333,7 @@ fn resolve_mod(cwd: &Path, source: String, mode: MinifyMode, depth: usize) -> Re
                 let replace = format!("mod {} {{\n{}\n}}", mod_name, resolved.trim());
                 // prevent macro variables from confused by Regex capture variable
                 let replace = replace.replace('$', "$$");
-                result.push(RE_MOD.replace_all(line, &*replace).into_owned());
+                result.push(RE_MOD.replace_all(&*line, &*replace).into_owned());
 
                 path_attr = None;
             }
