@@ -723,12 +723,16 @@ fn remove_cfg_version(ver: RustVersion, file: &mut syn::File) {
     impl VisitMut for ItemRemover {
         fn visit_file_mut(&mut self, node: &mut File) {
             node.items.retain(|item| retains_item(item, self.feature));
+            node.items
+                .iter_mut()
+                .for_each(|item| remove_cfg_feature(item));
             visit_mut::visit_file_mut(self, node);
         }
 
         fn visit_item_mod_mut(&mut self, node: &mut ItemMod) {
             if let Some((_, items)) = &mut node.content {
-                items.retain(|item| retains_item(item, self.feature))
+                items.retain(|item| retains_item(item, self.feature));
+                items.iter_mut().for_each(|item| remove_cfg_feature(item));
             }
 
             visit_mut::visit_item_mod_mut(self, node);
@@ -742,13 +746,18 @@ fn remove_cfg_version(ver: RustVersion, file: &mut syn::File) {
                     true
                 }
             });
+            node.stmts.iter_mut().for_each(|stmt| {
+                if let Stmt::Item(item) = stmt {
+                    remove_cfg_feature(item);
+                }
+            });
 
             visit_mut::visit_block_mut(self, node);
         }
     }
 
-    fn retains_item(item: &Item, feature: &str) -> bool {
-        let attrs = match item {
+    fn extract_attrs(item: &Item) -> Option<&Vec<Attribute>> {
+        Some(match item {
             Item::Const(i_const) => &i_const.attrs,
             Item::Enum(i_enum) => &i_enum.attrs,
             Item::ExternCrate(i_extern_crate) => &i_extern_crate.attrs,
@@ -765,7 +774,36 @@ fn remove_cfg_version(ver: RustVersion, file: &mut syn::File) {
             Item::Type(i_type) => &i_type.attrs,
             Item::Union(i_union) => &i_union.attrs,
             Item::Use(i_use) => &i_use.attrs,
-            _ => return true,
+            _ => return None,
+        })
+    }
+
+    fn extract_attrs_mut(item: &mut Item) -> Option<&mut Vec<Attribute>> {
+        Some(match item {
+            Item::Const(i_const) => &mut i_const.attrs,
+            Item::Enum(i_enum) => &mut i_enum.attrs,
+            Item::ExternCrate(i_extern_crate) => &mut i_extern_crate.attrs,
+            Item::Fn(i_fn) => &mut i_fn.attrs,
+            Item::ForeignMod(i_foreign_mod) => &mut i_foreign_mod.attrs,
+            Item::Impl(i_impl) => &mut i_impl.attrs,
+            Item::Macro(i_macro) => &mut i_macro.attrs,
+            Item::Macro2(i_macro2) => &mut i_macro2.attrs,
+            Item::Mod(i_mod) => &mut i_mod.attrs,
+            Item::Static(i_static) => &mut i_static.attrs,
+            Item::Struct(i_struct) => &mut i_struct.attrs,
+            Item::Trait(i_trait) => &mut i_trait.attrs,
+            Item::TraitAlias(i_trait_alias) => &mut i_trait_alias.attrs,
+            Item::Type(i_type) => &mut i_type.attrs,
+            Item::Union(i_union) => &mut i_union.attrs,
+            Item::Use(i_use) => &mut i_use.attrs,
+            _ => return None,
+        })
+    }
+
+    fn retains_item(item: &Item, feature: &str) -> bool {
+        let attrs = match extract_attrs(item) {
+            Some(attrs) => attrs,
+            None => return true,
         };
 
         // parse #[cfg(feature = "...")]
@@ -822,6 +860,62 @@ fn remove_cfg_version(ver: RustVersion, file: &mut syn::File) {
 
             true
         })
+    }
+
+    fn remove_cfg_feature(item: &mut Item) {
+        let attrs = match extract_attrs_mut(item) {
+            Some(attrs) => attrs,
+            None => return,
+        };
+
+        attrs.retain(|attr| {
+            if_chain! {
+                if let Ok(meta) = attr.parse_meta();
+                if let Meta::List(list) = meta;
+                if let Some(name) = list.path.get_ident();
+                if name == "cfg";
+                then {
+                    for nest in list.nested.iter() {
+                        let meta = match nest {
+                            NestedMeta::Meta(meta) => meta,
+                            _ => continue,
+                        };
+                        match meta {
+                            Meta::List(list) => if_chain! {
+                                if let Some(name) = list.path.get_ident();
+                                if name == "not";
+                                then {
+                                    for nest in list.nested.iter() {
+                                        let meta = match nest {
+                                            NestedMeta::Meta(meta) => meta,
+                                            _ => continue,
+                                        };
+                                        if_chain! {
+                                            if let Meta::NameValue(meta) = meta;
+                                            if let Some(ident) = meta.path.get_ident();
+                                            if ident == "feature";
+                                            then {
+                                                return false;
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            Meta::NameValue(meta) => if_chain! {
+                                if let Some(ident) = meta.path.get_ident();
+                                if ident == "feature";
+                                then {
+                                    return false;
+                                }
+                            },
+                            _ => {}
+                        }
+                    }
+                }
+            }
+
+            true
+        });
     }
 }
 
