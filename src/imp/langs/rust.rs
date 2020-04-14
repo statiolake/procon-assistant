@@ -9,6 +9,7 @@ use anyhow::{anyhow, bail, ensure};
 use anyhow::{Context, Result};
 use fs_extra::dir;
 use fs_extra::dir::CopyOptions;
+use if_chain::if_chain;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use quote::ToTokens;
@@ -253,7 +254,8 @@ fn generate_local(path: &Path) -> Result<()> {
 
 fn expand_source(cwd: &Path, source: &str, mode: MinifyMode) -> Result<String> {
     let file = syn::parse_file(&source).context("failed to parse the source code")?;
-    let file = expand_file(cwd, file)?;
+    let mut file = expand_file(cwd, file)?;
+    remove_doc_comments(&mut file);
 
     match mode {
         MinifyMode::None => rustfmt(&file.into_token_stream().to_string()),
@@ -385,6 +387,192 @@ fn expand_mod(cwd: &Path, imod: syn::ItemMod) -> Result<syn::ItemMod> {
         content: Some((syn::token::Brace { span: semi_span }, expanded.items)),
         semi: None,
     })
+}
+
+fn remove_doc_comments(file: &mut syn::File) {
+    use syn::visit_mut;
+    use syn::visit_mut::VisitMut;
+    use syn::*;
+
+    RemoveDocCommentsVisitor.visit_file_mut(file);
+
+    struct RemoveDocCommentsVisitor;
+    impl VisitMut for RemoveDocCommentsVisitor {
+        fn visit_field_mut(&mut self, node: &mut Field) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_field_mut(self, node);
+        }
+
+        fn visit_file_mut(&mut self, node: &mut File) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_file_mut(self, node);
+        }
+
+        fn visit_foreign_item_fn_mut(&mut self, node: &mut ForeignItemFn) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_foreign_item_fn_mut(self, node);
+        }
+
+        fn visit_foreign_item_macro_mut(&mut self, node: &mut ForeignItemMacro) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_foreign_item_macro_mut(self, node);
+        }
+
+        fn visit_foreign_item_static_mut(&mut self, node: &mut ForeignItemStatic) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_foreign_item_static_mut(self, node);
+        }
+
+        fn visit_foreign_item_type_mut(&mut self, node: &mut ForeignItemType) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_foreign_item_type_mut(self, node);
+        }
+
+        fn visit_impl_item_const_mut(&mut self, node: &mut ImplItemConst) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_impl_item_const_mut(self, node);
+        }
+
+        fn visit_impl_item_macro_mut(&mut self, node: &mut ImplItemMacro) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_impl_item_macro_mut(self, node);
+        }
+
+        fn visit_impl_item_method_mut(&mut self, node: &mut ImplItemMethod) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_impl_item_method_mut(self, node);
+        }
+
+        fn visit_impl_item_type_mut(&mut self, node: &mut ImplItemType) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_impl_item_type_mut(self, node);
+        }
+
+        fn visit_item_const_mut(&mut self, node: &mut ItemConst) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_item_const_mut(self, node);
+        }
+
+        fn visit_item_enum_mut(&mut self, node: &mut ItemEnum) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_item_enum_mut(self, node);
+        }
+
+        fn visit_item_extern_crate_mut(&mut self, node: &mut ItemExternCrate) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_item_extern_crate_mut(self, node);
+        }
+
+        fn visit_item_fn_mut(&mut self, node: &mut ItemFn) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_item_fn_mut(self, node);
+        }
+
+        fn visit_item_foreign_mod_mut(&mut self, node: &mut ItemForeignMod) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_item_foreign_mod_mut(self, node);
+        }
+
+        fn visit_item_impl_mut(&mut self, node: &mut ItemImpl) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_item_impl_mut(self, node);
+        }
+
+        fn visit_item_macro_mut(&mut self, node: &mut ItemMacro) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_item_macro_mut(self, node);
+        }
+
+        fn visit_item_macro2_mut(&mut self, node: &mut ItemMacro2) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_item_macro2_mut(self, node);
+        }
+
+        fn visit_item_static_mut(&mut self, node: &mut ItemStatic) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_item_static_mut(self, node);
+        }
+
+        fn visit_item_struct_mut(&mut self, node: &mut ItemStruct) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_item_struct_mut(self, node);
+        }
+
+        fn visit_item_trait_mut(&mut self, node: &mut ItemTrait) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_item_trait_mut(self, node);
+        }
+
+        fn visit_item_trait_alias_mut(&mut self, node: &mut ItemTraitAlias) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_item_trait_alias_mut(self, node);
+        }
+
+        fn visit_item_type_mut(&mut self, node: &mut ItemType) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_item_type_mut(self, node);
+        }
+
+        fn visit_item_union_mut(&mut self, node: &mut ItemUnion) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_item_union_mut(self, node);
+        }
+
+        fn visit_item_use_mut(&mut self, node: &mut ItemUse) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_item_use_mut(self, node);
+        }
+
+        fn visit_lifetime_def_mut(&mut self, node: &mut LifetimeDef) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_lifetime_def_mut(self, node);
+        }
+
+        fn visit_trait_item_const_mut(&mut self, node: &mut TraitItemConst) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_trait_item_const_mut(self, node);
+        }
+
+        fn visit_trait_item_macro_mut(&mut self, node: &mut TraitItemMacro) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_trait_item_macro_mut(self, node);
+        }
+
+        fn visit_trait_item_method_mut(&mut self, node: &mut TraitItemMethod) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_trait_item_method_mut(self, node);
+        }
+
+        fn visit_trait_item_type_mut(&mut self, node: &mut TraitItemType) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_trait_item_type_mut(self, node);
+        }
+
+        fn visit_type_param_mut(&mut self, node: &mut TypeParam) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_type_param_mut(self, node);
+        }
+
+        fn visit_variant_mut(&mut self, node: &mut Variant) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_variant_mut(self, node);
+        }
+    }
+
+    fn remove_doc_attr(attrs: &mut Vec<Attribute>) {
+        attrs.retain(|attr| {
+            if_chain! {
+                if let Ok(meta) = attr.parse_meta();
+                if let Meta::NameValue(meta) = meta;
+                if let Some(ident) = meta.path.get_ident();
+                then {
+                    ident != "doc"
+                } else {
+                    true
+                }
+            }
+        });
+    }
 }
 
 fn rustfmt(source: &str) -> Result<String> {
