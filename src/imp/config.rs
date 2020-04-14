@@ -106,7 +106,9 @@ pub struct Langs {
     #[serde(default)]
     pub cpp: Cpp,
     #[serde(default)]
-    pub rust: Rust,
+    pub rust2020: Rust2020,
+    #[serde(default)]
+    pub rust2016: Rust2016,
 }
 
 #[derive(Deserialize)]
@@ -116,11 +118,17 @@ pub struct Cpp {
 }
 
 #[derive(Deserialize)]
-pub struct Rust {
-    #[serde(default = "Rust::default_project_template")]
+pub struct Rust2020 {
+    #[serde(default = "Rust2020::default_project_template")]
     pub project_template: RustProjectTemplate,
-    #[serde(default = "Rust::default_needs_pre_compile")]
+    #[serde(default = "Rust2020::default_needs_pre_compile")]
     pub needs_pre_compile: bool,
+}
+
+#[derive(Deserialize, Default)]
+pub struct Rust2016 {
+    #[serde(default)]
+    pub project_template_path: Option<PathBuf>,
 }
 
 #[derive(Deserialize)]
@@ -283,16 +291,16 @@ impl Cpp {
     }
 }
 
-impl Default for Rust {
+impl Default for Rust2020 {
     fn default() -> Self {
-        Rust {
-            project_template: Rust::default_project_template(),
-            needs_pre_compile: Rust::default_needs_pre_compile(),
+        Rust2020 {
+            project_template: Rust2020::default_project_template(),
+            needs_pre_compile: Rust2020::default_needs_pre_compile(),
         }
     }
 }
 
-impl Rust {
+impl Rust2020 {
     pub fn default_project_template() -> RustProjectTemplate {
         RustProjectTemplate::Git {
             repository: "https://github.com/rust-lang-ja/atcoder-rust-base".to_string(),
