@@ -153,8 +153,11 @@ impl Lang for Rust2016 {
     }
 }
 
-fn check(_ver: RustVersion) -> bool {
-    Path::new("main/Cargo.toml").exists()
+fn check(ver: RustVersion) -> bool {
+    match ver {
+        RustVersion::Rust2016 => Path::new("rust2016").exists(),
+        RustVersion::Rust2020 => Path::new("rust2020").exists(),
+    }
 }
 
 fn init_async(ver: RustVersion, path: &Path) -> Progress<Result<FilesToOpen>> {
