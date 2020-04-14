@@ -287,11 +287,11 @@ fn run_command(_ver: RustVersion) -> Command {
 }
 
 fn preprocess(
-    _ver: RustVersion,
+    ver: RustVersion,
     RawSource(source): &RawSource,
     minify: MinifyMode,
 ) -> Result<Preprocessed> {
-    let source = expand_source(Path::new("main/src"), &source, minify)?;
+    let source = expand_source(ver, Path::new("main/src"), &source, minify)?;
     Ok(Preprocessed(source))
 }
 
@@ -381,10 +381,11 @@ fn generate_local(path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn expand_source(cwd: &Path, source: &str, mode: MinifyMode) -> Result<String> {
+fn expand_source(ver: RustVersion, cwd: &Path, source: &str, mode: MinifyMode) -> Result<String> {
     let file = syn::parse_file(&source).context("failed to parse the source code")?;
     let mut file = expand_file(cwd, file)?;
     remove_doc_comments(&mut file);
+    remove_cfg_version(ver, &mut file);
 
     match mode {
         MinifyMode::None => rustfmt(&file.into_token_stream().to_string()),
@@ -701,6 +702,126 @@ fn remove_doc_comments(file: &mut syn::File) {
                 }
             }
         });
+    }
+}
+
+fn remove_cfg_version(ver: RustVersion, file: &mut syn::File) {
+    let feature = match ver {
+        RustVersion::Rust2016 => "rust2016",
+        RustVersion::Rust2020 => "rust2020",
+    };
+
+    ItemRemover { feature }.visit_file_mut(file);
+
+    use syn::visit_mut;
+    use syn::visit_mut::VisitMut;
+    use syn::*;
+
+    struct ItemRemover {
+        feature: &'static str,
+    };
+    impl VisitMut for ItemRemover {
+        fn visit_file_mut(&mut self, node: &mut File) {
+            node.items.retain(|item| retains_item(item, self.feature));
+            visit_mut::visit_file_mut(self, node);
+        }
+
+        fn visit_item_mod_mut(&mut self, node: &mut ItemMod) {
+            if let Some((_, items)) = &mut node.content {
+                items.retain(|item| retains_item(item, self.feature))
+            }
+
+            visit_mut::visit_item_mod_mut(self, node);
+        }
+
+        fn visit_block_mut(&mut self, node: &mut Block) {
+            node.stmts.retain(|stmt| {
+                if let Stmt::Item(item) = stmt {
+                    retains_item(item, self.feature)
+                } else {
+                    true
+                }
+            });
+
+            visit_mut::visit_block_mut(self, node);
+        }
+    }
+
+    fn retains_item(item: &Item, feature: &str) -> bool {
+        let attrs = match item {
+            Item::Const(i_const) => &i_const.attrs,
+            Item::Enum(i_enum) => &i_enum.attrs,
+            Item::ExternCrate(i_extern_crate) => &i_extern_crate.attrs,
+            Item::Fn(i_fn) => &i_fn.attrs,
+            Item::ForeignMod(i_foreign_mod) => &i_foreign_mod.attrs,
+            Item::Impl(i_impl) => &i_impl.attrs,
+            Item::Macro(i_macro) => &i_macro.attrs,
+            Item::Macro2(i_macro2) => &i_macro2.attrs,
+            Item::Mod(i_mod) => &i_mod.attrs,
+            Item::Static(i_static) => &i_static.attrs,
+            Item::Struct(i_struct) => &i_struct.attrs,
+            Item::Trait(i_trait) => &i_trait.attrs,
+            Item::TraitAlias(i_trait_alias) => &i_trait_alias.attrs,
+            Item::Type(i_type) => &i_type.attrs,
+            Item::Union(i_union) => &i_union.attrs,
+            Item::Use(i_use) => &i_use.attrs,
+            _ => return true,
+        };
+
+        // parse #[cfg(feature = "...")]
+        // parse #[cfg(not(feature = "..."))]
+        attrs.iter().all(|attr| {
+            if_chain! {
+                if let Ok(meta) = attr.parse_meta();
+                if let Meta::List(list) = meta;
+                if let Some(name) = list.path.get_ident();
+                if name == "cfg";
+                then {
+                    for nest in list.nested.iter() {
+                        let meta = match nest {
+                            NestedMeta::Meta(meta) => meta,
+                            _ => continue,
+                        };
+                        match meta {
+                            Meta::List(list) => if_chain! {
+                                if let Some(name) = list.path.get_ident();
+                                if name == "not";
+                                then {
+                                    for nest in list.nested.iter() {
+                                        let meta = match nest {
+                                            NestedMeta::Meta(meta) => meta,
+                                            _ => continue,
+                                        };
+                                        if_chain! {
+                                            if let Meta::NameValue(meta) = meta;
+                                            if let Some(ident) = meta.path.get_ident();
+                                            if ident == "feature";
+                                            if let Lit::Str(ref lit) = meta.lit;
+                                            if lit.value() == feature;
+                                            then {
+                                                return false;
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            Meta::NameValue(meta) => if_chain! {
+                                if let Some(ident) = meta.path.get_ident();
+                                if ident == "feature";
+                                if let Lit::Str(ref lit) = meta.lit;
+                                if lit.value() != feature;
+                                then {
+                                    return false;
+                                }
+                            },
+                            _ => {}
+                        }
+                    }
+                }
+            }
+
+            true
+        })
     }
 }
 
