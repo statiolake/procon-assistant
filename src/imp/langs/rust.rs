@@ -385,6 +385,7 @@ fn expand_source(ver: RustVersion, cwd: &Path, source: &str, mode: MinifyMode) -
     let file = syn::parse_file(&source).context("failed to parse the source code")?;
     let mut file = expand_file(cwd, file)?;
     remove_doc_comments(&mut file);
+    remove_tests(&mut file);
     remove_cfg_version(ver, &mut file);
 
     match mode {
@@ -702,6 +703,108 @@ fn remove_doc_comments(file: &mut syn::File) {
                 }
             }
         });
+    }
+}
+
+fn remove_tests(file: &mut syn::File) {
+    ItemRemover.visit_file_mut(file);
+
+    use syn::visit_mut;
+    use syn::visit_mut::VisitMut;
+    use syn::*;
+
+    struct ItemRemover;
+    impl VisitMut for ItemRemover {
+        fn visit_file_mut(&mut self, node: &mut File) {
+            node.items.retain(|item| retains_item(item));
+            visit_mut::visit_file_mut(self, node);
+        }
+
+        fn visit_item_mod_mut(&mut self, node: &mut ItemMod) {
+            if let Some((_, items)) = &mut node.content {
+                items.retain(|item| retains_item(item));
+            }
+
+            visit_mut::visit_item_mod_mut(self, node);
+        }
+
+        fn visit_block_mut(&mut self, node: &mut Block) {
+            node.stmts.retain(|stmt| {
+                if let Stmt::Item(item) = stmt {
+                    retains_item(item)
+                } else {
+                    true
+                }
+            });
+
+            visit_mut::visit_block_mut(self, node);
+        }
+    }
+
+    fn extract_attrs(item: &Item) -> Option<&Vec<Attribute>> {
+        Some(match item {
+            Item::Const(i_const) => &i_const.attrs,
+            Item::Enum(i_enum) => &i_enum.attrs,
+            Item::ExternCrate(i_extern_crate) => &i_extern_crate.attrs,
+            Item::Fn(i_fn) => &i_fn.attrs,
+            Item::ForeignMod(i_foreign_mod) => &i_foreign_mod.attrs,
+            Item::Impl(i_impl) => &i_impl.attrs,
+            Item::Macro(i_macro) => &i_macro.attrs,
+            Item::Macro2(i_macro2) => &i_macro2.attrs,
+            Item::Mod(i_mod) => &i_mod.attrs,
+            Item::Static(i_static) => &i_static.attrs,
+            Item::Struct(i_struct) => &i_struct.attrs,
+            Item::Trait(i_trait) => &i_trait.attrs,
+            Item::TraitAlias(i_trait_alias) => &i_trait_alias.attrs,
+            Item::Type(i_type) => &i_type.attrs,
+            Item::Union(i_union) => &i_union.attrs,
+            Item::Use(i_use) => &i_use.attrs,
+            _ => return None,
+        })
+    }
+
+    fn retains_item(item: &Item) -> bool {
+        let attrs = match extract_attrs(item) {
+            Some(attrs) => attrs,
+            None => return true,
+        };
+
+        attrs.iter().all(|attr| {
+            // parse #[test]
+            if_chain! {
+                if let Some(name) = attr.path.get_ident();
+                if name == "test";
+                then {
+                    return false;
+                }
+            }
+
+            // parse #[cfg(test)]
+            if_chain! {
+                if let Ok(meta) = attr.parse_meta();
+                if let Meta::List(list) = meta;
+                if let Some(name) = list.path.get_ident();
+                if name == "cfg";
+                then {
+                    for nest in list.nested.iter() {
+                        let path = match nest {
+                            NestedMeta::Meta(Meta::Path(path)) => path,
+                            _ => continue,
+                        };
+
+                        if_chain! {
+                            if let Some(ident) = path.get_ident();
+                            if ident == "test";
+                            then {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+
+            true
+        })
     }
 }
 
