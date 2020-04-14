@@ -22,7 +22,14 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 use std::process::{Command, Stdio};
 
-pub struct Rust;
+pub struct Rust2020;
+pub struct Rust2016;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum RustVersion {
+    Rust2020,
+    Rust2016,
+}
 
 lazy_static! {
     static ref RE_MOD_PATH: Regex = Regex::new(r#"#\[path\s+=\s+"(?P<path>.*)"\]"#).unwrap();
@@ -36,146 +43,265 @@ lazy_static! {
     static ref RE_WHITESPACE_AROUND_PAREN: Regex = Regex::new(r#"\s*(?P<par>[({)}])\s*"#).unwrap();
 }
 
-impl Lang for Rust {
-    fn check() -> bool {
-        Path::new("main/Cargo.toml").exists()
+impl Lang for Rust2020 {
+    fn check() -> bool
+    where
+        Self: Sized,
+    {
+        check(RustVersion::Rust2020)
     }
 
     fn new_boxed() -> Box<dyn Lang>
     where
         Self: Sized,
     {
-        Box::new(Rust)
+        Box::new(Rust2020)
     }
 
     fn lang_name() -> &'static str
     where
         Self: Sized,
     {
-        "rust"
+        "rust2020"
     }
 
     fn init_async(&self, path: &Path) -> Progress<Result<FilesToOpen>> {
-        let path = path.to_path_buf();
-        Progress::from_fn(move |sender| {
-            let cwd = env::current_dir()?;
-
-            let _ = sender.send("creating project directory".into());
-            create_project_directory(&path)?;
-
-            // set current directory to the created project directory
-            env::set_current_dir(&path)?;
-
-            // restore the original current directory after finish
-            defer! {
-                // to use `defer!`, we need to ignore the error
-                let _ = env::set_current_dir(cwd);
-            }
-
-            let _ = sender.send("generating new cargo project".into());
-            // generate a project
-            match &CONFIG.langs.rust.project_template {
-                RustProjectTemplate::Git { repository, branch } => generate_git(repository, branch),
-                RustProjectTemplate::Local { path } => generate_local(path),
-            }
-            .context("failed to generate a project")?;
-
-            let _ = sender.send("building generated project".into());
-            // pre-build the project
-            let output = Command::new("cargo")
-                .arg("build")
-                .arg("--quiet")
-                .stdin(Stdio::null())
-                .stdout(Stdio::null())
-                .stderr(Stdio::piped())
-                .current_dir("main")
-                .spawn()?
-                .wait_with_output()?;
-            ensure!(
-                output.status.success(),
-                "failed to build a project: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-
-            Ok(FilesToOpen {
-                files: vec![path.join("main").join("src").join("main.rs")],
-                directory: path.join("main"),
-            })
-        })
+        init_async(RustVersion::Rust2020, path)
     }
 
     fn open_docs(&self) -> Result<()> {
+        open_docs(RustVersion::Rust2020)
+    }
+
+    fn get_source(&self) -> Result<RawSource> {
+        get_source(RustVersion::Rust2020)
+    }
+
+    fn needs_compile(&self) -> bool {
+        needs_compile(RustVersion::Rust2020)
+    }
+
+    fn compile_command(&self) -> Vec<Command> {
+        compile_command(RustVersion::Rust2020)
+    }
+
+    fn run_command(&self) -> Command {
+        run_command(RustVersion::Rust2020)
+    }
+
+    fn preprocess(&self, source: &RawSource, minify: MinifyMode) -> Result<Preprocessed> {
+        preprocess(RustVersion::Rust2020, source, minify)
+    }
+
+    fn lint(&self, source: &RawSource) -> Result<Vec<String>> {
+        lint(RustVersion::Rust2020, source)
+    }
+}
+
+impl Lang for Rust2016 {
+    fn check() -> bool
+    where
+        Self: Sized,
+    {
+        check(RustVersion::Rust2016)
+    }
+
+    fn new_boxed() -> Box<dyn Lang>
+    where
+        Self: Sized,
+    {
+        Box::new(Rust2016)
+    }
+
+    fn lang_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        "rust2016"
+    }
+
+    fn init_async(&self, path: &Path) -> Progress<anyhow::Result<FilesToOpen>> {
+        init_async(RustVersion::Rust2016, path)
+    }
+
+    fn open_docs(&self) -> Result<()> {
+        open_docs(RustVersion::Rust2016)
+    }
+
+    fn get_source(&self) -> Result<RawSource> {
+        get_source(RustVersion::Rust2016)
+    }
+
+    fn needs_compile(&self) -> bool {
+        needs_compile(RustVersion::Rust2016)
+    }
+
+    fn compile_command(&self) -> Vec<Command> {
+        compile_command(RustVersion::Rust2016)
+    }
+
+    fn run_command(&self) -> Command {
+        run_command(RustVersion::Rust2016)
+    }
+
+    fn preprocess(&self, source: &RawSource, minify: MinifyMode) -> Result<Preprocessed> {
+        preprocess(RustVersion::Rust2016, source, minify)
+    }
+
+    fn lint(&self, source: &RawSource) -> Result<Vec<String>> {
+        lint(RustVersion::Rust2016, source)
+    }
+}
+
+fn check(_ver: RustVersion) -> bool {
+    Path::new("main/Cargo.toml").exists()
+}
+
+fn init_async(ver: RustVersion, path: &Path) -> Progress<Result<FilesToOpen>> {
+    let path = path.to_path_buf();
+    Progress::from_fn(move |sender| {
+        let cwd = env::current_dir()?;
+
+        let _ = sender.send("creating project directory".into());
+        create_project_directory(&path)?;
+
+        // set current directory to the created project directory
+        env::set_current_dir(&path)?;
+
+        // restore the original current directory after finish
+        defer! {
+            // to use `defer!`, we need to ignore the error
+            let _ = env::set_current_dir(cwd);
+        }
+
+        let _ = sender.send("generating new cargo project".into());
+        // generate a project
+        match ver {
+            RustVersion::Rust2020 => {
+                match &CONFIG.langs.rust2020.project_template {
+                    RustProjectTemplate::Git { repository, branch } => {
+                        generate_git(repository, branch)
+                    }
+                    RustProjectTemplate::Local { path } => generate_local(path),
+                }
+                .context("failed to generate a project")?;
+            }
+            RustVersion::Rust2016 => {
+                let path = CONFIG
+                    .langs
+                    .rust2016
+                    .project_template_path
+                    .as_ref()
+                    .ok_or_else(|| anyhow!("project template for Rust 2016 is not specified"))?;
+                generate_local(path).context("failed to generate a project")?;
+            }
+        }
+
+        let _ = sender.send("building generated project".into());
+        // pre-build the project
+        let output = Command::new("cargo")
+            .arg("build")
+            .arg("--quiet")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .current_dir("main")
+            .spawn()?
+            .wait_with_output()?;
+        ensure!(
+            output.status.success(),
+            "failed to build a project: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+
+        Ok(FilesToOpen {
+            files: vec![path.join("main").join("src").join("main.rs")],
+            directory: path.join("main"),
+        })
+    })
+}
+
+fn open_docs(ver: RustVersion) -> Result<()> {
+    if ver == RustVersion::Rust2020 {
         // open crate docs
         let path = to_absolute::to_absolute_from_current_dir("main/target/doc/main/index.html")
             .context("failed to get the absolute path for the document")?;
         let path_url_base = path.display().to_string().replace(MAIN_SEPARATOR, "/");
         let crate_docs = format!("file:///{}", path_url_base);
         process::open_browser(&crate_docs).context("failed to open crate docs")?;
-
-        // open std docs
-        Command::new("rustup")
-            .arg("doc")
-            .arg("--std")
-            .spawn()
-            .context("failed to open std doc")?;
-
-        Ok(())
     }
 
-    fn get_source(&self) -> Result<RawSource> {
-        stdfs::read_to_string("main/src/main.rs")
-            .map(RawSource)
-            .map_err(Into::into)
+    // open std docs
+    Command::new("rustup")
+        .arg("doc")
+        .arg("--std")
+        .spawn()
+        .context("failed to open std doc")?;
+
+    Ok(())
+}
+
+fn get_source(_ver: RustVersion) -> Result<RawSource> {
+    stdfs::read_to_string("main/src/main.rs")
+        .map(RawSource)
+        .map_err(Into::into)
+}
+
+fn needs_compile(_ver: RustVersion) -> bool {
+    // in Rust, to avoid copying a large `target` directory, `target`
+    // directory is symlinked to the template directory. This means that the
+    // binary is placed in the same place for all projects. It causes the
+    // binary overwritten by another project. To prevent running wrong
+    // binary, we always need to clean the binary and compile.
+    true
+}
+
+fn compile_command(ver: RustVersion) -> Vec<Command> {
+    let ver = match ver {
+        RustVersion::Rust2020 => "+1.42.0",
+        RustVersion::Rust2016 => "+1.15.0",
+    };
+
+    let clean = Command::new("cargo").modify(|c| {
+        c.arg(ver)
+            .arg("clean")
+            .arg("-p")
+            .arg("main")
+            .current_dir("main");
+    });
+
+    let build = Command::new("cargo").modify(|c| {
+        c.arg(ver).arg("build").current_dir("main");
+    });
+
+    vec![clean, build]
+}
+
+fn run_command(_ver: RustVersion) -> Command {
+    Command::new("main/target/debug/main").modify(|cmd| {
+        cmd.env("RUST_BACKTRACE", "1");
+    })
+}
+
+fn preprocess(
+    _ver: RustVersion,
+    RawSource(source): &RawSource,
+    minify: MinifyMode,
+) -> Result<Preprocessed> {
+    let source = expand_source(Path::new("main/src"), &source, minify)?;
+    Ok(Preprocessed(source))
+}
+
+fn lint(ver: RustVersion, source: &RawSource) -> Result<Vec<String>> {
+    let Preprocessed(pped) =
+        preprocess(ver, source, MinifyMode::All).context("failed to preprocess the source")?;
+
+    let mut res = Vec::new();
+    if pped.contains("eprintln!") {
+        res.push("eprintln! found".to_string());
     }
 
-    fn needs_compile(&self) -> bool {
-        // in Rust, to avoid copying a large `target` directory, `target`
-        // directory is symlinked to the template directory. This means that the
-        // binary is placed in the same place for all projects. It causes the
-        // binary overwritten by another project. To prevent running wrong
-        // binary, we always need to clean the binary and compile.
-        true
-    }
-
-    fn compile_command(&self) -> Vec<Command> {
-        let clean = Command::new("cargo").modify(|c| {
-            c.arg("clean").arg("-p").arg("main").current_dir("main");
-        });
-
-        let build = Command::new("cargo").modify(|c| {
-            c.arg("build").current_dir("main");
-        });
-
-        vec![clean, build]
-    }
-
-    fn run_command(&self) -> Command {
-        Command::new("main/target/debug/main").modify(|cmd| {
-            cmd.env("RUST_BACKTRACE", "1");
-        })
-    }
-
-    fn preprocess(
-        &self,
-        RawSource(source): &RawSource,
-        minify: MinifyMode,
-    ) -> Result<Preprocessed> {
-        let source = expand_source(Path::new("main/src"), &source, minify)?;
-        Ok(Preprocessed(source))
-    }
-
-    fn lint(&self, source: &RawSource) -> Result<Vec<String>> {
-        let Preprocessed(pped) = self
-            .preprocess(source, MinifyMode::All)
-            .context("failed to preprocess the source")?;
-
-        let mut res = Vec::new();
-        if pped.contains("eprintln!") {
-            res.push("eprintln! found".to_string());
-        }
-
-        Ok(res)
-    }
+    Ok(res)
 }
 
 fn create_project_directory(path: &Path) -> Result<()> {
