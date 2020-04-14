@@ -1,8 +1,11 @@
 use anyhow::{Context, Result};
 use lazy_static::lazy_static;
+use serde::de::value;
+use serde::de::{Deserialize, IntoDeserializer};
 use serde_derive::Deserialize;
 use std::fs::File;
 use std::path::PathBuf;
+use std::str::FromStr;
 use which::which;
 
 lazy_static! {
@@ -89,6 +92,13 @@ pub enum MinifyMode {
     TemplateOnly,
     #[serde(rename = "all")]
     All,
+}
+
+impl FromStr for MinifyMode {
+    type Err = value::Error;
+    fn from_str(s: &str) -> Result<Self, value::Error> {
+        MinifyMode::deserialize(s.into_deserializer())
+    }
 }
 
 #[derive(Deserialize, Default)]

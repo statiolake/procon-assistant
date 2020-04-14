@@ -5,7 +5,7 @@ use self::atcoder::{AtCoder, Contest as AtCoderContest};
 use self::local::Local;
 use crate::imp::fetch::TestCaseProvider;
 use crate::imp::fs;
-use anyhow::bail;
+use anyhow::{bail, ensure};
 use anyhow::{Context, Result};
 use itertools::Itertools;
 use std::path::PathBuf;
@@ -88,6 +88,11 @@ impl ContestDescriptor {
     pub fn parse(dsc: &str) -> Result<ContestDescriptor> {
         let (contest_site, contest_id) = {
             let sp: Vec<_> = dsc.splitn(2, ':').collect();
+            ensure!(
+                sp.len() == 2,
+                "contest-descriptor `{}` does not contain separator `:`",
+                dsc
+            );
             (sp[0].to_string(), sp[1].to_string())
         };
 
