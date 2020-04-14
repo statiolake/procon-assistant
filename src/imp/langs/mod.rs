@@ -57,6 +57,8 @@ lazy_static! {
         Cpp::lang_name() => Cpp::lang_name(),
         Rust2020::lang_name() => Rust2020::lang_name(),
         Rust2016::lang_name() => Rust2016::lang_name(),
+        "r20" => Rust2020::lang_name(),
+        "r16" => Rust2016::lang_name(),
         "rust" => Rust2020::lang_name(),
         "r" => Rust2020::lang_name(),
     };
