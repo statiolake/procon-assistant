@@ -5,12 +5,13 @@ use crate::imp::config::MinifyMode;
 use crate::imp::config::RustProjectTemplate;
 use crate::imp::config::CONFIG;
 use crate::imp::process;
-use anyhow::{anyhow, ensure};
+use anyhow::{anyhow, bail, ensure};
 use anyhow::{Context, Result};
 use fs_extra::dir;
 use fs_extra::dir::CopyOptions;
 use itertools::Itertools;
 use lazy_static::lazy_static;
+use quote::ToTokens;
 use regex::Regex;
 use scopefunc::ScopeFunc;
 use scopeguard::defer;
@@ -158,8 +159,7 @@ impl Lang for Rust {
         RawSource(source): &RawSource,
         minify: MinifyMode,
     ) -> Result<Preprocessed> {
-        let source = resolve_mod(Path::new("main/src"), source.clone(), minify, 0)?;
-
+        let source = expand_source(Path::new("main/src"), &source, minify, 0)?;
         Ok(Preprocessed(source))
     }
 
@@ -251,105 +251,115 @@ fn generate_local(path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn resolve_mod(cwd: &Path, source: String, mode: MinifyMode, depth: usize) -> Result<String> {
-    let mut result = Vec::new();
-    let mut path_attr = None;
-    let mut lines = source.lines();
-    while let Some(mut line) = lines.next() {
-        if line.trim().is_empty() {
-            result.push("".to_string());
-            continue;
-        }
+fn expand_source(cwd: &Path, source: &str, mode: MinifyMode, depth: usize) -> Result<String> {
+    let file = syn::parse_file(&source).context("failed to parse the source code")?;
+    expand_file(cwd, file, mode, depth).map(|file| file.into_token_stream().to_string())
+    // .and_then(|s| rustfmt(&s))
+}
 
-        // if #[cfg(test)], skip modules
-        if line.trim() == "#[cfg(test)]" {
-            let mut brace_level = 0;
-            let mut first = true;
-            for mut peek in lines.by_ref() {
-                if let Some(pos) = peek.find("//") {
-                    peek = &peek[..pos];
-                }
+fn expand_file(
+    cwd: &Path,
+    mut file: syn::File,
+    mode: MinifyMode,
+    depth: usize,
+) -> Result<syn::File> {
+    file.items = file
+        .items
+        .into_iter()
+        .map(|item| match item {
+            syn::Item::Mod(imod) => expand_mod(cwd, imod, mode, depth).map(Into::into),
+            item => Ok(item),
+        })
+        .collect::<Result<_>>()?;
 
-                let peek = peek.trim();
-                let mut chars = peek.chars();
-                while let Some(ch) = chars.next() {
-                    match ch {
-                        '{' => {
-                            brace_level += 1;
-                            first = false;
-                        }
-                        '}' => brace_level += -1,
-                        _ => (),
-                    }
-                }
+    Ok(file)
+}
 
-                if brace_level == 0 && !first {
-                    line = chars.as_str();
-                    break;
-                }
-            }
-        }
+fn expand_mod(
+    cwd: &Path,
+    imod: syn::ItemMod,
+    mode: MinifyMode,
+    depth: usize,
+) -> Result<syn::ItemMod> {
+    let semi_span = match imod.semi {
+        Some(semi) => semi.spans[0],
+        None => return Ok(imod),
+    };
 
-        let line = RE_COMMENT.replace_all(line, "");
-        match RE_MOD.captures(&*line) {
-            None => {
-                match RE_MOD_PATH.captures(&line) {
-                    Some(caps) => path_attr = Some(caps.name("path").unwrap().as_str().to_string()),
-                    None => {
-                        path_attr = None;
-                        result.push(line.to_string());
-                    }
-                }
+    let attrs = imod.attrs;
+    let mut paths = Vec::new();
+    let mut rest_attrs = Vec::new();
+    for attr in attrs {
+        let meta = match attr.parse_meta() {
+            Ok(meta) => meta,
+            Err(_) => {
+                rest_attrs.push(attr);
                 continue;
             }
-            Some(caps) => {
-                let mod_name = caps.name("name").unwrap().as_str().to_string();
-                let mod_path = match path_attr {
-                    Some(path) => {
-                        let mut path = PathBuf::from(path);
-                        if !path.is_absolute() {
-                            path = cwd.join(path);
-                        }
-                        path
-                    }
-                    None => {
-                        let file = cwd.join(format!("{}.rs", mod_name));
-                        let dir = cwd.join(format!("{}/mod.rs", mod_name));
-                        eprintln_debug!("searching file: {}", file.display());
-                        eprintln_debug!("searching dir: {}", dir.display());
-
-                        if file.exists() {
-                            file
-                        } else if dir.exists() {
-                            dir
-                        } else {
-                            panic!("failed to find the module");
-                        }
-                    }
-                };
-                let source = stdfs::read_to_string(&mod_path)?;
-                let next_cwd = cwd.join(&mod_name);
-                let resolved = resolve_mod(&next_cwd, source, mode, depth + 1)?;
-                let replace = format!("mod {} {{\n{}\n}}", mod_name, resolved.trim());
-                // prevent macro variables from confused by Regex capture variable
-                let replace = replace.replace('$', "$$");
-                result.push(RE_MOD.replace_all(&*line, &*replace).into_owned());
-
-                path_attr = None;
-            }
         };
+
+        match meta {
+            syn::Meta::NameValue(syn::MetaNameValue { path, lit, .. }) if matches!(path.get_ident(), Some(ident) if ident == "path") => {
+                paths.push(lit)
+            }
+            _ => {
+                rest_attrs.push(attr);
+                continue;
+            }
+        }
     }
 
-    let mut pped = result.join("\n");
-    if !(mode == MinifyMode::TemplateOnly && depth == 0) {
-        pped = rustfmt(&pped).context("failed to run rustfmt")?;
-    }
+    ensure!(paths.len() <= 1, "multiple paths are specified for module");
+    let (path, next_cwd) = match paths.into_iter().next() {
+        Some(path) => match path {
+            syn::Lit::Str(s) => {
+                let path = PathBuf::from(s.value());
+                let next_cwd = path
+                    .parent()
+                    .expect("failed to get parent directory")
+                    .to_path_buf();
+                (path, next_cwd)
+            }
+            _ => bail!("invalid value of type for `#[path = ]`"),
+        },
+        None => {
+            let dir = PathBuf::from(imod.ident.to_string());
+            let file = PathBuf::from(format!("{}.rs", imod.ident));
+            let dirmod = dir.join("mod.rs");
+            eprintln_debug!("searching file: {}", file.display());
+            eprintln_debug!("searching dir: {}", dir.display());
 
-    match (mode, depth) {
-        (MinifyMode::All, 0) => minify(&pped),
-        (MinifyMode::TemplateOnly, 1) => minify(&pped),
-        _ => Ok(pped),
-    }
+            if cwd.join(&file).exists() {
+                (file, cwd.join(dir))
+            } else if cwd.join(&dirmod).exists() {
+                (dirmod, cwd.join(dir))
+            } else {
+                bail!("failed to find the module");
+            }
+        }
+    };
+
+    // load file from the path and parse
+    let source = stdfs::read_to_string(&cwd.join(&path)).with_context(|| {
+        format!(
+            "failed to read next file `{}` in `{}`",
+            path.display(),
+            cwd.display()
+        )
+    })?;
+    let file = syn::parse_file(&source).context("failed to parse next module file")?;
+    let expanded = expand_file(&next_cwd, file, mode, depth + 1)
+        .context("failed to expand next module file")?;
+
+    rest_attrs.extend(expanded.attrs);
+    Ok(syn::ItemMod {
+        attrs: rest_attrs,
+        vis: imod.vis,
+        mod_token: imod.mod_token,
+        ident: imod.ident,
+        content: Some((syn::token::Brace { span: semi_span }, expanded.items)),
+        semi: None,
+    })
 }
 
 fn rustfmt(source: &str) -> Result<String> {
@@ -371,24 +381,24 @@ fn rustfmt(source: &str) -> Result<String> {
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
-fn minify(source: &str) -> Result<String> {
-    let replaces = [
-        (&*RE_MULTIPLE_SPACE, " "),
-        (&*RE_WHITESPACE_AFTER_COLONS, "$col"),
-        (&*RE_WHITESPACE_AROUND_OPERATOR, "$op"),
-        (&*RE_WHITESPACE_AROUND_PAREN, "$par"),
-    ];
-
-    let mut result = source
-        .lines()
-        .map(|x| x.trim().to_string())
-        .filter(|x| !x.is_empty())
-        .join(" ");
-    for &(regex, replace) in replaces.iter() {
-        let replaced = regex.replace_all(&result, replace);
-        let replaced = replaced.trim();
-        result = replaced.to_string();
-    }
-
-    Ok(result)
-}
+// fn minify(source: &str) -> Result<String> {
+//     let replaces = [
+//         (&*RE_MULTIPLE_SPACE, " "),
+//         (&*RE_WHITESPACE_AFTER_COLONS, "$col"),
+//         (&*RE_WHITESPACE_AROUND_OPERATOR, "$op"),
+//         (&*RE_WHITESPACE_AROUND_PAREN, "$par"),
+//     ];
+//
+//     let mut result = source
+//         .lines()
+//         .map(|x| x.trim().to_string())
+//         .filter(|x| !x.is_empty())
+//         .join(" ");
+//     for &(regex, replace) in replaces.iter() {
+//         let replaced = regex.replace_all(&result, replace);
+//         let replaced = replaced.trim();
+//         result = replaced.to_string();
+//     }
+//
+//     Ok(result)
+// }
