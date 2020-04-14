@@ -30,7 +30,7 @@ lazy_static! {
     static ref RE_WHITESPACE_AFTER_COLONS: Regex = Regex::new(r#"\s*(?P<col>[;:])\s*"#).unwrap();
     static ref RE_MULTIPLE_SPACE: Regex = Regex::new(r#"\s+"#).unwrap();
     static ref RE_WHITESPACE_AROUND_OPERATOR: Regex =
-        Regex::new(r#"\s*(?P<op>[+\-*/%~^|&<>=,.!?]|<<|>>|<=|>=|==|!=|\+=|-=|\*=|/=|->)\s*"#)
+        Regex::new(r#"\s*(?P<op>[+\-*/%~^|&<>=,.!?\[\]]|<<|>>|<=|>=|==|!=|\+=|-=|\*=|/=|->)\s*"#)
             .unwrap();
     static ref RE_WHITESPACE_AROUND_PAREN: Regex = Regex::new(r#"\s*(?P<par>[({)}])\s*"#).unwrap();
 }
@@ -253,8 +253,44 @@ fn generate_local(path: &Path) -> Result<()> {
 
 fn expand_source(cwd: &Path, source: &str, mode: MinifyMode, depth: usize) -> Result<String> {
     let file = syn::parse_file(&source).context("failed to parse the source code")?;
-    expand_file(cwd, file, mode, depth).map(|file| file.into_token_stream().to_string())
-    // .and_then(|s| rustfmt(&s))
+    let file = expand_file(cwd, file, mode, depth)?;
+
+    match mode {
+        MinifyMode::None => rustfmt(&file.into_token_stream().to_string()),
+        MinifyMode::All => minify(&file.into_token_stream().to_string()),
+        MinifyMode::TemplateOnly => {
+            let syn::File {
+                shebang,
+                attrs,
+                items,
+            } = file;
+
+            let mut res = String::new();
+            if let Some(shebang) = shebang {
+                res.push_str(&shebang);
+                res.push('\n');
+            }
+
+            res.push_str(&minify(
+                &attrs
+                    .into_iter()
+                    .map(|attr| attr.into_token_stream())
+                    .collect::<proc_macro2::TokenStream>()
+                    .to_string(),
+            )?);
+            for item in items {
+                match item {
+                    syn::Item::Mod(imod) => {
+                        res.push_str(&minify(&imod.into_token_stream().to_string())?);
+                        res.push('\n');
+                    }
+                    other => res.push_str(&rustfmt(&other.into_token_stream().to_string())?),
+                }
+            }
+
+            Ok(res)
+        }
+    }
 }
 
 fn expand_file(
@@ -381,24 +417,24 @@ fn rustfmt(source: &str) -> Result<String> {
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
-// fn minify(source: &str) -> Result<String> {
-//     let replaces = [
-//         (&*RE_MULTIPLE_SPACE, " "),
-//         (&*RE_WHITESPACE_AFTER_COLONS, "$col"),
-//         (&*RE_WHITESPACE_AROUND_OPERATOR, "$op"),
-//         (&*RE_WHITESPACE_AROUND_PAREN, "$par"),
-//     ];
-//
-//     let mut result = source
-//         .lines()
-//         .map(|x| x.trim().to_string())
-//         .filter(|x| !x.is_empty())
-//         .join(" ");
-//     for &(regex, replace) in replaces.iter() {
-//         let replaced = regex.replace_all(&result, replace);
-//         let replaced = replaced.trim();
-//         result = replaced.to_string();
-//     }
-//
-//     Ok(result)
-// }
+fn minify(source: &str) -> Result<String> {
+    let replaces = [
+        (&*RE_MULTIPLE_SPACE, " "),
+        (&*RE_WHITESPACE_AFTER_COLONS, "$col"),
+        (&*RE_WHITESPACE_AROUND_OPERATOR, "$op"),
+        (&*RE_WHITESPACE_AROUND_PAREN, "$par"),
+    ];
+
+    let mut result = source
+        .lines()
+        .map(|x| x.trim().to_string())
+        .filter(|x| !x.is_empty())
+        .join(" ");
+    for &(regex, replace) in replaces.iter() {
+        let replaced = regex.replace_all(&result, replace);
+        let replaced = replaced.trim();
+        result = replaced.to_string();
+    }
+
+    Ok(result)
+}
