@@ -8,9 +8,11 @@ mod fetch;
 mod init;
 mod initdirs;
 mod login;
+mod open;
 mod preprocess;
-pub mod print_macros;
 mod run;
+
+pub mod print_macros;
 
 use crate::imp::config::ConfigFile;
 use crate::imp::fs;
@@ -37,6 +39,9 @@ enum SubCommand {
 
     #[clap(name = "init", aliases = &["i"])]
     Init(init::Init),
+
+    #[clap(name = "open", aliases = &["o"])]
+    Open(open::Open),
 
     #[clap(name = "addcase", aliases = &["a", "ac"])]
     AddCase(addcase::AddCase),
@@ -74,8 +79,10 @@ impl SubCommand {
         match self {
             SubCommand::InitDirs(cmd) => cmd.run(quiet),
             SubCommand::Init(cmd) => cmd.run(quiet),
+            SubCommand::Open(cmd) => cmd.run(quiet),
             SubCommand::AddCase(cmd) => cmd.run(quiet),
             SubCommand::DelCase(cmd) => cmd.run(quiet),
+            SubCommand::Doc(cmd) => cmd.run(quiet),
             SubCommand::Preprocess(cmd) => cmd.run(quiet),
             SubCommand::Clip(cmd) => cmd.run(quiet),
             SubCommand::Fetch(cmd) => cmd.run(quiet),
@@ -83,7 +90,6 @@ impl SubCommand {
             SubCommand::Run(cmd) => cmd.run(quiet),
             SubCommand::Compile(cmd) => cmd.run(quiet),
             SubCommand::Login(cmd) => cmd.run(quiet),
-            SubCommand::Doc(cmd) => cmd.run(quiet),
         }
     }
 }

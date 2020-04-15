@@ -58,7 +58,7 @@ impl Lang for Cpp {
             .map_err(Into::into)
     }
 
-    fn init_async(&self, path: &Path) -> Progress<anyhow::Result<FilesToOpen>> {
+    fn init_async(&self, path: &Path) -> Progress<anyhow::Result<()>> {
         let path_project = path.to_path_buf();
         Progress::from_fn(move |sender| {
             let template_dir = &CONFIG.langs.cpp.template_dir;
@@ -92,11 +92,15 @@ impl Lang for Cpp {
                 safe_generate(&path_project, path)?;
             }
 
-            Ok(FilesToOpen {
-                files: vec![path_project.join("main.cpp")],
-                directory: path_project,
-            })
+            Ok(())
         })
+    }
+
+    fn to_open(&self, path: &Path) -> FilesToOpen {
+        FilesToOpen {
+            files: vec![path.join("main.cpp")],
+            directory: path.to_path_buf(),
+        }
     }
 
     fn open_docs(&self) -> Result<()> {

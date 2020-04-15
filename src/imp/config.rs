@@ -23,6 +23,8 @@ pub struct ConfigFile {
     #[serde(default)]
     pub init: Init,
     #[serde(default)]
+    pub open: Open,
+    #[serde(default)]
     pub addcase: Addcase,
     #[serde(default)]
     pub run: Run,
@@ -46,10 +48,14 @@ pub struct General {
 pub struct Init {
     #[serde(default = "Init::default_auto_open")]
     pub auto_open: bool,
-    #[serde(default = "Init::default_open_target")]
-    pub open_target: OpenTarget,
     #[serde(default = "Init::default_default_lang")]
     pub default_lang: String,
+}
+
+#[derive(Deserialize)]
+pub struct Open {
+    #[serde(default = "Open::default_open_target")]
+    pub open_target: OpenTarget,
 }
 
 #[derive(Deserialize)]
@@ -200,7 +206,6 @@ impl Default for Init {
     fn default() -> Self {
         Init {
             auto_open: Init::default_auto_open(),
-            open_target: Init::default_open_target(),
             default_lang: Init::default_default_lang(),
         }
     }
@@ -211,12 +216,22 @@ impl Init {
         true
     }
 
-    pub fn default_open_target() -> OpenTarget {
-        OpenTarget::Files
-    }
-
     pub fn default_default_lang() -> String {
         "cpp".to_string()
+    }
+}
+
+impl Default for Open {
+    fn default() -> Self {
+        Open {
+            open_target: Open::default_open_target(),
+        }
+    }
+}
+
+impl Open {
+    pub fn default_open_target() -> OpenTarget {
+        OpenTarget::Files
     }
 }
 

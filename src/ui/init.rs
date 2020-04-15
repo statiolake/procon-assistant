@@ -1,12 +1,10 @@
 use crate::eprintln_progress;
-use crate::imp::config::OpenTarget;
 use crate::imp::config::CONFIG;
 use crate::imp::langs;
-use crate::imp::process;
+use crate::ui::open;
 use crate::ExitStatus;
 use anyhow::anyhow;
 use anyhow::{Context, Result};
-use itertools::Itertools;
 use std::path::Path;
 
 #[derive(clap::Clap)]
@@ -35,31 +33,14 @@ impl Init {
             eprintln_progress!("{}", msg);
         }
 
-        let to_open = progress
+        progress
             .handle
             .join()
             .map_err(|_| anyhow!("init thread panicked"))?
             .context("init failed")?;
 
         if CONFIG.init.auto_open {
-            let (to_open, cwd) = match CONFIG.init.open_target {
-                OpenTarget::Directory => (vec![to_open.directory], None),
-                OpenTarget::Files => {
-                    let cwd = Path::new(&to_open.directory);
-                    let files = to_open
-                        .files
-                        .into_iter()
-                        .map(|file| {
-                            file.strip_prefix(cwd)
-                                .expect("critical error: files are not under the base directory")
-                                .to_path_buf()
-                        })
-                        .collect_vec();
-                    (files, Some(cwd))
-                }
-            };
-
-            process::open_general(&to_open, cwd).context("failed to open the editor")?;
+            open::open(&path_project).context("failed to open the generated project")?;
         }
 
         Ok(ExitStatus::Success)

@@ -65,8 +65,12 @@ impl Lang for Rust2020 {
         "rust2020"
     }
 
-    fn init_async(&self, path: &Path) -> Progress<Result<FilesToOpen>> {
+    fn init_async(&self, path: &Path) -> Progress<Result<()>> {
         init_async(RustVersion::Rust2020, path)
+    }
+
+    fn to_open(&self, path: &Path) -> FilesToOpen {
+        to_open(RustVersion::Rust2020, path)
     }
 
     fn open_docs(&self) -> Result<()> {
@@ -120,8 +124,12 @@ impl Lang for Rust2016 {
         "rust2016"
     }
 
-    fn init_async(&self, path: &Path) -> Progress<anyhow::Result<FilesToOpen>> {
+    fn init_async(&self, path: &Path) -> Progress<anyhow::Result<()>> {
         init_async(RustVersion::Rust2016, path)
+    }
+
+    fn to_open(&self, path: &Path) -> FilesToOpen {
+        to_open(RustVersion::Rust2016, path)
     }
 
     fn open_docs(&self) -> Result<()> {
@@ -160,7 +168,7 @@ fn check(ver: RustVersion) -> bool {
     }
 }
 
-fn init_async(ver: RustVersion, path: &Path) -> Progress<Result<FilesToOpen>> {
+fn init_async(ver: RustVersion, path: &Path) -> Progress<Result<()>> {
     let path = path.to_path_buf();
     Progress::from_fn(move |sender| {
         let cwd = env::current_dir()?;
@@ -217,11 +225,15 @@ fn init_async(ver: RustVersion, path: &Path) -> Progress<Result<FilesToOpen>> {
             String::from_utf8_lossy(&output.stderr)
         );
 
-        Ok(FilesToOpen {
-            files: vec![path.join("main").join("src").join("main.rs")],
-            directory: path.join("main"),
-        })
+        Ok(())
     })
+}
+
+fn to_open(_ver: RustVersion, path: &Path) -> FilesToOpen {
+    FilesToOpen {
+        files: vec![path.join("main").join("src").join("main.rs")],
+        directory: path.join("main"),
+    }
 }
 
 fn open_docs(ver: RustVersion) -> Result<()> {
