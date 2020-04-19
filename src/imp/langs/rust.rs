@@ -700,6 +700,11 @@ fn remove_doc_comments(file: &mut syn::File) {
             remove_doc_attr(&mut node.attrs);
             visit_mut::visit_variant_mut(self, node);
         }
+
+        fn visit_item_mod_mut(&mut self, node: &mut ItemMod) {
+            remove_doc_attr(&mut node.attrs);
+            visit_mut::visit_item_mod_mut(self, node);
+        }
     }
 
     fn remove_doc_attr(attrs: &mut Vec<Attribute>) {
