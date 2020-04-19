@@ -835,43 +835,33 @@ fn remove_cfg_version(ver: RustVersion, file: &mut syn::File) {
     struct ItemRemover {
         feature: &'static str,
     };
+
     impl VisitMut for ItemRemover {
         fn visit_file_mut(&mut self, node: &mut File) {
             node.items.retain(|item| retains_item(item, self.feature));
-            node.items
-                .iter_mut()
-                .for_each(|item| remove_cfg_feature(item));
+            node.items.iter_mut().for_each(remove_cfg_feature_from_item);
+
             visit_mut::visit_file_mut(self, node);
         }
 
         fn visit_item_mod_mut(&mut self, node: &mut ItemMod) {
             if let Some((_, items)) = &mut node.content {
                 items.retain(|item| retains_item(item, self.feature));
-                items.iter_mut().for_each(|item| remove_cfg_feature(item));
+                items.iter_mut().for_each(remove_cfg_feature_from_item);
             }
 
             visit_mut::visit_item_mod_mut(self, node);
         }
 
         fn visit_block_mut(&mut self, node: &mut Block) {
-            node.stmts.retain(|stmt| {
-                if let Stmt::Item(item) = stmt {
-                    retains_item(item, self.feature)
-                } else {
-                    true
-                }
-            });
-            node.stmts.iter_mut().for_each(|stmt| {
-                if let Stmt::Item(item) = stmt {
-                    remove_cfg_feature(item);
-                }
-            });
+            node.stmts.retain(|stmt| retains_stmt(stmt, self.feature));
+            node.stmts.iter_mut().for_each(remove_cfg_feature_from_stmt);
 
             visit_mut::visit_block_mut(self, node);
         }
     }
 
-    fn extract_attrs(item: &Item) -> Option<&Vec<Attribute>> {
+    fn extract_attrs_from_item(item: &Item) -> Option<&Vec<Attribute>> {
         Some(match item {
             Item::Const(i_const) => &i_const.attrs,
             Item::Enum(i_enum) => &i_enum.attrs,
@@ -893,7 +883,7 @@ fn remove_cfg_version(ver: RustVersion, file: &mut syn::File) {
         })
     }
 
-    fn extract_attrs_mut(item: &mut Item) -> Option<&mut Vec<Attribute>> {
+    fn extract_attrs_from_item_mut(item: &mut Item) -> Option<&mut Vec<Attribute>> {
         Some(match item {
             Item::Const(i_const) => &mut i_const.attrs,
             Item::Enum(i_enum) => &mut i_enum.attrs,
@@ -915,122 +905,211 @@ fn remove_cfg_version(ver: RustVersion, file: &mut syn::File) {
         })
     }
 
-    fn retains_item(item: &Item, feature: &str) -> bool {
-        let attrs = match extract_attrs(item) {
-            Some(attrs) => attrs,
-            None => return true,
-        };
-
-        // parse #[cfg(feature = "...")]
-        // parse #[cfg(not(feature = "..."))]
-        attrs.iter().all(|attr| {
-            if_chain! {
-                if let Ok(meta) = attr.parse_meta();
-                if let Meta::List(list) = meta;
-                if let Some(name) = list.path.get_ident();
-                if name == "cfg";
-                then {
-                    for nest in list.nested.iter() {
-                        let meta = match nest {
-                            NestedMeta::Meta(meta) => meta,
-                            _ => continue,
-                        };
-                        match meta {
-                            Meta::List(list) => if_chain! {
-                                if let Some(name) = list.path.get_ident();
-                                if name == "not";
-                                then {
-                                    for nest in list.nested.iter() {
-                                        let meta = match nest {
-                                            NestedMeta::Meta(meta) => meta,
-                                            _ => continue,
-                                        };
-                                        if_chain! {
-                                            if let Meta::NameValue(meta) = meta;
-                                            if let Some(ident) = meta.path.get_ident();
-                                            if ident == "feature";
-                                            if let Lit::Str(ref lit) = meta.lit;
-                                            if lit.value() == feature;
-                                            then {
-                                                return false;
-                                            }
-                                        }
-                                    }
-                                }
-                            },
-                            Meta::NameValue(meta) => if_chain! {
-                                if let Some(ident) = meta.path.get_ident();
-                                if ident == "feature";
-                                if let Lit::Str(ref lit) = meta.lit;
-                                if lit.value() != feature;
-                                then {
-                                    return false;
-                                }
-                            },
-                            _ => {}
-                        }
-                    }
-                }
-            }
-
-            true
-        })
+    fn extract_attrs_from_stmt(stmt: &Stmt) -> Option<&Vec<Attribute>> {
+        match stmt {
+            Stmt::Local(s_local) => Some(&s_local.attrs),
+            Stmt::Item(s_item) => extract_attrs_from_item(s_item),
+            Stmt::Expr(s_expr) => extract_attrs_from_expr(&s_expr),
+            Stmt::Semi(s_expr, _) => extract_attrs_from_expr(&s_expr),
+        }
     }
 
-    fn remove_cfg_feature(item: &mut Item) {
-        let attrs = match extract_attrs_mut(item) {
-            Some(attrs) => attrs,
-            None => return,
-        };
+    fn extract_attrs_from_stmt_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attribute>> {
+        match stmt {
+            Stmt::Local(s_local) => Some(&mut s_local.attrs),
+            Stmt::Item(s_item) => extract_attrs_from_item_mut(s_item),
+            Stmt::Expr(s_expr) => extract_attrs_from_expr_mut(&mut *s_expr),
+            Stmt::Semi(s_expr, _) => extract_attrs_from_expr_mut(&mut *s_expr),
+        }
+    }
 
-        attrs.retain(|attr| {
-            if_chain! {
-                if let Ok(meta) = attr.parse_meta();
-                if let Meta::List(list) = meta;
-                if let Some(name) = list.path.get_ident();
-                if name == "cfg";
-                then {
-                    for nest in list.nested.iter() {
-                        let meta = match nest {
-                            NestedMeta::Meta(meta) => meta,
-                            _ => continue,
-                        };
-                        match meta {
-                            Meta::List(list) => if_chain! {
-                                if let Some(name) = list.path.get_ident();
-                                if name == "not";
-                                then {
-                                    for nest in list.nested.iter() {
-                                        let meta = match nest {
-                                            NestedMeta::Meta(meta) => meta,
-                                            _ => continue,
-                                        };
-                                        if_chain! {
-                                            if let Meta::NameValue(meta) = meta;
-                                            if let Some(ident) = meta.path.get_ident();
-                                            if ident == "feature";
-                                            then {
-                                                return false;
-                                            }
+    fn extract_attrs_from_expr(expr: &Expr) -> Option<&Vec<Attribute>> {
+        match expr {
+            Expr::Array(inner) => Some(&inner.attrs),
+            Expr::Assign(inner) => Some(&inner.attrs),
+            Expr::AssignOp(inner) => Some(&inner.attrs),
+            Expr::Async(inner) => Some(&inner.attrs),
+            Expr::Await(inner) => Some(&inner.attrs),
+            Expr::Binary(inner) => Some(&inner.attrs),
+            Expr::Block(inner) => Some(&inner.attrs),
+            Expr::Box(inner) => Some(&inner.attrs),
+            Expr::Break(inner) => Some(&inner.attrs),
+            Expr::Call(inner) => Some(&inner.attrs),
+            Expr::Cast(inner) => Some(&inner.attrs),
+            Expr::Closure(inner) => Some(&inner.attrs),
+            Expr::Continue(inner) => Some(&inner.attrs),
+            Expr::Field(inner) => Some(&inner.attrs),
+            Expr::ForLoop(inner) => Some(&inner.attrs),
+            Expr::Group(inner) => Some(&inner.attrs),
+            Expr::If(inner) => Some(&inner.attrs),
+            Expr::Index(inner) => Some(&inner.attrs),
+            Expr::Let(inner) => Some(&inner.attrs),
+            Expr::Lit(inner) => Some(&inner.attrs),
+            Expr::Loop(inner) => Some(&inner.attrs),
+            Expr::Macro(inner) => Some(&inner.attrs),
+            Expr::Match(inner) => Some(&inner.attrs),
+            Expr::MethodCall(inner) => Some(&inner.attrs),
+            Expr::Paren(inner) => Some(&inner.attrs),
+            Expr::Path(inner) => Some(&inner.attrs),
+            Expr::Range(inner) => Some(&inner.attrs),
+            Expr::Reference(inner) => Some(&inner.attrs),
+            Expr::Repeat(inner) => Some(&inner.attrs),
+            Expr::Return(inner) => Some(&inner.attrs),
+            Expr::Struct(inner) => Some(&inner.attrs),
+            Expr::Try(inner) => Some(&inner.attrs),
+            Expr::TryBlock(inner) => Some(&inner.attrs),
+            Expr::Tuple(inner) => Some(&inner.attrs),
+            Expr::Type(inner) => Some(&inner.attrs),
+            Expr::Unary(inner) => Some(&inner.attrs),
+            Expr::Unsafe(inner) => Some(&inner.attrs),
+            Expr::Verbatim(_) => None,
+            Expr::While(inner) => Some(&inner.attrs),
+            Expr::Yield(inner) => Some(&inner.attrs),
+            _ => unreachable!(),
+        }
+    }
+
+    fn extract_attrs_from_expr_mut(expr: &mut Expr) -> Option<&mut Vec<Attribute>> {
+        match expr {
+            Expr::Array(inner) => Some(&mut inner.attrs),
+            Expr::Assign(inner) => Some(&mut inner.attrs),
+            Expr::AssignOp(inner) => Some(&mut inner.attrs),
+            Expr::Async(inner) => Some(&mut inner.attrs),
+            Expr::Await(inner) => Some(&mut inner.attrs),
+            Expr::Binary(inner) => Some(&mut inner.attrs),
+            Expr::Block(inner) => Some(&mut inner.attrs),
+            Expr::Box(inner) => Some(&mut inner.attrs),
+            Expr::Break(inner) => Some(&mut inner.attrs),
+            Expr::Call(inner) => Some(&mut inner.attrs),
+            Expr::Cast(inner) => Some(&mut inner.attrs),
+            Expr::Closure(inner) => Some(&mut inner.attrs),
+            Expr::Continue(inner) => Some(&mut inner.attrs),
+            Expr::Field(inner) => Some(&mut inner.attrs),
+            Expr::ForLoop(inner) => Some(&mut inner.attrs),
+            Expr::Group(inner) => Some(&mut inner.attrs),
+            Expr::If(inner) => Some(&mut inner.attrs),
+            Expr::Index(inner) => Some(&mut inner.attrs),
+            Expr::Let(inner) => Some(&mut inner.attrs),
+            Expr::Lit(inner) => Some(&mut inner.attrs),
+            Expr::Loop(inner) => Some(&mut inner.attrs),
+            Expr::Macro(inner) => Some(&mut inner.attrs),
+            Expr::Match(inner) => Some(&mut inner.attrs),
+            Expr::MethodCall(inner) => Some(&mut inner.attrs),
+            Expr::Paren(inner) => Some(&mut inner.attrs),
+            Expr::Path(inner) => Some(&mut inner.attrs),
+            Expr::Range(inner) => Some(&mut inner.attrs),
+            Expr::Reference(inner) => Some(&mut inner.attrs),
+            Expr::Repeat(inner) => Some(&mut inner.attrs),
+            Expr::Return(inner) => Some(&mut inner.attrs),
+            Expr::Struct(inner) => Some(&mut inner.attrs),
+            Expr::Try(inner) => Some(&mut inner.attrs),
+            Expr::TryBlock(inner) => Some(&mut inner.attrs),
+            Expr::Tuple(inner) => Some(&mut inner.attrs),
+            Expr::Type(inner) => Some(&mut inner.attrs),
+            Expr::Unary(inner) => Some(&mut inner.attrs),
+            Expr::Unsafe(inner) => Some(&mut inner.attrs),
+            Expr::Verbatim(_) => None,
+            Expr::While(inner) => Some(&mut inner.attrs),
+            Expr::Yield(inner) => Some(&mut inner.attrs),
+            _ => unreachable!(),
+        }
+    }
+
+    fn retains_item(item: &Item, feature: &str) -> bool {
+        extract_attrs_from_item(item)
+            .map(|attrs| retains(attrs, feature))
+            .unwrap_or(true)
+    }
+
+    fn retains_stmt(stmt: &Stmt, feature: &str) -> bool {
+        extract_attrs_from_stmt(stmt)
+            .map(|attrs| retains(attrs, feature))
+            .unwrap_or(true)
+    }
+
+    fn retains(attrs: &[Attribute], feature: &str) -> bool {
+        attrs
+            .iter()
+            .find_map(|attr| check_cfg_feature(attr))
+            .map(|target| match target {
+                Target::Is(target) => target == feature,
+                Target::Not(target) => target != feature,
+            })
+            .unwrap_or(true)
+    }
+
+    enum Target {
+        Is(String),
+        Not(String),
+    }
+
+    fn check_cfg_feature(attr: &Attribute) -> Option<Target> {
+        // parse #[cfg(feature = "...")]
+        // parse #[cfg(not(feature = "..."))]
+        if_chain! {
+            if let Ok(meta) = attr.parse_meta();
+            if let Meta::List(list) = meta;
+            if let Some(name) = list.path.get_ident();
+            if name == "cfg";
+            then {
+                for nest in list.nested.iter() {
+                    let meta = match nest {
+                        NestedMeta::Meta(meta) => meta,
+                        _ => continue,
+                    };
+                    match meta {
+                        Meta::List(list) => if_chain! {
+                            if let Some(name) = list.path.get_ident();
+                            if name == "not";
+                            then {
+                                for nest in list.nested.iter() {
+                                    let meta = match nest {
+                                        NestedMeta::Meta(meta) => meta,
+                                        _ => continue,
+                                    };
+                                    if_chain! {
+                                        if let Meta::NameValue(meta) = meta;
+                                        if let Some(ident) = meta.path.get_ident();
+                                        if ident == "feature";
+                                        if let Lit::Str(ref lit) = meta.lit;
+                                        then {
+                                            return Some(Target::Not(lit.value()));
                                         }
                                     }
                                 }
-                            },
-                            Meta::NameValue(meta) => if_chain! {
-                                if let Some(ident) = meta.path.get_ident();
-                                if ident == "feature";
-                                then {
-                                    return false;
-                                }
-                            },
-                            _ => {}
-                        }
+                            }
+                        },
+                        Meta::NameValue(meta) => if_chain! {
+                            if let Some(ident) = meta.path.get_ident();
+                            if ident == "feature";
+                            if let Lit::Str(ref lit) = meta.lit;
+                            then {
+                                return Some(Target::Is(lit.value()));
+                            }
+                        },
+                        _ => {}
                     }
                 }
             }
+        }
 
-            true
-        });
+        None
+    }
+
+    fn remove_cfg_feature_from_item(item: &mut Item) {
+        if let Some(attrs) = extract_attrs_from_item_mut(item) {
+            remove_cfg_feature(attrs)
+        }
+    }
+
+    fn remove_cfg_feature_from_stmt(stmt: &mut Stmt) {
+        if let Some(attrs) = extract_attrs_from_stmt_mut(stmt) {
+            remove_cfg_feature(attrs)
+        }
+    }
+
+    fn remove_cfg_feature(attrs: &mut Vec<Attribute>) {
+        attrs.retain(|attr| check_cfg_feature(attr).is_none())
     }
 }
 
