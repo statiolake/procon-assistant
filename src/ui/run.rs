@@ -63,7 +63,7 @@ impl Run {
         // copy the answer to the clipboard
         if result.is_accepted() {
             eprintln!("");
-            clip::copy_to_clipboard(quiet, &*lang).context("failed to copy to the clipboard")?;
+            clip::copy_to_clipboard(true, &*lang).context("failed to copy to the clipboard")?;
 
             Ok(ExitStatus::Success)
         } else {
