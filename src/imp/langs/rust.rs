@@ -313,6 +313,9 @@ fn lint(ver: RustVersion, source: &RawSource) -> Result<Vec<String>> {
     if pped.contains("eprintln!") {
         res.push("eprintln! found".to_string());
     }
+    if pped.contains("dbg!") {
+        res.push("dbg! found".to_string());
+    }
 
     Ok(res)
 }
