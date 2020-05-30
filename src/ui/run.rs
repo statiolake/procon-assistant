@@ -3,7 +3,8 @@ use crate::imp::langs;
 use crate::imp::langs::Lang;
 use crate::imp::test_case;
 use crate::imp::test_case::{
-    Context, JudgeResult, RuntimeError, Span, TestCase, TestResult, WrongAnswer, WrongAnswerKind,
+    Accepted, Context, JudgeResult, PresentationError, RuntimeError, Span, TestCase, TestResult,
+    TimeLimitExceeded, WrongAnswer, WrongAnswerKind,
 };
 use crate::ui::print_macros::TAG_WIDTH;
 use crate::ui::{clip, compile};
@@ -117,7 +118,7 @@ fn run<L: Lang + ?Sized>(quiet: bool, lang: &L, tcs: Vec<TestCase>) -> Result<Te
 
     eprintln_tagged!("Finished": "running");
     eprintln!("");
-    let mut whole_result = TestResult::Accepted;
+    let mut whole_result = TestResult::Accepted(Accepted::new_empty());
     for handle in handles {
         let (display, result) = handle
             .join()
@@ -150,27 +151,24 @@ fn print_result(quiet: bool, result: &JudgeResult, display: String) {
         elapsed.as_millis()
     );
 
-    match result {
-        TestResult::WrongAnswer(wa) => {
-            if !quiet {
-                print_wa(wa);
-            }
+    if !quiet {
+        match result {
+            TestResult::Accepted(ac) => print_ac(ac),
+            TestResult::WrongAnswer(wa) => print_wa(wa),
+            TestResult::PresentationError(pe) => print_pe(pe),
+            TestResult::TimeLimitExceeded(tle) => print_tle(tle),
+            TestResult::RuntimeError(re) => print_re(re),
+            TestResult::CompilationError => (),
         }
-        TestResult::RuntimeError(re) => {
-            if !quiet {
-                print_re(re);
-            }
-        }
-        _ => {}
     }
 }
 
 fn result_to_style(result: &TestResult) -> Style {
     match result {
-        TestResult::Accepted => Style::new().green(),
+        TestResult::Accepted(_) => Style::new().green(),
         TestResult::WrongAnswer(_) => Style::new().yellow(),
-        TestResult::PresentationError => Style::new().yellow(),
-        TestResult::TimeLimitExceeded => Style::new().yellow(),
+        TestResult::PresentationError(_) => Style::new().yellow(),
+        TestResult::TimeLimitExceeded(_) => Style::new().yellow(),
         TestResult::RuntimeError(_) => Style::new().red(),
         TestResult::CompilationError => Style::new().yellow(),
     }
@@ -189,10 +187,7 @@ fn print_wa(wa: &WrongAnswer) {
         eprintln_more!("{}", style.apply_to(l));
     }
 
-    eprintln_info!("stderr:");
-    for l in wa.stderr.lines() {
-        eprintln_more!("{}", style.apply_to(l));
-    }
+    print_stderr(&wa.stderr);
 
     eprintln_info!("errors:");
     print_wa_errors(wa);
@@ -380,8 +375,29 @@ fn print_diffs(
 
 fn print_re(re: &RuntimeError) {
     eprintln_info!("{}", re.kind);
-    eprintln_info!("child stderr:");
-    for line in re.stderr.lines() {
-        eprintln_more!("{}", line);
+    print_stderr(&re.stderr);
+}
+
+fn print_ac(ac: &Accepted) {
+    print_stderr(&ac.stderr);
+}
+
+fn print_tle(tle: &TimeLimitExceeded) {
+    print_stderr(&tle.stderr);
+}
+
+fn print_pe(pe: &PresentationError) {
+    print_stderr(&pe.stderr);
+}
+
+fn print_stderr(stderr: &str) -> bool {
+    if !stderr.is_empty() {
+        eprintln_info!("child stderr:");
+        for line in stderr.lines() {
+            eprintln_more!("{}", line);
+        }
+        true
+    } else {
+        false
     }
 }

@@ -17,17 +17,17 @@ pub struct JudgeResult {
 
 #[derive(Debug, Clone)]
 pub enum TestResult {
-    Accepted,
+    Accepted(Accepted),
     WrongAnswer(WrongAnswer),
-    PresentationError,
-    TimeLimitExceeded,
+    PresentationError(PresentationError),
+    TimeLimitExceeded(TimeLimitExceeded),
     RuntimeError(RuntimeError),
     CompilationError,
 }
 
 impl TestResult {
     pub fn is_accepted(&self) -> bool {
-        matches!(self, TestResult::Accepted)
+        matches!(self, TestResult::Accepted(_))
     }
 
     pub fn is_failed(&self) -> bool {
@@ -36,10 +36,10 @@ impl TestResult {
 
     pub fn long_name(&self) -> &'static str {
         match self {
-            TestResult::Accepted => "Accepted",
+            TestResult::Accepted(_) => "Accepted",
             TestResult::WrongAnswer(_) => "Wrong Answer",
-            TestResult::PresentationError => "Presentation Error",
-            TestResult::TimeLimitExceeded => "Time Limit Exceeded",
+            TestResult::PresentationError(_) => "Presentation Error",
+            TestResult::TimeLimitExceeded(_) => "Time Limit Exceeded",
             TestResult::RuntimeError(_) => "Runtime Error",
             TestResult::CompilationError => "Compilation Error",
         }
@@ -47,10 +47,10 @@ impl TestResult {
 
     pub fn short_name(&self) -> &'static str {
         match self {
-            TestResult::Accepted => "AC",
+            TestResult::Accepted(_) => "AC",
             TestResult::WrongAnswer(_) => "WA",
-            TestResult::PresentationError => "PE",
-            TestResult::TimeLimitExceeded => "TLE",
+            TestResult::PresentationError(_) => "PE",
+            TestResult::TimeLimitExceeded(_) => "TLE",
             TestResult::RuntimeError(_) => "RE",
             TestResult::CompilationError => "CE",
         }
@@ -132,10 +132,33 @@ impl fmt::Display for RuntimeErrorKind {
 }
 
 #[derive(Debug, Clone)]
+pub struct Accepted {
+    pub stderr: String,
+}
+
+impl Accepted {
+    pub fn new_empty() -> Accepted {
+        Accepted {
+            stderr: String::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct WrongAnswer {
     pub context: Context,
     pub stderr: String,
     pub errors: Vec<WrongAnswerKind>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PresentationError {
+    pub stderr: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct TimeLimitExceeded {
+    pub stderr: String,
 }
 
 #[derive(Debug, Clone)]
@@ -202,10 +225,10 @@ impl Context {
         }
 
         if is_presentation_error {
-            return TestResult::PresentationError;
+            return TestResult::PresentationError(PresentationError { stderr });
         }
 
-        TestResult::Accepted
+        TestResult::Accepted(Accepted { stderr })
     }
 
     /// Checks if it could be a presentation error. Check is meaningful only
@@ -657,7 +680,8 @@ fn wait_or_timeout(child: &mut Child) -> Result<(time::Duration, Option<TestResu
         if elapsed >= timeout {
             // timeout.
             child.kill().unwrap();
-            return Ok((elapsed, Some(TLE)));
+            let stderr = read_child_stderr(child);
+            return Ok((elapsed, Some(TLE(TimeLimitExceeded { stderr }))));
         }
     }
 }
