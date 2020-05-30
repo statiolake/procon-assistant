@@ -110,10 +110,10 @@ fn run<L: Lang + ?Sized>(quiet: bool, lang: &L, tcs: Vec<TestCase>) -> Result<Te
     let handles = tcs
         .into_iter()
         .map(|tc| {
-            let cmd = lang.run_command();
-            thread::spawn(move || (tc.to_string(), tc.judge(cmd)))
+            let cmd = lang.run_command()?;
+            Ok(thread::spawn(move || (tc.to_string(), tc.judge(cmd))))
         })
-        .collect_vec(); // needs collect to spawn judge
+        .collect::<Result<Vec<_>>>()?; // needs collect to spawn judge
 
     eprintln_tagged!("Finished": "running");
     eprintln!("");

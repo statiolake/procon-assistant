@@ -1,7 +1,9 @@
 pub mod cpp;
+pub mod python;
 pub mod rust;
 
 use self::cpp::Cpp;
+use self::python::Python;
 use self::rust::{Rust2016, Rust2020};
 use crate::imp::config::MinifyMode;
 use crate::imp::progress::Progress;
@@ -40,7 +42,7 @@ pub trait Lang {
     fn needs_compile(&self) -> bool;
     fn get_source(&self) -> Result<RawSource>;
     fn compile_command(&self) -> Vec<Command>;
-    fn run_command(&self) -> Command;
+    fn run_command(&self) -> Result<Command>;
     fn preprocess(&self, source: &RawSource, minify: MinifyMode) -> Result<Preprocessed>;
     fn lint(&self, source: &RawSource) -> Result<Vec<String>>;
 }
@@ -51,6 +53,7 @@ type CtorType = fn() -> Box<dyn Lang>;
 lazy_static! {
     pub static ref LANGS_MAP: IndexMap<&'static str, (CheckerType, CtorType)> = indexmap! {
         Cpp::lang_name() => (Cpp::check as CheckerType, Cpp::new_boxed as CtorType),
+        Python::lang_name() => (Python::check as CheckerType, Python::new_boxed as CtorType),
         Rust2020::lang_name() => (Rust2020::check as CheckerType, Rust2020::new_boxed as CtorType),
         Rust2016::lang_name() => (Rust2016::check as CheckerType, Rust2016::new_boxed as CtorType),
     };
@@ -58,10 +61,12 @@ lazy_static! {
         Cpp::lang_name() => Cpp::lang_name(),
         Rust2020::lang_name() => Rust2020::lang_name(),
         Rust2016::lang_name() => Rust2016::lang_name(),
+        Python::lang_name() => Python::lang_name(),
         "r20" => Rust2020::lang_name(),
         "r16" => Rust2016::lang_name(),
         "rust" => Rust2020::lang_name(),
         "r" => Rust2020::lang_name(),
+        "p" => Python::lang_name(),
     };
 }
 

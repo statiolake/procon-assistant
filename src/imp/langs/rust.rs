@@ -89,8 +89,8 @@ impl Lang for Rust2020 {
         compile_command(RustVersion::Rust2020)
     }
 
-    fn run_command(&self) -> Command {
-        run_command(RustVersion::Rust2020)
+    fn run_command(&self) -> Result<Command> {
+        Ok(run_command(RustVersion::Rust2020))
     }
 
     fn preprocess(&self, source: &RawSource, minify: MinifyMode) -> Result<Preprocessed> {
@@ -148,8 +148,8 @@ impl Lang for Rust2016 {
         compile_command(RustVersion::Rust2016)
     }
 
-    fn run_command(&self) -> Command {
-        run_command(RustVersion::Rust2016)
+    fn run_command(&self) -> Result<Command> {
+        Ok(run_command(RustVersion::Rust2016))
     }
 
     fn preprocess(&self, source: &RawSource, minify: MinifyMode) -> Result<Preprocessed> {

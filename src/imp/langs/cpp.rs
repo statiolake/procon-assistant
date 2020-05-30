@@ -151,11 +151,11 @@ impl Lang for Cpp {
         vec![cmd]
     }
 
-    fn run_command(&self) -> Command {
+    fn run_command(&self) -> Result<Command> {
         if cfg!(windows) {
-            Command::new(r#".\main.exe"#)
+            Ok(Command::new(r#".\main.exe"#))
         } else {
-            Command::new("./main")
+            Ok(Command::new("./main"))
         }
     }
 
