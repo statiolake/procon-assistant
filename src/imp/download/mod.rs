@@ -102,16 +102,14 @@ impl ContestDescriptor {
     pub fn resolve_provider(self) -> Result<Box<dyn ContestProvider>> {
         match &*self.contest_site {
             "atcoder" | "at" => {
-                if self.contest_id.starts_with("http") {
-                    let contest = AtCoderContest::from_url(self.contest_id.to_string());
-                    let provider = AtCoder::new(contest);
-                    Ok(Box::new(provider) as _)
+                let contest = if self.contest_id.starts_with("http") {
+                    AtCoderContest::from_url(self.contest_id.to_string())
                 } else {
-                    let contest = AtCoderContest::from_contest_id(self.contest_id.to_string())
-                        .context("failed to parse contest-id")?;
-                    let provider = AtCoder::new(contest);
-                    Ok(Box::new(provider) as _)
-                }
+                    AtCoderContest::from_contest_id(self.contest_id.to_string())
+                        .context("failed to parse contest-id")?
+                };
+                let provider = AtCoder::new(contest);
+                Ok(Box::new(provider) as _)
             }
             "local" => {
                 let provider = Local::from_path(self.contest_id);
