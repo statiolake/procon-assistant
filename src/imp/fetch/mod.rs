@@ -65,9 +65,15 @@ impl ProblemDescriptor {
             "aoj" => Aoj::new(self.problem_id)
                 .context("failed to create the provider Aoj")
                 .map(|p| Box::new(p) as _),
-            "atcoder" | "at" => AtCoderProblem::from_problem_id(self.problem_id)
-                .context("failed to create the provider AtCoder")
-                .map(|p| Box::new(AtCoder::new(p)) as _),
+            "atcoder" | "at" => {
+                let problem = if self.problem_id.starts_with("http") {
+                    AtCoderProblem::from_url(self.problem_id)
+                } else {
+                    AtCoderProblem::from_problem_id(self.problem_id)
+                        .context("failed to create the provider AtCoder")?
+                };
+                Ok(Box::new(AtCoder::new(problem)))
+            }
             other => bail!("unknown contest site: {}", other),
         }
     }
