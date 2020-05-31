@@ -1,6 +1,5 @@
 use crate::imp::langs::Lang;
 use crate::ExitStatus;
-use anyhow::anyhow;
 use anyhow::{Context, Result};
 
 pub struct CompilerOutput {
@@ -21,16 +20,28 @@ impl CompilerOutput {
             stderr,
         }
     }
+
+    pub fn new_empty() -> CompilerOutput {
+        CompilerOutput {
+            status: ExitStatus::Success,
+            stdout: None,
+            stderr: None,
+        }
+    }
 }
 
 pub fn compile<L: Lang + ?Sized>(lang: &L) -> Result<CompilerOutput> {
-    let result = lang
+    let result = match lang
         .compile_command()
         .into_iter()
         .map(|mut cmd| cmd.output())
         .last()
-        .ok_or_else(|| anyhow!("compile command is empty"))?
-        .context("failed to spawn compiler")?;
+    {
+        Some(r) => r.context("failed to compile")?,
+        // Treat the compilation success if no compilation command is present to support interpreter
+        // language like Python which doesn't have compilation command.
+        None => return Ok(CompilerOutput::new_empty()),
+    };
 
     let stdout = wrap_output_to_option(&result.stdout).map(output_to_string);
     let stderr = wrap_output_to_option(&result.stderr).map(output_to_string);
