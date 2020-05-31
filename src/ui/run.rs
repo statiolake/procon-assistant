@@ -4,7 +4,7 @@ use crate::imp::langs::Lang;
 use crate::imp::test_case;
 use crate::imp::test_case::{
     Accepted, Context, JudgeResult, PresentationError, RuntimeError, Span, TestCase, TestCaseFile,
-    TestResult, TimeLimitExceeded, WrongAnswer, WrongAnswerKind,
+    TestCaseStdin, TestResult, TimeLimitExceeded, WrongAnswer, WrongAnswerKind,
 };
 use crate::ui::print_macros::TAG_WIDTH;
 use crate::ui::{clip, compile};
@@ -81,12 +81,17 @@ fn run_tests<L: Lang + ?Sized>(quiet: bool, lang: &L, args: &[String]) -> Result
 fn parse_argument_cases(args: &[String]) -> Result<Vec<TestCase>> {
     let mut result = vec![];
     for arg in args.iter() {
-        let n = arg
-            .parse::<i32>()
-            .with_context(|| format!("argument is not a number: {}", arg))?;
-        let tcf =
-            TestCase::File(TestCaseFile::load_from_index(n).context("failed to load test case")?);
-        result.push(tcf);
+        if arg == "-" {
+            result.push(TestCase::Stdin(TestCaseStdin))
+        } else {
+            let n = arg
+                .parse::<i32>()
+                .with_context(|| format!("argument is not a number: {}", arg))?;
+            let tcf = TestCase::File(
+                TestCaseFile::load_from_index(n).context("failed to load test case")?,
+            );
+            result.push(tcf);
+        }
     }
 
     Ok(result)
