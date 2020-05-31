@@ -3,7 +3,7 @@ pub mod atcoder;
 
 use self::aoj::Aoj;
 use self::atcoder::{AtCoder, Problem as AtCoderProblem};
-use crate::imp::test_case::TestCase;
+use crate::imp::test_case::TestCaseFile;
 use anyhow::{bail, ensure};
 use anyhow::{Context, Result};
 use std::fmt::Debug;
@@ -83,5 +83,5 @@ pub trait TestCaseProvider: Debug {
     fn site_name(&self) -> &str;
     fn problem_id(&self) -> &str;
     fn url(&self) -> &str;
-    fn fetch_test_case_files(&self) -> Result<Vec<TestCase>>;
+    fn fetch_test_case_files(&self) -> Result<Vec<TestCaseFile>>;
 }

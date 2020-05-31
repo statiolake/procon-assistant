@@ -1,5 +1,5 @@
 use crate::imp::auth::aoj as auth;
-use crate::imp::test_case::TestCase;
+use crate::imp::test_case::TestCaseFile;
 use anyhow::ensure;
 use anyhow::{Context, Result};
 use scraper::{Html, Selector};
@@ -65,7 +65,7 @@ impl super::TestCaseProvider for Aoj {
         self.problem.url()
     }
 
-    fn fetch_test_case_files(&self) -> Result<Vec<TestCase>> {
+    fn fetch_test_case_files(&self) -> Result<Vec<TestCaseFile>> {
         let text = download_text(self.problem.url())
             .with_context(|| format!("failed to fetch a problem: {}", self.problem.problem_id()))?;
 
@@ -73,7 +73,7 @@ impl super::TestCaseProvider for Aoj {
     }
 }
 
-pub fn parse_text(text: String) -> Result<Vec<TestCase>> {
+pub fn parse_text(text: String) -> Result<Vec<TestCaseFile>> {
     let document = Html::parse_document(&text);
     let sel_pre = Selector::parse("pre").unwrap();
 
@@ -89,9 +89,9 @@ pub fn parse_text(text: String) -> Result<Vec<TestCase>> {
     }
 
     let mut result = Vec::new();
-    let beginning = TestCase::next_unused_idx().context("failed to get unused index")?;
+    let beginning = TestCaseFile::next_unused_idx().context("failed to get unused index")?;
     for i in 0..(pres.len() / 2) {
-        let tsf = TestCase::new_with_idx(
+        let tsf = TestCaseFile::new_with_idx(
             beginning + i as i32,
             pres[i * 2].inner_html(),
             pres[i * 2 + 1].inner_html(),

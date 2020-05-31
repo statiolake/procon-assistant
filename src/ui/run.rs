@@ -3,8 +3,8 @@ use crate::imp::langs;
 use crate::imp::langs::Lang;
 use crate::imp::test_case;
 use crate::imp::test_case::{
-    Accepted, Context, JudgeResult, PresentationError, RuntimeError, Span, TestCase, TestResult,
-    TimeLimitExceeded, WrongAnswer, WrongAnswerKind,
+    Accepted, Context, JudgeResult, PresentationError, RuntimeError, Span, TestCase, TestCaseFile,
+    TestResult, TimeLimitExceeded, WrongAnswer, WrongAnswerKind,
 };
 use crate::ui::print_macros::TAG_WIDTH;
 use crate::ui::{clip, compile};
@@ -84,7 +84,8 @@ fn parse_argument_cases(args: &[String]) -> Result<Vec<TestCase>> {
         let n = arg
             .parse::<i32>()
             .with_context(|| format!("argument is not a number: {}", arg))?;
-        let tcf = TestCase::load_from_index(n).context("failed to load test case")?;
+        let tcf =
+            TestCase::File(TestCaseFile::load_from_index(n).context("failed to load test case")?);
         result.push(tcf);
     }
 
@@ -93,7 +94,11 @@ fn parse_argument_cases(args: &[String]) -> Result<Vec<TestCase>> {
 
 fn enumerate_test_cases(args: &[String]) -> Result<Vec<TestCase>> {
     let test_cases = if args.is_empty() {
-        test_case::enumerate_test_cases().context("failed to enumerate test cases")?
+        test_case::enumerate_test_case_files()
+            .context("failed to enumerate test cases")?
+            .into_iter()
+            .map(TestCase::File)
+            .collect()
     } else {
         parse_argument_cases(args)?
     };

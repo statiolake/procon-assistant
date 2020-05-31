@@ -1,6 +1,6 @@
 use crate::eprintln_tagged;
 use crate::imp::fetch::{ProblemDescriptor, TestCaseProvider};
-use crate::imp::test_case::TestCase;
+use crate::imp::test_case::TestCaseFile;
 use crate::ExitStatus;
 use anyhow::bail;
 use anyhow::{Context, Result};
@@ -31,7 +31,7 @@ impl Fetch {
     }
 }
 
-pub fn fetch_test_case_files(provider: Box<dyn TestCaseProvider>) -> Result<Vec<TestCase>> {
+pub fn fetch_test_case_files(provider: Box<dyn TestCaseProvider>) -> Result<Vec<TestCaseFile>> {
     eprintln_tagged!(
         "Fetching": "{} id {} (at {})",
         provider.site_name(),
@@ -46,7 +46,7 @@ pub fn fetch_test_case_files(provider: Box<dyn TestCaseProvider>) -> Result<Vec<
     Ok(test_case_files)
 }
 
-pub fn write_test_case_files(test_cases: Vec<TestCase>) -> Result<()> {
+pub fn write_test_case_files(test_cases: Vec<TestCaseFile>) -> Result<()> {
     let num_test_cases = test_cases.len();
     for test_case in test_cases {
         eprintln_tagged!("Generating": "Sample Case: {}", test_case);

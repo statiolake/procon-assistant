@@ -4,8 +4,9 @@ use anyhow::{anyhow, bail, ensure};
 use anyhow::{Context as _, Result};
 use itertools::izip;
 use scopeguard::defer;
+use std::borrow::Cow;
 use std::cell::RefCell;
-use std::io::{Read, Write};
+use std::io::{stdin, Read, Write};
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::{cmp, fmt, fs, iter, time, usize};
@@ -422,21 +423,68 @@ impl Token {
 }
 
 #[derive(Debug)]
-pub struct TestCase {
+pub enum TestCase {
+    File(TestCaseFile),
+    Stdin(TestCaseStdin),
+}
+
+impl TestCase {
+    /// Judge the output of the specified command using this test case.
+    pub fn judge(self, cmd: Command) -> Result<JudgeResult> {
+        // spawn the solution
+        let mut child = spawn(cmd)?;
+        input_to_child(&mut child, &*self.get_input()?)?;
+
+        // wait for the solution to finish or timeout
+        let (elapsed, maybe_result) = wait_or_timeout(&mut child)?;
+        if let Some(result) = maybe_result {
+            return Ok(JudgeResult { elapsed, result });
+        }
+
+        // read the output
+        let actual = split_into_lines(&read_child_stdout(&mut child))
+            .map(ToString::to_string)
+            .collect();
+        let expected = split_into_lines(&*self.get_output()?)
+            .map(ToString::to_string)
+            .collect();
+        let stderr = read_child_stderr(&mut child);
+        let result = Context::new(expected, actual).verify(stderr);
+
+        Ok(JudgeResult { elapsed, result })
+    }
+
+    pub fn get_input(&self) -> Result<Cow<[u8]>> {
+        match self {
+            TestCase::File(f) => f.get_input(),
+            TestCase::Stdin(s) => s.get_input(),
+        }
+    }
+
+    pub fn get_output(&self) -> Result<Cow<str>> {
+        match self {
+            TestCase::File(f) => f.get_output(),
+            TestCase::Stdin(s) => s.get_output(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct TestCaseFile {
     pub if_name: String,
     pub if_contents: String,
     pub of_name: String,
     pub of_contents: String,
 }
 
-impl TestCase {
+impl TestCaseFile {
     pub fn new(
         if_name: String,
         if_contents: String,
         of_name: String,
         of_contents: String,
-    ) -> TestCase {
-        TestCase {
+    ) -> TestCaseFile {
+        TestCaseFile {
             if_name,
             if_contents,
             of_name,
@@ -444,10 +492,10 @@ impl TestCase {
         }
     }
 
-    pub fn new_with_idx(idx: i32, if_contents: String, of_contents: String) -> TestCase {
+    pub fn new_with_idx(idx: i32, if_contents: String, of_contents: String) -> TestCaseFile {
         let if_name = make_if_name(idx);
         let of_name = make_of_name(idx);
-        TestCase::new(if_name, if_contents, of_name, of_contents)
+        TestCaseFile::new(if_name, if_contents, of_name, of_contents)
     }
 
     pub fn next_unused_idx() -> Result<i32> {
@@ -469,18 +517,23 @@ impl TestCase {
         Ok(idx)
     }
 
-    pub fn load_from(if_name: String, of_name: String) -> Result<TestCase> {
+    pub fn load_from(if_name: String, of_name: String) -> Result<TestCaseFile> {
         let if_contents = fs::read_to_string(&if_name)?;
         let of_contents = fs::read_to_string(&of_name)?;
 
-        Ok(TestCase::new(if_name, if_contents, of_name, of_contents))
+        Ok(TestCaseFile::new(
+            if_name,
+            if_contents,
+            of_name,
+            of_contents,
+        ))
     }
 
-    pub fn load_from_index(idx: i32) -> Result<TestCase> {
+    pub fn load_from_index(idx: i32) -> Result<TestCaseFile> {
         let if_name = make_if_name(idx);
         let of_name = make_of_name(idx);
 
-        TestCase::load_from(if_name, of_name)
+        TestCaseFile::load_from(if_name, of_name)
     }
 
     pub fn write(&self) -> Result<()> {
@@ -499,52 +552,61 @@ impl TestCase {
         Ok(())
     }
 
-    /// Judge the output of the specified command using this test case.
-    pub fn judge(self, cmd: Command) -> Result<JudgeResult> {
-        // spawn the solution
-        let mut child = spawn(cmd)?;
-        input_to_child(&mut child, self.if_contents.as_bytes())?;
+    pub fn get_input(&self) -> Result<Cow<[u8]>> {
+        Ok(Cow::from(self.if_contents.as_bytes()))
+    }
 
-        // wait for the solution to finish or timeout
-        let (elapsed, maybe_result) = wait_or_timeout(&mut child)?;
-        if let Some(result) = maybe_result {
-            return Ok(JudgeResult { elapsed, result });
-        }
+    pub fn get_output(&self) -> Result<Cow<str>> {
+        Ok(Cow::from(&self.of_contents))
+    }
+}
 
-        // read the output
-        let actual = split_into_lines(&read_child_stdout(&mut child))
-            .map(ToString::to_string)
-            .collect();
-        let expected = split_into_lines(&self.of_contents)
-            .map(ToString::to_string)
-            .collect();
-        let stderr = read_child_stderr(&mut child);
-        let result = Context::new(expected, actual).verify(stderr);
+#[derive(Debug)]
+pub struct TestCaseStdin;
 
-        Ok(JudgeResult { elapsed, result })
+impl TestCaseStdin {
+    pub fn get_input(&self) -> Result<Cow<[u8]>> {
+        let mut input = String::new();
+        stdin()
+            .read_to_string(&mut input)
+            .context("failed to read from stdin")?;
+        Ok(Cow::from(input.into_bytes()))
+    }
+
+    pub fn get_output(&self) -> Result<Cow<str>> {
+        Ok(Cow::from("(no output can be specified for stdin)"))
     }
 }
 
 impl fmt::Display for TestCase {
     fn fmt(&self, b: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            TestCase::File(f) => write!(b, "{}", f),
+            TestCase::Stdin(_) => write!(b, "(stdin)"),
+        }
+    }
+}
+
+impl fmt::Display for TestCaseFile {
+    fn fmt(&self, b: &mut fmt::Formatter) -> fmt::Result {
         write!(b, "{}", self.if_name)
     }
 }
 
-pub fn enumerate_test_cases() -> Result<Vec<TestCase>> {
+pub fn enumerate_test_case_files() -> Result<Vec<TestCaseFile>> {
     let mut result = vec![];
     let mut i = 1;
     while Path::new(&make_if_name(i)).exists() {
-        result.push(TestCase::load_from_index(i)?);
+        result.push(TestCaseFile::load_from_index(i)?);
         i += 1;
     }
 
     Ok(result)
 }
 
-pub fn add_test_case(if_contents: String, of_contents: String) -> Result<TestCase> {
-    let idx = TestCase::next_unused_idx()?;
-    let test_case = TestCase::new_with_idx(idx, if_contents, of_contents);
+pub fn add_test_case(if_contents: String, of_contents: String) -> Result<TestCaseFile> {
+    let idx = TestCaseFile::next_unused_idx()?;
+    let test_case = TestCaseFile::new_with_idx(idx, if_contents, of_contents);
     test_case.write()?;
 
     Ok(test_case)
@@ -552,12 +614,13 @@ pub fn add_test_case(if_contents: String, of_contents: String) -> Result<TestCas
 
 /// Remove all specified test cases
 pub fn remove_test_cases(indices: &[i32]) -> Result<()> {
-    let test_cases = RefCell::new(enumerate_test_cases()?);
+    let test_case_files = RefCell::new(enumerate_test_case_files()?);
+
     // Make sure to restore test cases before exit
     defer! {
-        for (idx, test_case) in test_cases.borrow().iter().enumerate() {
+        for (idx, test_case) in test_case_files.borrow().iter().enumerate() {
             let idx = (idx + 1) as i32;
-            let test_case = TestCase::new_with_idx(
+            let test_case = TestCaseFile::new_with_idx(
                 idx,
                 test_case.if_contents.clone(),
                 test_case.of_contents.clone(),
@@ -567,9 +630,9 @@ pub fn remove_test_cases(indices: &[i32]) -> Result<()> {
     }
 
     // !! BE CAREFUL !! Remove all test cases.
-    clean_test_cases(&*test_cases.borrow())?;
+    clean_test_cases(&*test_case_files.borrow())?;
 
-    let len = test_cases.borrow().len() as i32;
+    let len = test_case_files.borrow().len() as i32;
     let mut removed = 0;
     let mut err_indices = Vec::new();
     for &idx1 in indices {
@@ -583,7 +646,7 @@ pub fn remove_test_cases(indices: &[i32]) -> Result<()> {
         }
 
         assert!(idx0 >= removed);
-        test_cases.borrow_mut().remove((idx0 - removed) as _);
+        test_case_files.borrow_mut().remove((idx0 - removed) as _);
         removed += 1;
     }
 
@@ -594,7 +657,7 @@ pub fn remove_test_cases(indices: &[i32]) -> Result<()> {
     Ok(())
 }
 
-fn clean_test_cases(test_cases: &[TestCase]) -> Result<()> {
+fn clean_test_cases(test_cases: &[TestCaseFile]) -> Result<()> {
     for test_case in test_cases {
         test_case.remove()?;
     }

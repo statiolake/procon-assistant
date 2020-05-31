@@ -1,6 +1,6 @@
 use super::TestCaseProvider;
 use crate::imp::auth::atcoder as auth;
-use crate::imp::test_case::TestCase;
+use crate::imp::test_case::TestCaseFile;
 use anyhow::ensure;
 use anyhow::{Context, Result};
 use easy_scraper::Pattern;
@@ -90,7 +90,7 @@ impl TestCaseProvider for AtCoder {
         self.problem.url()
     }
 
-    fn fetch_test_case_files(&self) -> Result<Vec<TestCase>> {
+    fn fetch_test_case_files(&self) -> Result<Vec<TestCaseFile>> {
         let text = download_text(self.problem.url())?;
         parse_text(&text).map_err(Into::into)
     }
@@ -103,7 +103,7 @@ fn download_text(url: &str) -> Result<String> {
         .context("failed to get the text")
 }
 
-fn parse_text(text: &str) -> Result<Vec<TestCase>> {
+fn parse_text(text: &str) -> Result<Vec<TestCaseFile>> {
     let pattern = Pattern::new(
         r#"
 <div id="task-statement">
@@ -130,14 +130,14 @@ fn parse_text(text: &str) -> Result<Vec<TestCase>> {
     )
     .unwrap();
 
-    let idx_start = TestCase::next_unused_idx().context("failed to get unused index")?;
+    let idx_start = TestCaseFile::next_unused_idx().context("failed to get unused index")?;
     Ok(pattern
         .matches(text)
         .into_iter()
         .enumerate()
         .map(|(i, case)| {
             let idx = idx_start + i as i32;
-            TestCase::new_with_idx(idx, case["input"].clone(), case["output"].clone())
+            TestCaseFile::new_with_idx(idx, case["input"].clone(), case["output"].clone())
         })
         .collect())
 }
