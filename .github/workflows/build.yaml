@@ -22,7 +22,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: '`git config --global core.autocrlf false`'
+      - name: "`git config --global core.autocrlf false`"
         run: git config --global core.autocrlf false
         if: matrix.os == 'windows-latest'
 
@@ -37,7 +37,7 @@ jobs:
           profile: minimal
           components: clippy
 
-      - name: '`cargo clippy --all-targets --profile test -- -D warnings`'
+      - name: "`cargo clippy --all-targets --profile test -- -D warnings`"
         uses: actions-rs/cargo@v1
         with:
           command: clippy
