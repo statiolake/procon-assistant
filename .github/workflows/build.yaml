@@ -34,7 +34,8 @@ jobs:
         with:
           toolchain: ${{ matrix.toolchain }}
           override: true
-          profile: default
+          profile: minimal
+          components: clippy
 
       - name: '`cargo clippy --all-targets --profile test -- -D warnings`'
         uses: actions-rs/cargo@v1
