@@ -6,6 +6,13 @@ use anyhow::ensure;
 use anyhow::{Context, Result};
 use easy_scraper::Pattern;
 use itertools::Itertools;
+use lazy_static::lazy_static;
+use regex::Regex;
+
+lazy_static! {
+    static ref RE_DIRECT_URL_CONTEST_NAME: Regex =
+        Regex::new(r"contests/(?P<name>[^/]*)/tasks").unwrap();
+}
 
 pub struct AtCoder {
     contest: Contest,
@@ -41,7 +48,10 @@ impl Contest {
     pub fn contest_id(&self) -> &str {
         match *self {
             Contest::ContestId { ref contest_id, .. } => &contest_id,
-            Contest::DirectUrl { .. } => "Unknown",
+            Contest::DirectUrl { ref url } => match RE_DIRECT_URL_CONTEST_NAME.captures(url) {
+                None => "Unknown",
+                Some(caps) => caps.name("name").unwrap().as_str(),
+            },
         }
     }
 
