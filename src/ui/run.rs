@@ -14,7 +14,7 @@ use anyhow::anyhow;
 use anyhow::{Context as _, Result};
 use console::Style;
 use itertools::Itertools as _;
-use std::{cmp, thread};
+use std::{cmp, thread, time};
 
 const PANE_MINIMUM_SIZE: usize = 3;
 
@@ -33,6 +33,12 @@ pub struct Run {
         help = "Recompiles even if the compiled binary seems to be up-to-date"
     )]
     force_compile: bool,
+    #[clap(
+        short,
+        long = "timeout",
+        help = "Override default timeout milliseconds in config.json"
+    )]
+    timeout_milliseconds: Option<String>,
     #[clap(help = "Test case IDs to test")]
     to_run: Vec<String>,
 }
@@ -50,8 +56,23 @@ impl Run {
         let lang = langs::guess_lang().context("failed to get language")?;
         let status =
             compile::compile(quiet, &*lang, self.force_compile).context("failed to compile")?;
+        let timeout_milliseconds = self
+            .timeout_milliseconds
+            .map(|timeout| {
+                if timeout.to_ascii_lowercase() == "inf" {
+                    Ok(None)
+                } else {
+                    timeout
+                        .parse()
+                        .map(Some)
+                        .context("failed to parse timeout milliseconds")
+                }
+            })
+            .unwrap_or_else(|| Ok(Some(CONFIG.run.timeout_milliseconds)))?;
+        let timeout = timeout_milliseconds.map(time::Duration::from_millis);
+
         let result = if status == ExitStatus::Success {
-            run_tests(quiet, &*lang, &self.to_run).context("failed to run tests")?
+            run_tests(quiet, timeout, &*lang, &self.to_run).context("failed to run tests")?
         } else {
             TestResult::CompilationError
         };
@@ -73,9 +94,14 @@ impl Run {
     }
 }
 
-fn run_tests<L: Lang + ?Sized>(quiet: bool, lang: &L, args: &[String]) -> Result<TestResult> {
+fn run_tests<L: Lang + ?Sized>(
+    quiet: bool,
+    timeout: Option<time::Duration>,
+    lang: &L,
+    args: &[String],
+) -> Result<TestResult> {
     let tcs = enumerate_test_cases(&args)?;
-    run(quiet, lang, tcs)
+    run(quiet, timeout, lang, tcs)
 }
 
 fn parse_argument_cases(args: &[String]) -> Result<Vec<TestCase>> {
@@ -111,22 +137,32 @@ fn enumerate_test_cases(args: &[String]) -> Result<Vec<TestCase>> {
     Ok(test_cases)
 }
 
-fn run<L: Lang + ?Sized>(quiet: bool, lang: &L, tcs: Vec<TestCase>) -> Result<TestResult> {
+fn run<L: Lang + ?Sized>(
+    quiet: bool,
+    timeout: Option<time::Duration>,
+    lang: &L,
+    tcs: Vec<TestCase>,
+) -> Result<TestResult> {
+    let timeout_message = match timeout {
+        Some(timeout) => format!("current timeout is {} millisecs", timeout.as_millis()),
+        None => "current timeout is not specified (infinity)".to_string(),
+    };
     eprintln_tagged!(
-        "Running": "{} test cases (current timeout is {} millisecs)",
+        "Running": "{} test cases ({})",
         tcs.len(),
-        CONFIG.run.timeout_milliseconds,
+        timeout_message
     );
 
     let handles = tcs
         .into_iter()
         .map(|tc| {
             let cmd = lang.run_command()?;
-            Ok(thread::spawn(move || (tc.to_string(), tc.judge(cmd))))
+            Ok(thread::spawn(move || {
+                (tc.to_string(), tc.judge(cmd, timeout))
+            }))
         })
         .collect::<Result<Vec<_>>>()?; // needs collect to spawn judge
 
-    eprintln_tagged!("Finished": "running");
     eprintln!("");
     let mut whole_result = TestResult::Accepted(Accepted::new_empty());
     for handle in handles {
