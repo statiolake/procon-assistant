@@ -1,4 +1,3 @@
-use crate::eprintln_debug;
 use crate::imp;
 use crate::imp::config::CONFIG;
 use anyhow::{anyhow, bail, ensure};
@@ -10,6 +9,7 @@ use std::cell::RefCell;
 use std::io::{stdin, Read, Write};
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
+use std::thread;
 use std::{cmp, fmt, fs, iter, time, usize};
 use wait_timeout::ChildExt;
 
@@ -440,18 +440,16 @@ impl TestCase {
 
         // wait for the solution to finish or timeout
         let (elapsed, maybe_result) = wait_or_timeout(timer, &mut child, timeout)?;
-        if let Some(result) = maybe_result {
-            return Ok(JudgeResult { elapsed, result });
-        }
+        let (stdout, stderr) = match maybe_result {
+            WaitResult::Output(stdout, stderr) => (stdout, stderr),
+            WaitResult::TestResult(result) => return Ok(JudgeResult { elapsed, result }),
+        };
 
         // read the output
-        let actual = split_into_lines(&read_child_stdout(&mut child))
-            .map(ToString::to_string)
-            .collect();
+        let actual = split_into_lines(&stdout).map(ToString::to_string).collect();
         let expected = split_into_lines(&*self.get_output()?)
             .map(ToString::to_string)
             .collect();
-        let stderr = read_child_stderr(&mut child);
         let result = Context::new(expected, actual).verify(stderr);
 
         Ok(JudgeResult { elapsed, result })
@@ -693,12 +691,46 @@ fn input_to_child(child: &mut Child, if_contents: &[u8]) -> Result<()> {
         .context("failed to write to stdin")
 }
 
+enum WaitResult {
+    TestResult(TestResult),
+    Output(String, String),
+}
+
 fn wait_or_timeout(
     timer: time::Instant,
     child: &mut Child,
     timeout: Option<time::Duration>,
-) -> Result<(time::Duration, Option<TestResult>)> {
+) -> Result<(time::Duration, WaitResult)> {
     use self::TestResult::{RuntimeError as RE, TimeLimitExceeded as TLE};
+
+    // thread to read stdout/stderr to prevent buffer to be full
+    let (stdout_thread, stderr_thread) = {
+        let mut child_stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| anyhow!("failed to get child stdout"))?;
+
+        let mut child_stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| anyhow!("failed to get child stderr"))?;
+
+        let stdout_thread = thread::spawn(move || -> std::io::Result<String> {
+            let mut stdout = String::new();
+            child_stdout
+                .read_to_string(&mut stdout)
+                .map(move |_| stdout)
+        });
+
+        let stderr_thread = thread::spawn(move || -> std::io::Result<String> {
+            let mut stderr = String::new();
+            child_stderr
+                .read_to_string(&mut stderr)
+                .map(move |_| stderr)
+        });
+
+        (stdout_thread, stderr_thread)
+    };
 
     let status = match timeout {
         Some(timeout) => child.wait_timeout(timeout).map_err(anyhow::Error::from),
@@ -708,60 +740,72 @@ fn wait_or_timeout(
     match status {
         // child has somehow finished. check the reason.
         Ok(Some(status)) => {
-            let test_result = if status.success() {
+            let result = if status.success() {
                 // OK: child succesfully exited in time.
-                eprintln_debug!("child process successfully finished.");
-                None
+                let stdout = stdout_thread
+                    .join()
+                    .map_err(|_| anyhow!("failed to join stdout reader"))?
+                    .context("failed to read stdout")?;
+                let stderr = stderr_thread
+                    .join()
+                    .map_err(|_| anyhow!("failed to join stderr reader"))?
+                    .context("failed to read stderr")?;
+                WaitResult::Output(stdout, stderr)
             } else if status.code().is_none() {
                 // RE: signal termination. consider it as a runtime error here.
-                let stderr = read_child_stderr(child);
-                Some(RE(RuntimeError {
+                let _ = stdout_thread.join();
+                let stderr = stderr_thread
+                    .join()
+                    .map_err(|_| anyhow!("failed to join stderr reader"))?
+                    .context("failed to read stderr")?;
+                WaitResult::TestResult(RE(RuntimeError {
                     stderr,
                     kind: RuntimeErrorKind::SignalTerminated,
                 }))
             } else {
                 // RE: some error occurs, returning runtime error.
-                let stderr = read_child_stderr(child);
-                Some(RE(RuntimeError {
+                let _ = stdout_thread.join();
+                let stderr = stderr_thread
+                    .join()
+                    .map_err(|_| anyhow!("failed to join stderr reader"))?
+                    .context("failed to read stderr")?;
+                WaitResult::TestResult(RE(RuntimeError {
                     stderr,
                     kind: RuntimeErrorKind::ChildUnsuccessful,
                 }))
             };
 
-            Ok((timer.elapsed(), test_result))
+            Ok((timer.elapsed(), result))
         }
 
         // child was TLE. continue to polling
         Ok(None) => {
             child.kill().unwrap();
-            let stderr = read_child_stderr(child);
-            Ok((timer.elapsed(), Some(TLE(TimeLimitExceeded { stderr }))))
+            let _ = stdout_thread.join();
+            let stderr = stderr_thread
+                .join()
+                .map_err(|_| anyhow!("failed to join stderr reader"))?
+                .context("failed to read stderr")?;
+            Ok((
+                timer.elapsed(),
+                WaitResult::TestResult(TLE(TimeLimitExceeded { stderr })),
+            ))
         }
 
         // failed to check the child status. treat this as a runtime error.
         Err(_) => {
-            let stderr = read_child_stderr(child);
-            let test_result = Some(RE(RuntimeError {
-                stderr,
-                kind: RuntimeErrorKind::WaitingFinishFailed,
-            }));
-            Ok((timer.elapsed(), test_result))
+            let _ = stdout_thread.join();
+            let stderr = stderr_thread
+                .join()
+                .map_err(|_| anyhow!("failed to join stderr reader"))?
+                .context("failed to read stderr")?;
+            Ok((
+                timer.elapsed(),
+                WaitResult::TestResult(RE(RuntimeError {
+                    stderr,
+                    kind: RuntimeErrorKind::WaitingFinishFailed,
+                })),
+            ))
         }
     }
-}
-
-fn read_child_stdout(child: &mut Child) -> String {
-    let mut childstdout = String::new();
-    let stdout = child.stdout.as_mut().unwrap();
-    stdout.read_to_string(&mut childstdout).unwrap();
-
-    childstdout
-}
-
-fn read_child_stderr(child: &mut Child) -> String {
-    let mut childstderr = String::new();
-    let stderr = child.stderr.as_mut().unwrap();
-    stderr.read_to_string(&mut childstderr).unwrap();
-
-    childstderr
 }
