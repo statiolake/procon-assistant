@@ -1,3 +1,4 @@
+use crate::eprintln_debug;
 use crate::imp;
 use crate::imp::config::CONFIG;
 use anyhow::{anyhow, bail, ensure};
@@ -10,6 +11,7 @@ use std::io::{stdin, Read, Write};
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::{cmp, fmt, fs, iter, time, usize};
+use wait_timeout::ChildExt;
 
 pub struct JudgeResult {
     pub elapsed: time::Duration,
@@ -430,13 +432,14 @@ pub enum TestCase {
 
 impl TestCase {
     /// Judge the output of the specified command using this test case.
-    pub fn judge(self, cmd: Command) -> Result<JudgeResult> {
+    pub fn judge(self, cmd: Command, timeout: Option<time::Duration>) -> Result<JudgeResult> {
+        let timer = time::Instant::now();
         // spawn the solution
         let mut child = spawn(cmd)?;
         input_to_child(&mut child, &*self.get_input()?)?;
 
         // wait for the solution to finish or timeout
-        let (elapsed, maybe_result) = wait_or_timeout(&mut child)?;
+        let (elapsed, maybe_result) = wait_or_timeout(timer, &mut child, timeout)?;
         if let Some(result) = maybe_result {
             return Ok(JudgeResult { elapsed, result });
         }
@@ -690,61 +693,59 @@ fn input_to_child(child: &mut Child, if_contents: &[u8]) -> Result<()> {
         .context("failed to write to stdin")
 }
 
-fn wait_or_timeout(child: &mut Child) -> Result<(time::Duration, Option<TestResult>)> {
+fn wait_or_timeout(
+    timer: time::Instant,
+    child: &mut Child,
+    timeout: Option<time::Duration>,
+) -> Result<(time::Duration, Option<TestResult>)> {
     use self::TestResult::{RuntimeError as RE, TimeLimitExceeded as TLE};
 
-    let timeout = time::Duration::from_millis(CONFIG.run.timeout_milliseconds);
-    let timer = time::Instant::now();
-    loop {
-        // current elapsed time
-        let elapsed = timer.elapsed();
+    let status = match timeout {
+        Some(timeout) => child.wait_timeout(timeout).map_err(anyhow::Error::from),
+        None => child.wait().map(Some).map_err(anyhow::Error::from),
+    };
 
-        // check if the binary has finished.
-        let try_wait_result = child.try_wait();
-        match try_wait_result {
-            // child has somehow finished. check the reason.
-            Ok(Some(status)) => {
-                let test_result = if status.success() {
-                    // OK: child succesfully exited in time.
-                    None
-                } else if status.code().is_none() {
-                    // RE: signal termination. consider it as a runtime error here.
-                    let stderr = read_child_stderr(child);
-                    Some(RE(RuntimeError {
-                        stderr,
-                        kind: RuntimeErrorKind::SignalTerminated,
-                    }))
-                } else {
-                    // RE: some error occurs, returning runtime error.
-                    let stderr = read_child_stderr(child);
-                    Some(RE(RuntimeError {
-                        stderr,
-                        kind: RuntimeErrorKind::ChildUnsuccessful,
-                    }))
-                };
-
-                return Ok((elapsed, test_result));
-            }
-
-            // child hasn't finished. continue to polling
-            Ok(None) => {}
-
-            // failed to check the child status. treat this as a runtime error.
-            Err(_) => {
+    match status {
+        // child has somehow finished. check the reason.
+        Ok(Some(status)) => {
+            let test_result = if status.success() {
+                // OK: child succesfully exited in time.
+                eprintln_debug!("child process successfully finished.");
+                None
+            } else if status.code().is_none() {
+                // RE: signal termination. consider it as a runtime error here.
                 let stderr = read_child_stderr(child);
-                let test_result = Some(RE(RuntimeError {
+                Some(RE(RuntimeError {
                     stderr,
-                    kind: RuntimeErrorKind::WaitingFinishFailed,
-                }));
-                return Ok((elapsed, test_result));
-            }
+                    kind: RuntimeErrorKind::SignalTerminated,
+                }))
+            } else {
+                // RE: some error occurs, returning runtime error.
+                let stderr = read_child_stderr(child);
+                Some(RE(RuntimeError {
+                    stderr,
+                    kind: RuntimeErrorKind::ChildUnsuccessful,
+                }))
+            };
+
+            Ok((timer.elapsed(), test_result))
         }
 
-        if elapsed >= timeout {
-            // timeout.
+        // child was TLE. continue to polling
+        Ok(None) => {
             child.kill().unwrap();
             let stderr = read_child_stderr(child);
-            return Ok((elapsed, Some(TLE(TimeLimitExceeded { stderr }))));
+            Ok((timer.elapsed(), Some(TLE(TimeLimitExceeded { stderr }))))
+        }
+
+        // failed to check the child status. treat this as a runtime error.
+        Err(_) => {
+            let stderr = read_child_stderr(child);
+            let test_result = Some(RE(RuntimeError {
+                stderr,
+                kind: RuntimeErrorKind::WaitingFinishFailed,
+            }));
+            Ok((timer.elapsed(), test_result))
         }
     }
 }
