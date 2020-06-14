@@ -12,7 +12,7 @@ use anyhow::Result;
 use indexmap::indexmap;
 use indexmap::IndexMap;
 use lazy_static::lazy_static;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 
 pub struct RawSource(pub String);
@@ -36,8 +36,8 @@ pub trait Lang {
     where
         Self: Sized;
 
-    fn init_async(&self, path: &Path) -> Progress<anyhow::Result<()>>;
-    fn to_open(&self, path: &Path) -> FilesToOpen;
+    fn init_async(&self) -> Progress<anyhow::Result<()>>;
+    fn to_open(&self) -> FilesToOpen;
     fn open_docs(&self) -> Result<()>;
     fn needs_compile(&self) -> bool;
     fn needs_release_compile(&self) -> bool;
