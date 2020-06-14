@@ -41,7 +41,7 @@ pub trait Lang {
     fn open_docs(&self) -> Result<()>;
     fn needs_compile(&self) -> bool;
     fn get_source(&self) -> Result<RawSource>;
-    fn compile_command(&self) -> Vec<Command>;
+    fn compile_command(&self) -> Result<Vec<Command>>;
     fn run_command(&self) -> Result<Command>;
     fn preprocess(&self, source: &RawSource, minify: MinifyMode) -> Result<Preprocessed>;
     fn lint(&self, source: &RawSource) -> Result<Vec<String>>;

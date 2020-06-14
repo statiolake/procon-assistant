@@ -5,6 +5,7 @@ use crate::imp::config::CONFIG;
 use crate::imp::fs as impfs;
 use crate::imp::process;
 use crate::{eprintln_debug, eprintln_debug_more};
+use anyhow::anyhow;
 use anyhow::{Context, Result};
 use itertools::Itertools;
 use lazy_static::lazy_static;
@@ -116,7 +117,10 @@ impl Lang for Cpp {
             .unwrap_or(true)
     }
 
-    fn compile_command(&self) -> Vec<Command> {
+    fn compile_command(&self) -> Result<Vec<Command>> {
+        let gcc = which::which("clang++")
+            .or_else(|_| which::which("g++"))
+            .map_err(|_| anyhow!("failed to find neither clang++ nor g++ in your PATH"))?;
         let mut cmd = Command::new("clang++");
         let libdir = libdir().display().to_string();
         cmd.arg(format!("-I{}", libdir.escape_default()));
@@ -148,7 +152,7 @@ impl Lang for Cpp {
             "-fdiagnostics-color=always",
         ]);
 
-        vec![cmd]
+        Ok(vec![cmd])
     }
 
     fn run_command(&self) -> Result<Command> {

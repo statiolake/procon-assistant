@@ -85,7 +85,7 @@ impl Lang for Rust2020 {
         needs_compile(RustVersion::Rust2020)
     }
 
-    fn compile_command(&self) -> Vec<Command> {
+    fn compile_command(&self) -> Result<Vec<Command>> {
         compile_command(RustVersion::Rust2020)
     }
 
@@ -144,7 +144,7 @@ impl Lang for Rust2016 {
         needs_compile(RustVersion::Rust2016)
     }
 
-    fn compile_command(&self) -> Vec<Command> {
+    fn compile_command(&self) -> Result<Vec<Command>> {
         compile_command(RustVersion::Rust2016)
     }
 
@@ -269,13 +269,14 @@ fn needs_compile(_ver: RustVersion) -> bool {
     true
 }
 
-fn compile_command(ver: RustVersion) -> Vec<Command> {
+fn compile_command(ver: RustVersion) -> Result<Vec<Command>> {
+    let cargo = which::which("cargo").map_err(|_| anyhow!("failed to find cargo in your PATH"))?;
     let ver = match ver {
         RustVersion::Rust2020 => "+1.42.0",
         RustVersion::Rust2016 => "+1.15.0",
     };
 
-    let clean = Command::new("cargo").modify(|c| {
+    let clean = Command::new(&cargo).modify(|c| {
         c.arg(ver)
             .arg("clean")
             .arg("-p")
@@ -283,11 +284,11 @@ fn compile_command(ver: RustVersion) -> Vec<Command> {
             .current_dir("main");
     });
 
-    let build = Command::new("cargo").modify(|c| {
+    let build = Command::new(&cargo).modify(|c| {
         c.arg(ver).arg("build").current_dir("main");
     });
 
-    vec![clean, build]
+    Ok(vec![clean, build])
 }
 
 fn run_command(_ver: RustVersion) -> Command {

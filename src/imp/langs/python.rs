@@ -65,9 +65,9 @@ impl Lang for Python {
         false
     }
 
-    fn compile_command(&self) -> Vec<Command> {
+    fn compile_command(&self) -> Result<Vec<Command>> {
         // No need to compile
-        vec![]
+        Ok(vec![])
     }
 
     fn run_command(&self) -> Result<Command> {
