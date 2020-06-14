@@ -30,9 +30,14 @@ impl CompilerOutput {
     }
 }
 
-pub fn compile<L: Lang + ?Sized>(lang: &L) -> Result<CompilerOutput> {
-    let result = match lang
-        .compile_command()
+pub fn compile<L: Lang + ?Sized>(release: bool, lang: &L) -> Result<CompilerOutput> {
+    let compile_command = if release {
+        lang.release_compile_command()
+    } else {
+        lang.compile_command()
+    };
+
+    let result = match compile_command
         .context("failed to get compile command")?
         .into_iter()
         .map(|mut cmd| cmd.output())
