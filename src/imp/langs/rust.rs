@@ -82,15 +82,27 @@ impl Lang for Rust2020 {
     }
 
     fn needs_compile(&self) -> bool {
-        needs_compile(RustVersion::Rust2020)
+        needs_compile(RustVersion::Rust2020, false)
+    }
+
+    fn needs_release_compile(&self) -> bool {
+        needs_compile(RustVersion::Rust2020, true)
     }
 
     fn compile_command(&self) -> Result<Vec<Command>> {
-        compile_command(RustVersion::Rust2020)
+        compile_command(RustVersion::Rust2020, false)
+    }
+
+    fn release_compile_command(&self) -> Result<Vec<Command>> {
+        compile_command(RustVersion::Rust2020, true)
     }
 
     fn run_command(&self) -> Result<Command> {
-        Ok(run_command(RustVersion::Rust2020))
+        run_command(RustVersion::Rust2020, false)
+    }
+
+    fn release_run_command(&self) -> Result<Command> {
+        run_command(RustVersion::Rust2020, true)
     }
 
     fn preprocess(&self, source: &RawSource, minify: MinifyMode) -> Result<Preprocessed> {
@@ -141,15 +153,27 @@ impl Lang for Rust2016 {
     }
 
     fn needs_compile(&self) -> bool {
-        needs_compile(RustVersion::Rust2016)
+        needs_compile(RustVersion::Rust2016, false)
+    }
+
+    fn needs_release_compile(&self) -> bool {
+        needs_compile(RustVersion::Rust2016, true)
     }
 
     fn compile_command(&self) -> Result<Vec<Command>> {
-        compile_command(RustVersion::Rust2016)
+        compile_command(RustVersion::Rust2016, false)
+    }
+
+    fn release_compile_command(&self) -> Result<Vec<Command>> {
+        compile_command(RustVersion::Rust2016, true)
     }
 
     fn run_command(&self) -> Result<Command> {
-        Ok(run_command(RustVersion::Rust2016))
+        run_command(RustVersion::Rust2016, false)
+    }
+
+    fn release_run_command(&self) -> Result<Command> {
+        run_command(RustVersion::Rust2016, true)
     }
 
     fn preprocess(&self, source: &RawSource, minify: MinifyMode) -> Result<Preprocessed> {
@@ -260,7 +284,7 @@ fn get_source(_ver: RustVersion) -> Result<RawSource> {
         .map_err(Into::into)
 }
 
-fn needs_compile(_ver: RustVersion) -> bool {
+fn needs_compile(_ver: RustVersion, _release: bool) -> bool {
     // in Rust, to avoid copying a large `target` directory, `target`
     // directory is symlinked to the template directory. This means that the
     // binary is placed in the same place for all projects. It causes the
@@ -269,32 +293,40 @@ fn needs_compile(_ver: RustVersion) -> bool {
     true
 }
 
-fn compile_command(ver: RustVersion) -> Result<Vec<Command>> {
+fn compile_command(ver: RustVersion, release: bool) -> Result<Vec<Command>> {
     let cargo = which::which("cargo").map_err(|_| anyhow!("failed to find cargo in your PATH"))?;
     let ver = match ver {
         RustVersion::Rust2020 => "+1.42.0",
         RustVersion::Rust2016 => "+1.15.0",
     };
 
-    let clean = Command::new(&cargo).modify(|c| {
-        c.arg(ver)
-            .arg("clean")
-            .arg("-p")
-            .arg("main")
-            .current_dir("main");
+    let clean = Command::new(&cargo).modify(|cmd| {
+        cmd.arg(ver).arg("clean");
+        if release {
+            cmd.arg("--release");
+        }
+        cmd.arg("-p").arg("main").current_dir("main");
     });
 
-    let build = Command::new(&cargo).modify(|c| {
-        c.arg(ver).arg("build").current_dir("main");
+    let build = Command::new(&cargo).modify(|cmd| {
+        cmd.arg(ver).arg("build");
+        if release {
+            cmd.arg("--release");
+        }
+        cmd.current_dir("main");
     });
 
     Ok(vec![clean, build])
 }
 
-fn run_command(_ver: RustVersion) -> Command {
-    Command::new("main/target/debug/main").modify(|cmd| {
+fn run_command(_ver: RustVersion, release: bool) -> Result<Command> {
+    let target = if release { "release" } else { "debug" };
+    let binary = which::which(format!("main/target/{}/main", target))
+        .map_err(|_| anyhow!("failed to get the built binary"))?;
+
+    Ok(Command::new(binary).modify(|cmd| {
         cmd.env("RUST_BACKTRACE", "1");
-    })
+    }))
 }
 
 fn preprocess(
