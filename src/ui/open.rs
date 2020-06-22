@@ -60,14 +60,26 @@ pub fn open() -> Result<()> {
     let (to_open, cwd) = match CONFIG.open.open_target {
         OpenTarget::Directory => (vec![to_open.directory], None),
         OpenTarget::Files => {
+            eprintln_debug!(
+                "directory: {}, files: {:?}",
+                to_open.directory.display(),
+                &to_open.files
+            );
+
             let cwd = Path::new(&to_open.directory);
+
             let files = to_open
                 .files
                 .into_iter()
                 .map(|file| {
-                    file.strip_prefix(cwd)
-                        .expect("critical error: files are not under the base directory")
-                        .to_path_buf()
+                    // strip the prefix, but only when the base directory is non-trivial.
+                    if cwd.display().to_string() != "." {
+                        file.strip_prefix(cwd)
+                            .expect("critical error: files are not under the base directory")
+                            .to_path_buf()
+                    } else {
+                        file.to_path_buf()
+                    }
                 })
                 .collect_vec();
             (files, Some(cwd))
