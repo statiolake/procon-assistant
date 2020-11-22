@@ -5,6 +5,7 @@ use crate::imp::config::CONFIG;
 use crate::imp::fs as impfs;
 use crate::imp::process;
 use crate::{eprintln_debug, eprintln_debug_more};
+use anyhow::anyhow;
 use anyhow::{Context, Result};
 use itertools::Itertools;
 use lazy_static::lazy_static;
@@ -110,14 +111,22 @@ impl Lang for Cpp {
     }
 
     fn needs_compile(&self) -> Result<bool> {
-        let target = if cfg!(windows) { "main.exe" } else { "main" };
+        let target = binary_name(false);
+        Ok(impfs::cmp_modified_time("main.cpp", target)
+            .map(|ord| ord == Ordering::Greater)
+            .unwrap_or(true))
+    }
+
+    fn needs_release_compile(&self) -> Result<bool> {
+        let target = binary_name(true);
         Ok(impfs::cmp_modified_time("main.cpp", target)
             .map(|ord| ord == Ordering::Greater)
             .unwrap_or(true))
     }
 
     fn compile_command(&self) -> Result<Vec<Command>> {
-        let mut cmd = Command::new("clang++");
+        let gcc = compiler_path()?;
+        let mut cmd = Command::new(&gcc);
         let libdir = libdir().display().to_string();
         cmd.arg(format!("-I{}", libdir.escape_default()));
         cmd.args(&[
@@ -140,10 +149,32 @@ impl Lang for Cpp {
             "-Wextra",
             "-Wno-old-style-cast",
             "-DPA_DEBUG",
-            #[cfg(unix)]
-            "-omain",
+            &format!("-o{}", binary_name(false)),
+            "main.cpp",
+            "-fdiagnostics-color=always",
+        ]);
+
+        Ok(vec![cmd])
+    }
+
+    fn release_compile_command(&self) -> Result<Vec<Command>> {
+        let gcc = compiler_path()?;
+        let mut cmd = Command::new(&gcc);
+        let libdir = libdir().display().to_string();
+        cmd.arg(format!("-I{}", libdir.escape_default()));
+        cmd.args(&[
+            "-O3",
             #[cfg(windows)]
-            "-omain.exe",
+            "-Xclang",
+            #[cfg(windows)]
+            "-flto-visibility-public-std",
+            #[cfg(windows)]
+            "-fno-delayed-template-parsing",
+            "-std=c++14",
+            "-Wall",
+            "-Wextra",
+            "-Wno-old-style-cast",
+            &format!("-o{}", binary_name(true)),
             "main.cpp",
             "-fdiagnostics-color=always",
         ]);
@@ -156,6 +187,14 @@ impl Lang for Cpp {
             Ok(Command::new(r#".\main.exe"#))
         } else {
             Ok(Command::new("./main"))
+        }
+    }
+
+    fn release_run_command(&self) -> Result<Command> {
+        if cfg!(windows) {
+            Ok(Command::new(r#".\main_release.exe"#))
+        } else {
+            Ok(Command::new("./main_release"))
         }
     }
 
@@ -175,6 +214,15 @@ impl Lang for Cpp {
         }
 
         Ok(result)
+    }
+}
+
+fn binary_name(release: bool) -> &'static str {
+    match (cfg!(windows), release) {
+        (true, true) => "main_release.exe",
+        (true, false) => "main.exe",
+        (false, true) => "main_release",
+        (false, false) => "main",
     }
 }
 
@@ -243,6 +291,12 @@ fn write_file_ensure_parent_dirs(path: &Path, contents: &str) -> Result<()> {
     }
 
     stdfs::write(path, contents).with_context(|| format!("failed to write to `{}`", path.display()))
+}
+
+fn compiler_path() -> Result<PathBuf> {
+    which::which("clang++")
+        .or_else(|_| which::which("g++"))
+        .map_err(|_| anyhow!("failed to find neither clang++ nor g++ in your PATH"))
 }
 
 fn gdbpath_escaped() -> String {

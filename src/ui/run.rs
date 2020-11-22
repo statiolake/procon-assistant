@@ -27,19 +27,21 @@ const ACTUAL_HEADER: &str = "<actual>";
 #[derive(clap::Clap)]
 #[clap(about = "Runs and tests the current solution")]
 pub struct Run {
+    #[clap(short, long, about = "Compiles in release mode")]
+    release_compile: bool,
     #[clap(
         short,
         long,
-        help = "Recompiles even if the compiled binary seems to be up-to-date"
+        about = "Recompiles even if the compiled binary seems to be up-to-date"
     )]
     force_compile: bool,
     #[clap(
         short,
         long = "timeout",
-        help = "Override default timeout milliseconds in config.json"
+        about = "Override default timeout milliseconds in config.json"
     )]
     timeout_milliseconds: Option<String>,
-    #[clap(help = "Test case IDs to test")]
+    #[clap(about = "Test case IDs to test")]
     to_run: Vec<String>,
 }
 
@@ -54,8 +56,8 @@ fn style_sep() -> Style {
 impl Run {
     pub fn run(self, quiet: bool) -> Result<ExitStatus> {
         let lang = langs::guess_lang().context("failed to get language")?;
-        let status =
-            compile::compile(quiet, &*lang, self.force_compile).context("failed to compile")?;
+        let status = compile::compile(quiet, self.release_compile, &*lang, self.force_compile)
+            .context("failed to compile")?;
         let timeout_milliseconds = self
             .timeout_milliseconds
             .map(|timeout| {
@@ -72,7 +74,8 @@ impl Run {
         let timeout = timeout_milliseconds.map(time::Duration::from_millis);
 
         let result = if status == ExitStatus::Success {
-            run_tests(quiet, timeout, &*lang, &self.to_run).context("failed to run tests")?
+            run_tests(quiet, self.release_compile, timeout, &*lang, &self.to_run)
+                .context("failed to run tests")?
         } else {
             TestResult::CompilationError
         };
@@ -96,12 +99,13 @@ impl Run {
 
 fn run_tests<L: Lang + ?Sized>(
     quiet: bool,
+    release: bool,
     timeout: Option<time::Duration>,
     lang: &L,
     args: &[String],
 ) -> Result<TestResult> {
     let tcs = enumerate_test_cases(&args)?;
-    run(quiet, timeout, lang, tcs)
+    run(quiet, release, timeout, lang, tcs)
 }
 
 fn parse_argument_cases(args: &[String]) -> Result<Vec<TestCase>> {
@@ -139,6 +143,7 @@ fn enumerate_test_cases(args: &[String]) -> Result<Vec<TestCase>> {
 
 fn run<L: Lang + ?Sized>(
     quiet: bool,
+    release: bool,
     timeout: Option<time::Duration>,
     lang: &L,
     tcs: Vec<TestCase>,
@@ -156,7 +161,12 @@ fn run<L: Lang + ?Sized>(
     let handles = tcs
         .into_iter()
         .map(|tc| {
-            let cmd = lang.run_command()?;
+            let cmd = if release {
+                lang.release_run_command()?
+            } else {
+                lang.run_command()?
+            };
+
             Ok(thread::spawn(move || {
                 (tc.to_string(), tc.judge(cmd, timeout))
             }))

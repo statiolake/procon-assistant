@@ -9,10 +9,12 @@ use anyhow::{Context, Result};
 #[derive(clap::Clap)]
 #[clap(about = "Compiles the current solution; the produced binary won't be tested automatically")]
 pub struct Compile {
+    #[clap(short, long, about = "Compiles in release mode")]
+    release: bool,
     #[clap(
         short,
         long,
-        help = "Recompiles even if the compiled binary seems to be up-to-date"
+        about = "Recompiles even if the compiled binary seems to be up-to-date"
     )]
     force: bool,
 }
@@ -22,33 +24,41 @@ impl Compile {
         let lang =
             langs::guess_lang().context("failed to guess the language for the current project")?;
 
-        let status = compile(quiet, &*lang, self.force)?;
+        let status = compile(quiet, self.release, &*lang, self.force)?;
         Ok(status)
     }
 }
 
-pub fn compile<L: Lang + ?Sized>(quiet: bool, lang: &L, force: bool) -> Result<ExitStatus> {
-    if !force
-        && !lang
-            .needs_compile()
-            .context("failed to check compilation needs")?
-    {
+pub fn compile<L: Lang + ?Sized>(
+    quiet: bool,
+    release: bool,
+    lang: &L,
+    force: bool,
+) -> Result<ExitStatus> {
+    let needs_compile = if release {
+        lang.needs_release_compile()
+    } else {
+        lang.needs_compile()
+    }
+    .context("failed to check compilation needs")?;
+
+    if !force && !needs_compile {
         if !quiet {
             eprintln_info!("no need to compile");
         }
         return Ok(ExitStatus::Success);
     }
 
-    do_compile(quiet, lang).context("failed to compile")
+    do_compile(quiet, release, lang).context("failed to compile")
 }
 
-fn do_compile<L: Lang + ?Sized>(quiet: bool, lang: &L) -> Result<ExitStatus> {
+fn do_compile<L: Lang + ?Sized>(quiet: bool, release: bool, lang: &L) -> Result<ExitStatus> {
     eprintln_tagged!("Compiling": "project");
     let CompilerOutput {
         status,
         stdout,
         stderr,
-    } = compile::compile(lang)?;
+    } = compile::compile(release, lang)?;
     print_compiler_output(quiet, "standard output", stdout);
     print_compiler_output(quiet, "standard error", stderr);
 

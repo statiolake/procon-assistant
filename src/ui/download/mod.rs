@@ -12,7 +12,7 @@ use std::{env, str};
 #[derive(clap::Clap)]
 #[clap(about = "Fetches sample cases of all problems in a contest")]
 pub struct Download {
-    #[clap(help = "The contest-descriptor of the target. ex) atcoder:abc012")]
+    #[clap(about = "The contest-descriptor of the target. ex) atcoder:abc012")]
     contest_descriptor: Option<String>,
 }
 

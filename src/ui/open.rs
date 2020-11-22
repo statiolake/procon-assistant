@@ -14,7 +14,7 @@ use std::path::Path;
 pub struct Open {
     #[clap(
         default_value = ".",
-        help = "The name of directory; if `.`, open current directory"
+        about = "The name of directory; if `.`, open current directory"
     )]
     dirname: String,
 }
