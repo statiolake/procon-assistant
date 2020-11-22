@@ -27,21 +27,21 @@ const ACTUAL_HEADER: &str = "<actual>";
 #[derive(clap::Clap)]
 #[clap(about = "Runs and tests the current solution")]
 pub struct Run {
-    #[clap(short, long, help = "Compiles in release mode")]
+    #[clap(short, long, about = "Compiles in release mode")]
     release_compile: bool,
     #[clap(
         short,
         long,
-        help = "Recompiles even if the compiled binary seems to be up-to-date"
+        about = "Recompiles even if the compiled binary seems to be up-to-date"
     )]
     force_compile: bool,
     #[clap(
         short,
         long = "timeout",
-        help = "Override default timeout milliseconds in config.json"
+        about = "Override default timeout milliseconds in config.json"
     )]
     timeout_milliseconds: Option<String>,
-    #[clap(help = "Test case IDs to test")]
+    #[clap(about = "Test case IDs to test")]
     to_run: Vec<String>,
 }
 

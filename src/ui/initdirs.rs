@@ -8,13 +8,13 @@ use itertools::Itertools;
 #[derive(clap::Clap)]
 #[clap(about = "Initializes directory tree")]
 pub struct InitDirs {
-    #[clap(help = "The name of contest (the name of created directory)")]
+    #[clap(about = "The name of contest (the name of created directory)")]
     contest_name: String,
 
-    #[clap(help = "The number of problems")]
+    #[clap(about = "The number of problems")]
     numof_problems: usize,
 
-    #[clap(help = "The first problem character")]
+    #[clap(about = "The first problem character")]
     beginning_char: char,
 }
 

@@ -35,15 +35,15 @@ lazy_static! {
 pub struct Cpp;
 
 impl Lang for Cpp {
-    fn check() -> bool {
-        Path::new("main.cpp").exists()
+    fn check() -> Result<bool> {
+        Ok(Path::new("main.cpp").exists())
     }
 
-    fn new_boxed() -> Box<dyn Lang>
+    fn new_boxed() -> Result<Box<dyn Lang>>
     where
         Self: Sized,
     {
-        Box::new(Cpp)
+        Ok(Box::new(Cpp))
     }
 
     fn lang_name() -> &'static str
@@ -97,11 +97,11 @@ impl Lang for Cpp {
         })
     }
 
-    fn to_open(&self, path: &Path) -> FilesToOpen {
-        FilesToOpen {
+    fn to_open(&self, path: &Path) -> Result<FilesToOpen> {
+        Ok(FilesToOpen {
             files: vec![path.join("main.cpp")],
             directory: path.to_path_buf(),
-        }
+        })
     }
 
     fn open_docs(&self) -> Result<()> {
@@ -110,18 +110,18 @@ impl Lang for Cpp {
         Ok(())
     }
 
-    fn needs_compile(&self) -> bool {
+    fn needs_compile(&self) -> Result<bool> {
         let target = binary_name(false);
-        impfs::cmp_modified_time("main.cpp", target)
+        Ok(impfs::cmp_modified_time("main.cpp", target)
             .map(|ord| ord == Ordering::Greater)
-            .unwrap_or(true)
+            .unwrap_or(true))
     }
 
-    fn needs_release_compile(&self) -> bool {
+    fn needs_release_compile(&self) -> Result<bool> {
         let target = binary_name(true);
-        impfs::cmp_modified_time("main.cpp", target)
+        Ok(impfs::cmp_modified_time("main.cpp", target)
             .map(|ord| ord == Ordering::Greater)
-            .unwrap_or(true)
+            .unwrap_or(true))
     }
 
     fn compile_command(&self) -> Result<Vec<Command>> {
@@ -360,7 +360,7 @@ fn parse_include(
             parse_include(next_lib_dir, included, &RawSource(source), mode, depth + 1)?
         };
 
-        mem::replace(line, will_be_replaced);
+        *line = will_be_replaced;
     }
     let modified = lines.join("\n");
 

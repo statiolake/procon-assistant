@@ -217,7 +217,7 @@ impl Init {
     }
 
     pub fn default_default_lang() -> String {
-        "cpp".to_string()
+        "rust".to_string()
     }
 }
 

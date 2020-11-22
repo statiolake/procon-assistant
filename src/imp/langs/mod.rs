@@ -7,8 +7,8 @@ use self::python::Python;
 use self::rust::{Rust2016, Rust2020};
 use crate::imp::config::MinifyMode;
 use crate::imp::progress::Progress;
-use anyhow::anyhow;
-use anyhow::Result;
+use anyhow::{anyhow, bail};
+use anyhow::{Context, Result};
 use indexmap::indexmap;
 use indexmap::IndexMap;
 use lazy_static::lazy_static;
@@ -24,11 +24,11 @@ pub struct FilesToOpen {
 }
 
 pub trait Lang {
-    fn check() -> bool
+    fn check() -> Result<bool>
     where
         Self: Sized;
 
-    fn new_boxed() -> Box<dyn Lang>
+    fn new_boxed() -> Result<Box<dyn Lang>>
     where
         Self: Sized;
 
@@ -37,10 +37,10 @@ pub trait Lang {
         Self: Sized;
 
     fn init_async(&self, path: &Path) -> Progress<anyhow::Result<()>>;
-    fn to_open(&self, path: &Path) -> FilesToOpen;
+    fn to_open(&self, path: &Path) -> Result<FilesToOpen>;
     fn open_docs(&self) -> Result<()>;
-    fn needs_compile(&self) -> bool;
-    fn needs_release_compile(&self) -> bool;
+    fn needs_compile(&self) -> Result<bool>;
+    fn needs_release_compile(&self) -> Result<bool>;
     fn get_source(&self) -> Result<RawSource>;
     fn compile_command(&self) -> Result<Vec<Command>>;
     fn release_compile_command(&self) -> Result<Vec<Command>>;
@@ -50,8 +50,8 @@ pub trait Lang {
     fn lint(&self, source: &RawSource) -> Result<Vec<String>>;
 }
 
-type CheckerType = fn() -> bool;
-type CtorType = fn() -> Box<dyn Lang>;
+type CheckerType = fn() -> Result<bool>;
+type CtorType = fn() -> Result<Box<dyn Lang>>;
 
 lazy_static! {
     pub static ref LANGS_MAP: IndexMap<&'static str, (CheckerType, CtorType)> = indexmap! {
@@ -74,12 +74,13 @@ lazy_static! {
 }
 
 pub fn guess_lang() -> Result<Box<dyn Lang>> {
-    LANGS_MAP
-        .iter()
-        .filter(|(_, (check, _))| check())
-        .map(|(_, (_, ctor))| ctor())
-        .next()
-        .ok_or_else(|| anyhow!("no language is match"))
+    for (name, (check, ctor)) in &*LANGS_MAP {
+        if check().with_context(|| format!("failed to check for the language `{}`", name))? {
+            return ctor().with_context(|| format!("failed to prepare the language `{}`", name));
+        }
+    }
+
+    bail!("no language matched this project.")
 }
 
 pub fn get_from_alias(alias: &str) -> Result<Box<dyn Lang>> {
@@ -90,5 +91,5 @@ pub fn get_from_alias(alias: &str) -> Result<Box<dyn Lang>> {
         .get(lang)
         .unwrap_or_else(|| panic!("internal error: unknown file type {}", lang));
 
-    Ok(ctor())
+    ctor().context("failed to prepare language service")
 }

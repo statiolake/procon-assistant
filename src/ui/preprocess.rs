@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 #[derive(clap::Clap)]
 #[clap(about = "Preprocesses current source file and prepares to submit")]
 pub struct Preprocess {
-    #[clap(short, long, help = "Minify mode")]
+    #[clap(short, long, about = "Minify mode")]
     minify: Option<MinifyMode>,
 }
 
