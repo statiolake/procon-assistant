@@ -78,7 +78,7 @@ pub fn open() -> Result<()> {
                             .expect("critical error: files are not under the base directory")
                             .to_path_buf()
                     } else {
-                        file.to_path_buf()
+                        file
                     }
                 })
                 .collect_vec();
