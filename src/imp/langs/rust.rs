@@ -162,10 +162,31 @@ impl Lang for Rust2016 {
 }
 
 fn check(ver: RustVersion) -> Result<bool> {
-    match ver {
-        RustVersion::Rust2016 => Ok(Path::new("main/rust2016").exists()),
-        RustVersion::Rust2020 => Ok(Path::new("main/rust2020").exists()),
+    let path_cargo_toml = Path::new("main/Cargo.toml");
+    // check the existance of Cargo.toml first. if not, that's not a Rust project.
+    if !path_cargo_toml.exists() {
+        return Ok(false);
     }
+
+    // read Cargo.toml and check `edition` to determine Rust version
+    use toml::Value;
+    let cargo_toml: Value = stdfs::read_to_string(path_cargo_toml)
+        .context("failed to read Cargo.toml")?
+        .parse()
+        .context("failed to parse Cargo.toml")?;
+    let guessed_ver = cargo_toml
+        .get("package")
+        .and_then(|package| package.as_table())
+        .ok_or_else(|| anyhow!("malformed Cargo.toml: no [package] section"))?
+        .get("edition")
+        .map(|edition| match edition.as_str() {
+            None => Ok(RustVersion::Rust2016),
+            Some("2015") => Ok(RustVersion::Rust2016),
+            Some("2018") => Ok(RustVersion::Rust2020),
+            Some(edition) => bail!("failed to guess the version: unknown edition {}", edition),
+        })
+        .unwrap()?;
+    Ok(ver == guessed_ver)
 }
 
 fn init_async(ver: RustVersion, path: &Path) -> Progress<Result<()>> {
