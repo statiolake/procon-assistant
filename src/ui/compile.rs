@@ -9,12 +9,12 @@ use anyhow::{Context, Result};
 #[derive(clap::Clap)]
 #[clap(about = "Compiles the current solution; the produced binary won't be tested automatically")]
 pub struct Compile {
-    #[clap(short, long, help = "Compiles in release mode")]
+    #[clap(short, long, about = "Compiles in release mode")]
     release: bool,
     #[clap(
         short,
         long,
-        help = "Recompiles even if the compiled binary seems to be up-to-date"
+        about = "Recompiles even if the compiled binary seems to be up-to-date"
     )]
     force: bool,
 }
@@ -39,7 +39,8 @@ pub fn compile<L: Lang + ?Sized>(
         lang.needs_release_compile()
     } else {
         lang.needs_compile()
-    };
+    }
+    .context("failed to check compilation needs")?;
 
     if !force && !needs_compile {
         if !quiet {

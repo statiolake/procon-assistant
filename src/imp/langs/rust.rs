@@ -42,18 +42,18 @@ lazy_static! {
 }
 
 impl Lang for Rust2020 {
-    fn check() -> bool
+    fn check() -> Result<bool>
     where
         Self: Sized,
     {
         check(RustVersion::Rust2020)
     }
 
-    fn new_boxed() -> Box<dyn Lang>
+    fn new_boxed() -> Result<Box<dyn Lang>>
     where
         Self: Sized,
     {
-        Box::new(Rust2020)
+        Ok(Box::new(Rust2020))
     }
 
     fn lang_name() -> &'static str
@@ -67,8 +67,8 @@ impl Lang for Rust2020 {
         init_async(RustVersion::Rust2020)
     }
 
-    fn to_open(&self) -> FilesToOpen {
-        to_open(RustVersion::Rust2020)
+    fn to_open(&self) -> Result<FilesToOpen> {
+        Ok(to_open(RustVersion::Rust2020))
     }
 
     fn open_docs(&self) -> Result<()> {
@@ -79,12 +79,12 @@ impl Lang for Rust2020 {
         get_source(RustVersion::Rust2020)
     }
 
-    fn needs_compile(&self) -> bool {
-        needs_compile(RustVersion::Rust2020, false)
+    fn needs_compile(&self) -> Result<bool> {
+        Ok(needs_compile(RustVersion::Rust2020, false))
     }
 
-    fn needs_release_compile(&self) -> bool {
-        needs_compile(RustVersion::Rust2020, true)
+    fn needs_release_compile(&self) -> Result<bool> {
+        Ok(needs_compile(RustVersion::Rust2020, true))
     }
 
     fn compile_command(&self) -> Result<Vec<Command>> {
@@ -113,18 +113,18 @@ impl Lang for Rust2020 {
 }
 
 impl Lang for Rust2016 {
-    fn check() -> bool
+    fn check() -> Result<bool>
     where
         Self: Sized,
     {
         check(RustVersion::Rust2016)
     }
 
-    fn new_boxed() -> Box<dyn Lang>
+    fn new_boxed() -> Result<Box<dyn Lang>>
     where
         Self: Sized,
     {
-        Box::new(Rust2016)
+        Ok(Box::new(Rust2016))
     }
 
     fn lang_name() -> &'static str
@@ -138,8 +138,8 @@ impl Lang for Rust2016 {
         init_async(RustVersion::Rust2016)
     }
 
-    fn to_open(&self) -> FilesToOpen {
-        to_open(RustVersion::Rust2016)
+    fn to_open(&self) -> Result<FilesToOpen> {
+        Ok(to_open(RustVersion::Rust2016))
     }
 
     fn open_docs(&self) -> Result<()> {
@@ -150,12 +150,12 @@ impl Lang for Rust2016 {
         get_source(RustVersion::Rust2016)
     }
 
-    fn needs_compile(&self) -> bool {
-        needs_compile(RustVersion::Rust2016, false)
+    fn needs_compile(&self) -> Result<bool> {
+        Ok(needs_compile(RustVersion::Rust2016, false))
     }
 
-    fn needs_release_compile(&self) -> bool {
-        needs_compile(RustVersion::Rust2016, true)
+    fn needs_release_compile(&self) -> Result<bool> {
+        Ok(needs_compile(RustVersion::Rust2016, true))
     }
 
     fn compile_command(&self) -> Result<Vec<Command>> {
@@ -183,11 +183,32 @@ impl Lang for Rust2016 {
     }
 }
 
-fn check(ver: RustVersion) -> bool {
-    match ver {
-        RustVersion::Rust2016 => Path::new("main/rust2016").exists(),
-        RustVersion::Rust2020 => Path::new("main/rust2020").exists(),
+fn check(ver: RustVersion) -> Result<bool> {
+    let path_cargo_toml = Path::new("main/Cargo.toml");
+    // check the existance of Cargo.toml first. if not, that's not a Rust project.
+    if !path_cargo_toml.exists() {
+        return Ok(false);
     }
+
+    // read Cargo.toml and check `edition` to determine Rust version
+    use toml::Value;
+    let cargo_toml: Value = stdfs::read_to_string(path_cargo_toml)
+        .context("failed to read Cargo.toml")?
+        .parse()
+        .context("failed to parse Cargo.toml")?;
+    let guessed_ver = cargo_toml
+        .get("package")
+        .and_then(|package| package.as_table())
+        .ok_or_else(|| anyhow!("malformed Cargo.toml: no [package] section"))?
+        .get("edition")
+        .map(|edition| match edition.as_str() {
+            None => Ok(RustVersion::Rust2016),
+            Some("2015") => Ok(RustVersion::Rust2016),
+            Some("2018") => Ok(RustVersion::Rust2020),
+            Some(edition) => bail!("failed to guess the version: unknown edition {}", edition),
+        })
+        .unwrap()?;
+    Ok(ver == guessed_ver)
 }
 
 fn init_async(ver: RustVersion) -> Progress<Result<()>> {
@@ -340,6 +361,13 @@ fn generate_git(repository: &str, branch: &str) -> Result<()> {
     if Path::new("main").exists() {
         // skip generating everything if main directory exists
         return Ok(());
+    }
+
+    if which::which("cargo-generate").is_err() {
+        bail!(concat!(
+            "generating a project from git requires cargo-generate to be installed; ",
+            "if you haven't, type 'cargo install cargo-generate'."
+        ));
     }
 
     let output = Command::new("cargo")

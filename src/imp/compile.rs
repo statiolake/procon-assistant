@@ -35,10 +35,9 @@ pub fn compile<L: Lang + ?Sized>(release: bool, lang: &L) -> Result<CompilerOutp
         lang.release_compile_command()
     } else {
         lang.compile_command()
-    };
-
+    }
+    .context("failed to construct compiler command")?;
     let result = match compile_command
-        .context("failed to get compile command")?
         .into_iter()
         .map(|mut cmd| cmd.output())
         .last()

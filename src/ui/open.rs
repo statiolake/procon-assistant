@@ -16,7 +16,7 @@ use std::path::Path;
 pub struct Open {
     #[clap(
         default_value = ".",
-        help = "The name of directory; if `.`, open current directory"
+        about = "The name of directory; if `.`, open current directory"
     )]
     dirname: String,
 }
@@ -56,7 +56,7 @@ impl Open {
 
 pub fn open() -> Result<()> {
     let lang = langs::guess_lang().context("failed to guess the language of the project")?;
-    let to_open = lang.to_open();
+    let to_open = lang.to_open().context("failed to get files to open")?;
     let (to_open, cwd) = match CONFIG.open.open_target {
         OpenTarget::Directory => (vec![to_open.directory], None),
         OpenTarget::Files => {

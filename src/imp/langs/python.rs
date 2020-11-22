@@ -10,12 +10,12 @@ use std::process::Command;
 pub struct Python;
 
 impl Lang for Python {
-    fn check() -> bool {
-        Path::new("main.py").exists()
+    fn check() -> Result<bool> {
+        Ok(Path::new("main.py").exists())
     }
 
-    fn new_boxed() -> Box<dyn Lang> {
-        Box::new(Python)
+    fn new_boxed() -> Result<Box<dyn Lang>> {
+        Ok(Box::new(Python))
     }
 
     fn lang_name() -> &'static str {
@@ -48,25 +48,25 @@ impl Lang for Python {
         })
     }
 
-    fn to_open(&self) -> FilesToOpen {
-        FilesToOpen {
+    fn to_open(&self) -> Result<FilesToOpen> {
+        Ok(FilesToOpen {
             files: vec![PathBuf::from("main.py")],
             directory: PathBuf::from("."),
-        }
+        })
     }
 
     fn open_docs(&self) -> Result<()> {
         bail!("TODO: Currently no documentation prepared for Python")
     }
 
-    fn needs_compile(&self) -> bool {
+    fn needs_compile(&self) -> Result<bool> {
         // Python does not need compilation
-        false
+        Ok(false)
     }
 
-    fn needs_release_compile(&self) -> bool {
+    fn needs_release_compile(&self) -> Result<bool> {
         // Release mode always needs compile
-        true
+        Ok(true)
     }
 
     fn compile_command(&self) -> Result<Vec<Command>> {

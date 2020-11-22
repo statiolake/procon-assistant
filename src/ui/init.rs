@@ -15,11 +15,11 @@ use std::{env, fs};
 pub struct Init {
     #[clap(
         default_value = ".",
-        help = "The name of directory; if `.`, files will be generated in the current directory"
+        about = "The name of directory; if `.`, files will be generated in the current directory"
     )]
     dirname: String,
 
-    #[clap(short, long, help = "The lang to init")]
+    #[clap(short, long, about = "The lang to init")]
     lang: Option<String>,
 }
 
