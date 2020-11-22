@@ -59,13 +59,9 @@ impl Lang for Cpp {
             .map_err(Into::into)
     }
 
-    fn init_async(&self, path: &Path) -> Progress<anyhow::Result<()>> {
-        let path_project = path.to_path_buf();
+    fn init_async(&self) -> Progress<anyhow::Result<()>> {
         Progress::from_fn(move |sender| {
             let template_dir = &CONFIG.langs.cpp.template_dir;
-
-            let _ = sender.send("creating project directory".into());
-            create_project_directory(&path_project)?;
 
             for entry in WalkDir::new(template_dir).min_depth(1) {
                 let entry = entry.context("reading template directory failed")?;
@@ -90,17 +86,17 @@ impl Lang for Cpp {
                 })?;
 
                 let _ = sender.send(format!("generating `{}`", path.display()));
-                safe_generate(&path_project, path)?;
+                safe_generate(path)?;
             }
 
             Ok(())
         })
     }
 
-    fn to_open(&self, path: &Path) -> Result<FilesToOpen> {
+    fn to_open(&self) -> Result<FilesToOpen> {
         Ok(FilesToOpen {
-            files: vec![path.join("main.cpp")],
-            directory: path.to_path_buf(),
+            files: vec![PathBuf::from("main.cpp")],
+            directory: PathBuf::from("."),
         })
     }
 
@@ -232,29 +228,20 @@ fn libdir() -> PathBuf {
     home_dir
 }
 
-fn create_project_directory(path_project: &Path) -> Result<()> {
-    stdfs::create_dir_all(path_project).with_context(|| {
-        format!(
-            "failed to create destination directories at `{}`",
-            path_project.display()
-        )
-    })
-}
-
-fn safe_generate(path_project: &Path, path: &Path) -> Result<()> {
-    if path_project.join(path).exists() {
+fn safe_generate(path: &Path) -> Result<()> {
+    if path.exists() {
         eprintln_debug!("file {} already exists, skipping", path.display());
         return Ok(());
     }
 
-    generate(path_project, path)?;
+    generate(path)?;
 
     Ok(())
 }
 
-fn generate(path_project_root: &Path, path: &Path) -> Result<()> {
+fn generate(path: &Path) -> Result<()> {
     let path_template = CONFIG.langs.cpp.template_dir.join(path);
-    let path_project = path_project_root.join(path);
+    let path_project = path;
 
     eprintln_debug!("loading template from `{}`", path_template.display());
 
@@ -265,13 +252,8 @@ fn generate(path_project_root: &Path, path: &Path) -> Result<()> {
         )
     })?;
 
-    let abs_path_project_root = to_absolute::to_absolute_from_current_dir(path_project_root)
-        .with_context(|| {
-            format!(
-                "get absolute path for `{}` failed",
-                path_project_root.display()
-            )
-        })?;
+    let abs_path_project_root = to_absolute::to_absolute_from_current_dir(".")
+        .with_context(|| "get absolute path for current directory".to_string())?;
     let template = template
         .replace("$LIB_DIR", &libdir_escaped())
         .replace("$GDB_PATH", &gdbpath_escaped())

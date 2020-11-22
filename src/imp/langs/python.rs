@@ -28,20 +28,18 @@ impl Lang for Python {
             .map_err(Into::into)
     }
 
-    fn init_async(&self, path: &Path) -> Progress<anyhow::Result<()>> {
-        let path_project = path.to_path_buf();
+    fn init_async(&self) -> Progress<anyhow::Result<()>> {
         Progress::from_fn(move |sender| {
             let _ = sender.send("creating main.py".into());
-            let path_main = path_project.join("main.py");
+            let path_main = Path::new("main.py");
             if !path_main.exists() {
                 stdfs::write(path_main, "").context("failed to create main.py")?;
             }
 
             let _ = sender.send("generating Visual Studio Code settings".into());
-            stdfs::create_dir_all(path_project.join(".vscode"))
-                .context("failed to create .vscode dir")?;
+            stdfs::create_dir_all(Path::new(".vscode")).context("failed to create .vscode dir")?;
             stdfs::write(
-                path_project.join(".vscode").join("settings.json"),
+                Path::new(".vscode").join("settings.json"),
                 r#"{ "isProconProject": true }"#,
             )
             .context("failed to create Visual Studio Code settings")?;
@@ -50,10 +48,10 @@ impl Lang for Python {
         })
     }
 
-    fn to_open(&self, path: &Path) -> Result<FilesToOpen> {
+    fn to_open(&self) -> Result<FilesToOpen> {
         Ok(FilesToOpen {
-            files: vec![path.join("main.py")],
-            directory: path.to_path_buf(),
+            files: vec![PathBuf::from("main.py")],
+            directory: PathBuf::from("."),
         })
     }
 

@@ -15,8 +15,6 @@ use lazy_static::lazy_static;
 use quote::ToTokens;
 use regex::Regex;
 use scopefunc::ScopeFunc;
-use scopeguard::defer;
-use std::env;
 use std::fs as stdfs;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
@@ -65,12 +63,12 @@ impl Lang for Rust2020 {
         "rust2020"
     }
 
-    fn init_async(&self, path: &Path) -> Progress<Result<()>> {
-        init_async(RustVersion::Rust2020, path)
+    fn init_async(&self) -> Progress<Result<()>> {
+        init_async(RustVersion::Rust2020)
     }
 
-    fn to_open(&self, path: &Path) -> Result<FilesToOpen> {
-        Ok(to_open(RustVersion::Rust2020, path))
+    fn to_open(&self) -> Result<FilesToOpen> {
+        Ok(to_open(RustVersion::Rust2020))
     }
 
     fn open_docs(&self) -> Result<()> {
@@ -136,12 +134,12 @@ impl Lang for Rust2016 {
         "rust2016"
     }
 
-    fn init_async(&self, path: &Path) -> Progress<anyhow::Result<()>> {
-        init_async(RustVersion::Rust2016, path)
+    fn init_async(&self) -> Progress<anyhow::Result<()>> {
+        init_async(RustVersion::Rust2016)
     }
 
-    fn to_open(&self, path: &Path) -> Result<FilesToOpen> {
-        Ok(to_open(RustVersion::Rust2016, path))
+    fn to_open(&self) -> Result<FilesToOpen> {
+        Ok(to_open(RustVersion::Rust2016))
     }
 
     fn open_docs(&self) -> Result<()> {
@@ -213,23 +211,8 @@ fn check(ver: RustVersion) -> Result<bool> {
     Ok(ver == guessed_ver)
 }
 
-fn init_async(ver: RustVersion, path: &Path) -> Progress<Result<()>> {
-    let path = path.to_path_buf();
+fn init_async(ver: RustVersion) -> Progress<Result<()>> {
     Progress::from_fn(move |sender| {
-        let cwd = env::current_dir()?;
-
-        let _ = sender.send("creating project directory".into());
-        create_project_directory(&path)?;
-
-        // set current directory to the created project directory
-        env::set_current_dir(&path)?;
-
-        // restore the original current directory after finish
-        defer! {
-            // to use `defer!`, we need to ignore the error
-            let _ = env::set_current_dir(cwd);
-        }
-
         let _ = sender.send("generating new cargo project".into());
         // generate a project
         match ver {
@@ -274,10 +257,10 @@ fn init_async(ver: RustVersion, path: &Path) -> Progress<Result<()>> {
     })
 }
 
-fn to_open(_ver: RustVersion, path: &Path) -> FilesToOpen {
+fn to_open(_ver: RustVersion) -> FilesToOpen {
     FilesToOpen {
-        files: vec![path.join("main").join("src").join("main.rs")],
-        directory: path.join("main"),
+        files: vec![Path::new("main").join("src").join("main.rs")],
+        directory: PathBuf::from("main"),
     }
 }
 
@@ -372,10 +355,6 @@ fn lint(ver: RustVersion, source: &RawSource) -> Result<Vec<String>> {
     }
 
     Ok(res)
-}
-
-fn create_project_directory(path: &Path) -> Result<()> {
-    std::fs::create_dir_all(path).with_context(|| format!("failed to create `{}`", path.display()))
 }
 
 fn generate_git(repository: &str, branch: &str) -> Result<()> {
