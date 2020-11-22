@@ -36,7 +36,7 @@ pub fn open(path: &Path) -> Result<()> {
     }
 
     let lang = langs::guess_lang().context("failed to guess the language of the project")?;
-    let to_open = lang.to_open(path);
+    let to_open = lang.to_open(path).context("failed to get files to open")?;
     let (to_open, cwd) = match CONFIG.open.open_target {
         OpenTarget::Directory => (vec![to_open.directory], None),
         OpenTarget::Files => {

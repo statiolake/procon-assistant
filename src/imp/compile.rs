@@ -33,6 +33,7 @@ impl CompilerOutput {
 pub fn compile<L: Lang + ?Sized>(lang: &L) -> Result<CompilerOutput> {
     let result = match lang
         .compile_command()
+        .context("failed to construct compiler command")?
         .into_iter()
         .map(|mut cmd| cmd.output())
         .last()

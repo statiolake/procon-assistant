@@ -44,18 +44,18 @@ lazy_static! {
 }
 
 impl Lang for Rust2020 {
-    fn check() -> bool
+    fn check() -> Result<bool>
     where
         Self: Sized,
     {
         check(RustVersion::Rust2020)
     }
 
-    fn new_boxed() -> Box<dyn Lang>
+    fn new_boxed() -> Result<Box<dyn Lang>>
     where
         Self: Sized,
     {
-        Box::new(Rust2020)
+        Ok(Box::new(Rust2020))
     }
 
     fn lang_name() -> &'static str
@@ -69,8 +69,8 @@ impl Lang for Rust2020 {
         init_async(RustVersion::Rust2020, path)
     }
 
-    fn to_open(&self, path: &Path) -> FilesToOpen {
-        to_open(RustVersion::Rust2020, path)
+    fn to_open(&self, path: &Path) -> Result<FilesToOpen> {
+        Ok(to_open(RustVersion::Rust2020, path))
     }
 
     fn open_docs(&self) -> Result<()> {
@@ -81,12 +81,12 @@ impl Lang for Rust2020 {
         get_source(RustVersion::Rust2020)
     }
 
-    fn needs_compile(&self) -> bool {
-        needs_compile(RustVersion::Rust2020)
+    fn needs_compile(&self) -> Result<bool> {
+        Ok(needs_compile(RustVersion::Rust2020))
     }
 
-    fn compile_command(&self) -> Vec<Command> {
-        compile_command(RustVersion::Rust2020)
+    fn compile_command(&self) -> Result<Vec<Command>> {
+        Ok(compile_command(RustVersion::Rust2020))
     }
 
     fn run_command(&self) -> Result<Command> {
@@ -103,18 +103,18 @@ impl Lang for Rust2020 {
 }
 
 impl Lang for Rust2016 {
-    fn check() -> bool
+    fn check() -> Result<bool>
     where
         Self: Sized,
     {
         check(RustVersion::Rust2016)
     }
 
-    fn new_boxed() -> Box<dyn Lang>
+    fn new_boxed() -> Result<Box<dyn Lang>>
     where
         Self: Sized,
     {
-        Box::new(Rust2016)
+        Ok(Box::new(Rust2016))
     }
 
     fn lang_name() -> &'static str
@@ -128,8 +128,8 @@ impl Lang for Rust2016 {
         init_async(RustVersion::Rust2016, path)
     }
 
-    fn to_open(&self, path: &Path) -> FilesToOpen {
-        to_open(RustVersion::Rust2016, path)
+    fn to_open(&self, path: &Path) -> Result<FilesToOpen> {
+        Ok(to_open(RustVersion::Rust2016, path))
     }
 
     fn open_docs(&self) -> Result<()> {
@@ -140,12 +140,12 @@ impl Lang for Rust2016 {
         get_source(RustVersion::Rust2016)
     }
 
-    fn needs_compile(&self) -> bool {
-        needs_compile(RustVersion::Rust2016)
+    fn needs_compile(&self) -> Result<bool> {
+        Ok(needs_compile(RustVersion::Rust2016))
     }
 
-    fn compile_command(&self) -> Vec<Command> {
-        compile_command(RustVersion::Rust2016)
+    fn compile_command(&self) -> Result<Vec<Command>> {
+        Ok(compile_command(RustVersion::Rust2016))
     }
 
     fn run_command(&self) -> Result<Command> {
@@ -161,10 +161,10 @@ impl Lang for Rust2016 {
     }
 }
 
-fn check(ver: RustVersion) -> bool {
+fn check(ver: RustVersion) -> Result<bool> {
     match ver {
-        RustVersion::Rust2016 => Path::new("main/rust2016").exists(),
-        RustVersion::Rust2020 => Path::new("main/rust2020").exists(),
+        RustVersion::Rust2016 => Ok(Path::new("main/rust2016").exists()),
+        RustVersion::Rust2020 => Ok(Path::new("main/rust2020").exists()),
     }
 }
 

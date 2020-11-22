@@ -28,7 +28,11 @@ impl Compile {
 }
 
 pub fn compile<L: Lang + ?Sized>(quiet: bool, lang: &L, force: bool) -> Result<ExitStatus> {
-    if !force && !lang.needs_compile() {
+    if !force
+        && !lang
+            .needs_compile()
+            .context("failed to check compilation needs")?
+    {
         if !quiet {
             eprintln_info!("no need to compile");
         }
