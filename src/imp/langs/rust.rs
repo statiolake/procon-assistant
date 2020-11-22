@@ -207,7 +207,7 @@ fn check(ver: RustVersion) -> Result<bool> {
             Some("2018") => Ok(RustVersion::Rust2020),
             Some(edition) => bail!("failed to guess the version: unknown edition {}", edition),
         })
-        .unwrap()?;
+        .unwrap_or(Ok(RustVersion::Rust2016))?;
     Ok(ver == guessed_ver)
 }
 
