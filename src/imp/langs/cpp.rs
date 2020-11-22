@@ -306,7 +306,7 @@ fn parse_include(
             parse_include(next_lib_dir, included, &RawSource(source), mode, depth + 1)?
         };
 
-        mem::replace(line, will_be_replaced);
+        *line = will_be_replaced;
     }
     let modified = lines.join("\n");
 
