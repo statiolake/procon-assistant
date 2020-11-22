@@ -330,6 +330,13 @@ fn generate_git(repository: &str, branch: &str) -> Result<()> {
         return Ok(());
     }
 
+    if which::which("cargo-generate").is_err() {
+        bail!(concat!(
+            "generating a project from git requires cargo-generate to be installed; ",
+            "if you haven't, type 'cargo install cargo-generate'."
+        ));
+    }
+
     let output = Command::new("cargo")
         .arg("generate")
         .arg("--git")
