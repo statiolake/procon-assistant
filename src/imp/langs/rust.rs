@@ -871,14 +871,8 @@ fn remove_tests(file: &mut syn::File) {
 
 fn remove_cfg_version(ver: RustVersion, file: &mut syn::File) -> anyhow::Result<()> {
     let features = match ver {
-        RustVersion::Rust2016 => &["rust-151"] as &[&str],
-        RustVersion::Rust2020 => &[
-            "rust-151",
-            "rust-130",
-            "rust-131",
-            "rust-142",
-            "crates-atc-2020",
-        ],
+        RustVersion::Rust2016 => &["atc-2016"],
+        RustVersion::Rust2020 => &["atc-2020"],
     };
 
     let mut remover = ItemRemover::new(features);
