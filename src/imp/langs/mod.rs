@@ -4,7 +4,7 @@ pub mod rust;
 
 use self::cpp::Cpp;
 use self::python::Python;
-use self::rust::{Rust2016, Rust2020};
+use self::rust::Rust2020;
 use crate::imp::config::MinifyMode;
 use crate::imp::progress::Progress;
 use anyhow::{anyhow, bail};
@@ -58,15 +58,11 @@ lazy_static! {
         Cpp::lang_name() => (Cpp::check as CheckerType, Cpp::new_boxed as CtorType),
         Python::lang_name() => (Python::check as CheckerType, Python::new_boxed as CtorType),
         Rust2020::lang_name() => (Rust2020::check as CheckerType, Rust2020::new_boxed as CtorType),
-        Rust2016::lang_name() => (Rust2016::check as CheckerType, Rust2016::new_boxed as CtorType),
     };
     pub static ref FILETYPE_ALIAS: IndexMap<&'static str, &'static str> = indexmap! {
         Cpp::lang_name() => Cpp::lang_name(),
         Rust2020::lang_name() => Rust2020::lang_name(),
-        Rust2016::lang_name() => Rust2016::lang_name(),
         Python::lang_name() => Python::lang_name(),
-        "r20" => Rust2020::lang_name(),
-        "r16" => Rust2016::lang_name(),
         "rust" => Rust2020::lang_name(),
         "r" => Rust2020::lang_name(),
         "p" => Python::lang_name(),

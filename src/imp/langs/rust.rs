@@ -25,12 +25,10 @@ use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 use std::process::{Command, Stdio};
 
 pub struct Rust2020;
-pub struct Rust2016;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum RustVersion {
     Rust2020,
-    Rust2016,
 }
 
 lazy_static! {
@@ -116,77 +114,6 @@ impl Lang for Rust2020 {
     }
 }
 
-impl Lang for Rust2016 {
-    fn check() -> Result<bool>
-    where
-        Self: Sized,
-    {
-        check(RustVersion::Rust2016)
-    }
-
-    fn new_boxed() -> Result<Box<dyn Lang>>
-    where
-        Self: Sized,
-    {
-        Ok(Box::new(Rust2016))
-    }
-
-    fn lang_name() -> &'static str
-    where
-        Self: Sized,
-    {
-        "rust2016"
-    }
-
-    fn init_async(&self) -> Progress<anyhow::Result<()>> {
-        init_async(RustVersion::Rust2016)
-    }
-
-    fn to_open(&self) -> Result<FilesToOpen> {
-        Ok(to_open(RustVersion::Rust2016))
-    }
-
-    fn open_docs(&self) -> Result<()> {
-        open_docs(RustVersion::Rust2016)
-    }
-
-    fn get_source(&self) -> Result<RawSource> {
-        get_source(RustVersion::Rust2016)
-    }
-
-    fn needs_compile(&self) -> Result<bool> {
-        Ok(needs_compile(RustVersion::Rust2016, false))
-    }
-
-    fn needs_release_compile(&self) -> Result<bool> {
-        Ok(needs_compile(RustVersion::Rust2016, true))
-    }
-
-    fn compile_command(&self) -> Result<Vec<Command>> {
-        compile_command(RustVersion::Rust2016, false)
-    }
-
-    fn release_compile_command(&self) -> Result<Vec<Command>> {
-        compile_command(RustVersion::Rust2016, true)
-    }
-
-    fn run_command(&self) -> Result<Command> {
-        run_command(RustVersion::Rust2016, false)
-    }
-
-    fn release_run_command(&self) -> Result<Command> {
-        run_command(RustVersion::Rust2016, true)
-    }
-
-    fn preprocess(&self, source: &RawSource, minify: MinifyMode) -> Result<Preprocessed> {
-        preprocess(RustVersion::Rust2016, source, minify)
-    }
-
-    fn lint(&self, source: &RawSource) -> Result<Vec<String>> {
-        lint(RustVersion::Rust2016, source)
-    }
-}
-
 fn check(ver: RustVersion) -> Result<bool> {
     let path_cargo_toml = Path::new("main/Cargo.toml");
     // check the existance of Cargo.toml first. if not, that's not a Rust project.
@@ -194,24 +121,13 @@ fn check(ver: RustVersion) -> Result<bool> {
         return Ok(false);
     }
 
-    // read Cargo.toml and check `edition` to determine Rust version
-    use toml::Value;
-    let cargo_toml: Value = stdfs::read_to_string(path_cargo_toml)
-        .context("failed to read Cargo.toml")?
-        .parse()
-        .context("failed to parse Cargo.toml")?;
-    let guessed_ver = cargo_toml
-        .get("package")
-        .and_then(|package| package.as_table())
-        .ok_or_else(|| anyhow!("malformed Cargo.toml: no [package] section"))?
-        .get("edition")
-        .map(|edition| match edition.as_str() {
-            None => Ok(RustVersion::Rust2016),
-            Some("2015") => Ok(RustVersion::Rust2016),
-            Some("2018") => Ok(RustVersion::Rust2020),
-            Some(edition) => bail!("failed to guess the version: unknown edition {}", edition),
-        })
-        .unwrap_or(Ok(RustVersion::Rust2016))?;
+    let features = get_enabled_features()?;
+    let guessed_ver = if features.contains(&"atc-2020".to_string()) {
+        RustVersion::Rust2020
+    } else {
+        bail!("failed to fetch the Rust version");
+    };
+
     Ok(ver == guessed_ver)
 }
 
@@ -228,15 +144,6 @@ fn init_async(ver: RustVersion) -> Progress<Result<()>> {
                     RustProjectTemplate::Local { path } => generate_local(path),
                 }
                 .context("failed to generate a project")?;
-            }
-            RustVersion::Rust2016 => {
-                let path = CONFIG
-                    .langs
-                    .rust2016
-                    .project_template_path
-                    .as_ref()
-                    .ok_or_else(|| anyhow!("project template for Rust 2016 is not specified"))?;
-                generate_local(path).context("failed to generate a project")?;
             }
         }
 
@@ -305,7 +212,6 @@ fn compile_command(ver: RustVersion, release: bool) -> Result<Vec<Command>> {
     let cargo = which::which("cargo").map_err(|_| anyhow!("failed to find cargo in your PATH"))?;
     let ver = match ver {
         RustVersion::Rust2020 => "+1.42.0",
-        RustVersion::Rust2016 => "+1.15.0",
     };
 
     let clean = Command::new(&cargo).modify(|cmd| {
