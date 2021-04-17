@@ -56,6 +56,7 @@ pub fn generate_one(problem: &str, provider: Box<dyn TestCaseProvider>) -> Resul
     Ok(())
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn handle_empty_arg() -> Result<ContestDescriptor> {
     fn handle_empty_arg_impl() -> Option<ContestDescriptor> {
         use std::ffi::OsStr;

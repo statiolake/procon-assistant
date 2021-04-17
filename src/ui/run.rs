@@ -82,12 +82,12 @@ impl Run {
 
         let style = result_to_style(&result);
         let long_name = result.long_name();
-        eprintln!("");
+        eprintln!();
         eprintln!("    Verdict: {}", style.apply_to(long_name));
 
         // copy the answer to the clipboard
         if result.is_accepted() {
-            eprintln!("");
+            eprintln!();
             clip::copy_to_clipboard(true, &*lang).context("failed to copy to the clipboard")?;
 
             Ok(ExitStatus::Success)
@@ -173,7 +173,7 @@ fn run<L: Lang + ?Sized>(
         })
         .collect::<Result<Vec<_>>>()?; // needs collect to spawn judge
 
-    eprintln!("");
+    eprintln!();
     let mut whole_result = TestResult::Accepted(Accepted::new_empty());
     for handle in handles {
         let (display, result) = handle

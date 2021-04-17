@@ -1,4 +1,4 @@
-use super::LoginUI;
+use super::LoginUi;
 use crate::eprintln_tagged;
 use crate::imp::auth;
 use anyhow::{Context, Result};
@@ -13,7 +13,7 @@ impl AtCoder {
     }
 }
 
-impl LoginUI for AtCoder {
+impl LoginUi for AtCoder {
     fn authenticate(&self, _quiet: bool) -> Result<()> {
         let (username, password) = auth::ask_account_info("AtCoder");
         eprintln_tagged!("Logging in": "to AtCoder");

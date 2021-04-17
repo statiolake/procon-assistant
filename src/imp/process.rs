@@ -69,6 +69,7 @@ fn spawn_editor(process_name: &str, cmds: Vec<Command>, cwd: Option<&Path>) -> R
     Ok(())
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn open_addcase_cmds(names: &[&str]) -> Result<(&'static str, Vec<Command>)> {
     let mut editor_command = CONFIG.addcase.editor_command.iter().map(String::as_str);
     let process_name = editor_command.next().unwrap_or("");
@@ -88,6 +89,7 @@ fn open_addcase_cmds(names: &[&str]) -> Result<(&'static str, Vec<Command>)> {
     Ok((process_name, commands))
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn open_general_cmds(names: &[&str]) -> Result<(&'static str, Vec<Command>)> {
     let mut editor_command = CONFIG.general.editor_command.iter().map(|x| x as &str);
     let process_name = editor_command.next().unwrap_or("");

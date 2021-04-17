@@ -399,7 +399,7 @@ fn concat_safe_lines(lines: Vec<String>) -> Vec<String> {
             line_continues = line.ends_with('\\');
         }
 
-        if res_line != "" {
+        if !res_line.is_empty() {
             // to avoid concatenating two tokens (to avoid previously separated
             // by newline character to be concatenated because of elision of
             // newline charactor), insert space between two lines.
@@ -419,6 +419,7 @@ fn concat_safe_lines(lines: Vec<String>) -> Vec<String> {
     res
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn minify(source: &str) -> Result<String> {
     let source = remove_block_comments(source);
     let lines: Vec<String> = source.split('\n').map(|x| x.into()).collect();

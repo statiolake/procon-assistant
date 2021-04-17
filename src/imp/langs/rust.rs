@@ -1,3 +1,6 @@
+// if_chain! が clippy::collapsible_match に引っかかるようになっているが、それを阻止したい。
+#![allow(clippy::collapsible_match)]
+
 use super::{FilesToOpen, Preprocessed, RawSource};
 use super::{Lang, Progress};
 use crate::eprintln_debug;
@@ -15,6 +18,7 @@ use lazy_static::lazy_static;
 use quote::ToTokens;
 use regex::Regex;
 use scopefunc::ScopeFunc;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs as stdfs;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
@@ -434,12 +438,16 @@ fn generate_local(path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn expand_source(ver: RustVersion, cwd: &Path, source: &str, mode: MinifyMode) -> Result<String> {
+fn expand_source(_ver: RustVersion, cwd: &Path, source: &str, mode: MinifyMode) -> Result<String> {
     let file = syn::parse_file(&source).context("failed to parse the source code")?;
     let mut file = expand_file(cwd, file)?;
     remove_doc_comments(&mut file);
     remove_tests(&mut file);
-    remove_cfg_version(ver, &mut file);
+
+    let features = get_enabled_features()?;
+    let features = features.iter().map(|f| f.as_str()).collect_vec();
+    eprintln_debug!("enabled features: {:?}", features);
+    remove_cfg_version(&features, &mut file)?;
 
     match mode {
         MinifyMode::None => rustfmt(&file.into_token_stream().to_string()),
@@ -477,6 +485,59 @@ fn expand_source(ver: RustVersion, cwd: &Path, source: &str, mode: MinifyMode) -
             Ok(res)
         }
     }
+}
+
+/// parse Cargo.toml to get the enabled features (dependency considered)
+fn get_enabled_features() -> Result<Vec<String>> {
+    let path_cargo_toml = Path::new("main/Cargo.toml");
+    if !path_cargo_toml.exists() {
+        bail!("Cargo.toml does not exist");
+    }
+
+    use toml::Value;
+    let cargo_toml: Value = stdfs::read_to_string(path_cargo_toml)
+        .context("failed to read Cargo.toml")?
+        .parse()
+        .context("failed to parse Cargo.toml")?;
+
+    let features = match cargo_toml.get("features") {
+        None => return Ok(vec![]), // no use of features
+        Some(features) => features
+            .as_table()
+            .ok_or_else(|| anyhow!("failed to parse [features] table"))?,
+    };
+
+    let all_features: HashMap<&str, Vec<&str>> = features
+        .iter()
+        .filter_map(|(key, value)| value.as_array().map(|value| (key.as_str(), value)))
+        .map(|(key, value)| (key, value.iter().filter_map(|v| v.as_str()).collect_vec()))
+        .collect();
+    let mut features_to_enable: VecDeque<&str> = match features.get("default") {
+        None => return Ok(vec![]), // no use of features
+        Some(default) => default
+            .as_array()
+            .ok_or_else(|| anyhow!("default features are not an array"))?
+            .iter()
+            .filter_map(|feature| feature.as_str())
+            .collect(),
+    };
+    let mut enabled_features = HashSet::new();
+
+    while let Some(feature) = features_to_enable.pop_front() {
+        let dependencies = match all_features.get(feature) {
+            // this is actually not a feature but a crate.
+            None => continue,
+            Some(deps) => deps,
+        };
+        eprintln_debug!("dependencies of {}: {:?}", feature, dependencies);
+
+        if enabled_features.insert(feature) {
+            // if feature is not already enabled, add all its dependencies to the queue.
+            features_to_enable.extend(dependencies)
+        }
+    }
+
+    Ok(enabled_features.into_iter().map(String::from).collect())
 }
 
 fn expand_file(cwd: &Path, mut file: syn::File) -> Result<syn::File> {
@@ -866,25 +927,51 @@ fn remove_tests(file: &mut syn::File) {
     }
 }
 
-fn remove_cfg_version(ver: RustVersion, file: &mut syn::File) {
-    let feature = match ver {
-        RustVersion::Rust2016 => "rust2016",
-        RustVersion::Rust2020 => "rust2020",
-    };
+fn remove_cfg_version(features: &[&str], file: &mut syn::File) -> anyhow::Result<()> {
+    let mut remover = ItemRemover::new(&features);
+    remover.visit_file_mut(file);
 
-    ItemRemover { feature }.visit_file_mut(file);
+    return if remover.parse_errors.is_empty() {
+        Ok(())
+    } else {
+        // FIXME: なんかもっといい感じの構造に保持すべき
+        Err(anyhow!(
+            "{} parse error(s): {:?}",
+            remover.parse_errors.len(),
+            remover.parse_errors
+        ))
+    };
 
     use syn::visit_mut;
     use syn::visit_mut::VisitMut;
     use syn::*;
 
-    struct ItemRemover {
-        feature: &'static str,
-    };
+    struct ItemRemover<'a> {
+        features: &'a [&'a str],
+        parse_errors: Vec<anyhow::Error>,
+    }
 
-    impl VisitMut for ItemRemover {
+    impl<'a> ItemRemover<'a> {
+        fn new(features: &'a [&'a str]) -> ItemRemover<'a> {
+            ItemRemover {
+                features,
+                parse_errors: Vec::new(),
+            }
+        }
+    }
+
+    impl VisitMut for ItemRemover<'_> {
         fn visit_file_mut(&mut self, node: &mut File) {
-            node.items.retain(|item| retains_item(item, self.feature));
+            node.items.retain(|item| {
+                let retains = retains_item(item, self.features);
+                match retains {
+                    Err(e) => {
+                        self.parse_errors.push(e);
+                        false
+                    }
+                    Ok(r) => r,
+                }
+            });
             node.items.iter_mut().for_each(remove_cfg_feature_from_item);
 
             visit_mut::visit_file_mut(self, node);
@@ -892,7 +979,16 @@ fn remove_cfg_version(ver: RustVersion, file: &mut syn::File) {
 
         fn visit_item_mod_mut(&mut self, node: &mut ItemMod) {
             if let Some((_, items)) = &mut node.content {
-                items.retain(|item| retains_item(item, self.feature));
+                items.retain(|item| {
+                    let retains = retains_item(item, self.features);
+                    match retains {
+                        Err(e) => {
+                            self.parse_errors.push(e);
+                            false
+                        }
+                        Ok(r) => r,
+                    }
+                });
                 items.iter_mut().for_each(remove_cfg_feature_from_item);
             }
 
@@ -900,7 +996,16 @@ fn remove_cfg_version(ver: RustVersion, file: &mut syn::File) {
         }
 
         fn visit_block_mut(&mut self, node: &mut Block) {
-            node.stmts.retain(|stmt| retains_stmt(stmt, self.feature));
+            node.stmts.retain(|stmt| {
+                let retains = retains_stmt(stmt, self.features);
+                match retains {
+                    Err(e) => {
+                        self.parse_errors.push(e);
+                        false
+                    }
+                    Ok(r) => r,
+                }
+            });
             node.stmts.iter_mut().for_each(remove_cfg_feature_from_stmt);
 
             visit_mut::visit_block_mut(self, node);
@@ -1061,35 +1166,90 @@ fn remove_cfg_version(ver: RustVersion, file: &mut syn::File) {
         }
     }
 
-    fn retains_item(item: &Item, feature: &str) -> bool {
+    fn retains_item(item: &Item, features: &[&str]) -> anyhow::Result<bool> {
         extract_attrs_from_item(item)
-            .map(|attrs| retains(attrs, feature))
-            .unwrap_or(true)
+            .map(|attrs| retains(attrs, features))
+            .unwrap_or(Ok(true))
     }
 
-    fn retains_stmt(stmt: &Stmt, feature: &str) -> bool {
+    fn retains_stmt(stmt: &Stmt, features: &[&str]) -> anyhow::Result<bool> {
         extract_attrs_from_stmt(stmt)
-            .map(|attrs| retains(attrs, feature))
-            .unwrap_or(true)
+            .map(|attrs| retains(attrs, features))
+            .unwrap_or(Ok(true))
     }
 
-    fn retains(attrs: &[Attribute], feature: &str) -> bool {
-        attrs
+    fn retains(attrs: &[Attribute], features: &[&str]) -> anyhow::Result<bool> {
+        let cfgs = attrs
             .iter()
-            .find_map(|attr| check_cfg_feature(attr))
-            .map(|target| match target {
-                Target::Is(target) => target == feature,
-                Target::Not(target) => target != feature,
-            })
-            .unwrap_or(true)
+            .filter_map(|attr| parse_cfg_attr(attr).transpose())
+            .collect::<anyhow::Result<Vec<_>>>()?;
+        let matches = cfgs.into_iter().all(|cfg| cfg.match_features(features));
+        Ok(matches)
     }
 
-    enum Target {
-        Is(String),
-        Not(String),
+    enum Cfg {
+        NameValue { name: String, value: String },
+        And(Vec<Cfg>),
+        Or(Vec<Cfg>),
+        Not(Box<Cfg>),
     }
 
-    fn check_cfg_feature(attr: &Attribute) -> Option<Target> {
+    impl Cfg {
+        fn match_features(&self, features: &[&str]) -> bool {
+            match self {
+                Cfg::NameValue { name, value } => name != "feature" || features.contains(&&**value),
+                Cfg::And(xs) => xs.iter().all(|x| x.match_features(features)),
+                Cfg::Or(xs) => xs.iter().any(|x| x.match_features(features)),
+                Cfg::Not(x) => !x.match_features(features),
+            }
+        }
+    }
+
+    fn parse_cfg_inner(nested: &NestedMeta) -> anyhow::Result<Cfg> {
+        let meta = match nested {
+            NestedMeta::Meta(meta) => meta,
+            _ => bail!("cfg() has no nested meta"),
+        };
+        match meta {
+            Meta::NameValue(meta) => if_chain! {
+                if let Some(ident) = meta.path.get_ident();
+                let name = ident.to_string();
+                if let Lit::Str(ref lit) = meta.lit;
+                let value = lit.value();
+                then {
+                    return Ok(Cfg::NameValue { name, value });
+                }
+            },
+            Meta::List(list) => if_chain! {
+                if let Some(ident) = list.path.get_ident();
+                let pred = ident.to_string();
+                then {
+                    let args = list
+                        .nested
+                        .iter()
+                        .map(parse_cfg_inner)
+                        .collect::<anyhow::Result<_>>()?;
+                    return match &*pred {
+                        "and" => Ok(Cfg::And(args)),
+                        "or" => Ok(Cfg::Or(args)),
+                        "not" => {
+                            ensure!(
+                                args.len() == 1,
+                                "unexpected number of arguments for not() predicate",
+                            );
+                            Ok(Cfg::Not(Box::new(args.into_iter().next().unwrap())))
+                        },
+                        _ => bail!("unknown predicate"),
+                    };
+                }
+            },
+            _ => {}
+        }
+
+        Err(anyhow!("failed to parse cfg() arguments"))
+    }
+
+    fn parse_cfg_attr(attr: &Attribute) -> anyhow::Result<Option<Cfg>> {
         // parse #[cfg(feature = "...")]
         // parse #[cfg(not(feature = "..."))]
         if_chain! {
@@ -1098,48 +1258,16 @@ fn remove_cfg_version(ver: RustVersion, file: &mut syn::File) {
             if let Some(name) = list.path.get_ident();
             if name == "cfg";
             then {
-                for nest in list.nested.iter() {
-                    let meta = match nest {
-                        NestedMeta::Meta(meta) => meta,
-                        _ => continue,
-                    };
-                    match meta {
-                        Meta::List(list) => if_chain! {
-                            if let Some(name) = list.path.get_ident();
-                            if name == "not";
-                            then {
-                                for nest in list.nested.iter() {
-                                    let meta = match nest {
-                                        NestedMeta::Meta(meta) => meta,
-                                        _ => continue,
-                                    };
-                                    if_chain! {
-                                        if let Meta::NameValue(meta) = meta;
-                                        if let Some(ident) = meta.path.get_ident();
-                                        if ident == "feature";
-                                        if let Lit::Str(ref lit) = meta.lit;
-                                        then {
-                                            return Some(Target::Not(lit.value()));
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        Meta::NameValue(meta) => if_chain! {
-                            if let Some(ident) = meta.path.get_ident();
-                            if ident == "feature";
-                            if let Lit::Str(ref lit) = meta.lit;
-                            then {
-                                return Some(Target::Is(lit.value()));
-                            }
-                        },
-                        _ => {}
-                    }
-                }
+                ensure!(
+                    list.nested.len() == 1,
+                    "unexpected number of arguments for cfg(): found {}",
+                    list.nested.len()
+                );
+                Some(parse_cfg_inner(&list.nested[0])).transpose()
+            } else {
+                Ok(None)
             }
         }
-
-        None
     }
 
     fn remove_cfg_feature_from_item(item: &mut Item) {
@@ -1155,7 +1283,7 @@ fn remove_cfg_version(ver: RustVersion, file: &mut syn::File) {
     }
 
     fn remove_cfg_feature(attrs: &mut Vec<Attribute>) {
-        attrs.retain(|attr| check_cfg_feature(attr).is_none())
+        attrs.retain(|attr| matches!(parse_cfg_attr(attr), Ok(cfg) if cfg.is_none()));
     }
 }
 
@@ -1178,6 +1306,7 @@ fn rustfmt(source: &str) -> Result<String> {
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn minify(source: &str) -> Result<String> {
     let replaces = [
         (&*RE_MULTIPLE_SPACE, " "),
@@ -1198,4 +1327,56 @@ fn minify(source: &str) -> Result<String> {
     }
 
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use syn::parse_quote;
+
+    #[test]
+    fn test_cfg_version() {
+        let mut cond_true: syn::File = parse_quote! {
+            #[cfg(feature = "rust-142")]
+            fn foo() {}
+        };
+        remove_cfg_version(&["rust-142", "crates-atc-2020"], &mut cond_true).unwrap();
+
+        let mut not_false: syn::File = parse_quote! {
+            #[cfg(not(feature = "rust-142"))]
+            fn foo() {}
+        };
+        remove_cfg_version(&["rust-142", "crates-atc-2020"], &mut not_false).unwrap();
+
+        let mut and_false: syn::File = parse_quote! {
+            #[cfg(and(feature = "rust-142", not(feature = "rust-142")))]
+            fn foo() {}
+        };
+        remove_cfg_version(&["rust-142", "crates-atc-2020"], &mut and_false).unwrap();
+
+        let mut and_true: syn::File = parse_quote! {
+            #[cfg(and(feature = "crates-atc-2020", feature = "rust-142"))]
+            fn foo() {}
+        };
+        remove_cfg_version(&["rust-142", "crates-atc-2020"], &mut and_true).unwrap();
+
+        let mut or_false: syn::File = parse_quote! {
+            #[cfg(or(not(feature = "crates-atc-2020"), not(feature = "rust-142")))]
+            fn foo() {}
+        };
+        remove_cfg_version(&["rust-142", "crates-atc-2020"], &mut or_false).unwrap();
+
+        let mut or_true: syn::File = parse_quote! {
+            #[cfg(or(feature = "crates-atc-2020", not(feature = "rust-142")))]
+            fn foo() {}
+        };
+        remove_cfg_version(&["rust-142", "crates-atc-2020"], &mut or_true).unwrap();
+
+        assert!(!cond_true.into_token_stream().is_empty());
+        assert!(not_false.into_token_stream().is_empty());
+        assert!(and_false.into_token_stream().is_empty());
+        assert!(!and_true.into_token_stream().is_empty());
+        assert!(or_false.into_token_stream().is_empty());
+        assert!(!or_true.into_token_stream().is_empty());
+    }
 }

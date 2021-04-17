@@ -37,6 +37,6 @@ impl Login {
     }
 }
 
-pub trait LoginUI {
+pub trait LoginUi {
     fn authenticate(&self, quiet: bool) -> Result<()>;
 }

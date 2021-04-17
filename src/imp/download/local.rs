@@ -79,7 +79,7 @@ fn load_problem_list(file_path: String) -> Result<Vec<String>> {
         .split('\n')
         .map(str::trim)
         .filter(|&x| !x.starts_with('#'))
-        .filter(|&x| x != "")
+        .filter(|&x| !x.is_empty())
         .map(Into::into)
         .collect_vec();
 
