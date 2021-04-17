@@ -1,4 +1,4 @@
-use super::LoginUI;
+use super::LoginUi;
 use anyhow::{Context, Result};
 
 #[derive(clap::Clap)]
@@ -11,7 +11,7 @@ impl Aoj {
     }
 }
 
-impl LoginUI for Aoj {
+impl LoginUi for Aoj {
     fn authenticate(&self, _quiet: bool) -> Result<()> {
         // TODO: implement
         Ok(())
