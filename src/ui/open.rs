@@ -1,9 +1,9 @@
-use crate::eprintln_debug;
 use crate::imp::config::OpenTarget;
 use crate::imp::config::CONFIG;
 use crate::imp::langs;
 use crate::imp::process;
 use crate::ExitStatus;
+use crate::{eprintln_debug, eprintln_info};
 use anyhow::{Context, Result};
 use itertools::Itertools;
 use scopeguard::defer;
@@ -22,7 +22,7 @@ pub struct Open {
 }
 
 impl Open {
-    pub fn run(self, _quiet: bool) -> Result<ExitStatus> {
+    pub fn run(self, quiet: bool) -> Result<ExitStatus> {
         // defer must be outer function of the below `if` statement (if this is
         // defined in `if` statement, this function is called when the if
         // statement ends, which is too early from ending the entire function).
@@ -48,14 +48,18 @@ impl Open {
             env::set_current_dir(&self.dirname)
                 .expect("critical error: failed to set current directory to the project directory");
         }
-        open()?;
+        open(quiet)?;
 
         Ok(ExitStatus::Success)
     }
 }
 
-pub fn open() -> Result<()> {
-    let lang = langs::guess_lang().context("failed to guess the language of the project")?;
+pub fn open(quiet: bool) -> Result<()> {
+    let lang =
+        langs::guess_lang().context("failed to guess the language of the current project")?;
+    if !quiet {
+        eprintln_info!("guessed language: {}", lang.get_lang_name());
+    }
     let to_open = lang.to_open().context("failed to get files to open")?;
     let (to_open, cwd) = match CONFIG.open.open_target {
         OpenTarget::Directory => (vec![to_open.directory], None),

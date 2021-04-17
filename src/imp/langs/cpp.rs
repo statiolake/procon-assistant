@@ -53,6 +53,10 @@ impl Lang for Cpp {
         "cpp"
     }
 
+    fn get_lang_name(&self) -> &'static str {
+        Self::lang_name()
+    }
+
     fn get_source(&self) -> Result<RawSource> {
         stdfs::read_to_string(Path::new("main.cpp"))
             .map(RawSource)

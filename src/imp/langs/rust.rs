@@ -24,13 +24,11 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 use std::process::{Command, Stdio};
 
-pub struct Rust2020;
-pub struct Rust2016;
+pub struct RustAtCoder2020;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum RustVersion {
-    Rust2020,
-    Rust2016,
+enum JudgeEnvironment {
+    AtCoder2020,
 }
 
 lazy_static! {
@@ -45,198 +43,111 @@ lazy_static! {
     static ref RE_WHITESPACE_AROUND_PAREN: Regex = Regex::new(r#"\s*(?P<par>[({)}])\s*"#).unwrap();
 }
 
-impl Lang for Rust2020 {
+impl Lang for RustAtCoder2020 {
     fn check() -> Result<bool>
     where
         Self: Sized,
     {
-        check(RustVersion::Rust2020)
+        check(JudgeEnvironment::AtCoder2020)
     }
 
     fn new_boxed() -> Result<Box<dyn Lang>>
     where
         Self: Sized,
     {
-        Ok(Box::new(Rust2020))
+        Ok(Box::new(RustAtCoder2020))
     }
 
     fn lang_name() -> &'static str
     where
         Self: Sized,
     {
-        "rust2020"
+        "rust_atc_2020"
+    }
+
+    fn get_lang_name(&self) -> &'static str {
+        "Rust (AtCoder, 2020)"
     }
 
     fn init_async(&self) -> Progress<Result<()>> {
-        init_async(RustVersion::Rust2020)
+        init_async(JudgeEnvironment::AtCoder2020)
     }
 
     fn to_open(&self) -> Result<FilesToOpen> {
-        Ok(to_open(RustVersion::Rust2020))
+        Ok(to_open(JudgeEnvironment::AtCoder2020))
     }
 
     fn open_docs(&self) -> Result<()> {
-        open_docs(RustVersion::Rust2020)
+        open_docs(JudgeEnvironment::AtCoder2020)
     }
 
     fn get_source(&self) -> Result<RawSource> {
-        get_source(RustVersion::Rust2020)
+        get_source(JudgeEnvironment::AtCoder2020)
     }
 
     fn needs_compile(&self) -> Result<bool> {
-        Ok(needs_compile(RustVersion::Rust2020, false))
+        Ok(needs_compile(JudgeEnvironment::AtCoder2020, false))
     }
 
     fn needs_release_compile(&self) -> Result<bool> {
-        Ok(needs_compile(RustVersion::Rust2020, true))
+        Ok(needs_compile(JudgeEnvironment::AtCoder2020, true))
     }
 
     fn compile_command(&self) -> Result<Vec<Command>> {
-        compile_command(RustVersion::Rust2020, false)
+        compile_command(JudgeEnvironment::AtCoder2020, false)
     }
 
     fn release_compile_command(&self) -> Result<Vec<Command>> {
-        compile_command(RustVersion::Rust2020, true)
+        compile_command(JudgeEnvironment::AtCoder2020, true)
     }
 
     fn run_command(&self) -> Result<Command> {
-        run_command(RustVersion::Rust2020, false)
+        run_command(JudgeEnvironment::AtCoder2020, false)
     }
 
     fn release_run_command(&self) -> Result<Command> {
-        run_command(RustVersion::Rust2020, true)
+        run_command(JudgeEnvironment::AtCoder2020, true)
     }
 
     fn preprocess(&self, source: &RawSource, minify: MinifyMode) -> Result<Preprocessed> {
-        preprocess(RustVersion::Rust2020, source, minify)
+        preprocess(JudgeEnvironment::AtCoder2020, source, minify)
     }
 
     fn lint(&self, source: &RawSource) -> Result<Vec<String>> {
-        lint(RustVersion::Rust2020, source)
+        lint(JudgeEnvironment::AtCoder2020, source)
     }
 }
 
-impl Lang for Rust2016 {
-    fn check() -> Result<bool>
-    where
-        Self: Sized,
-    {
-        check(RustVersion::Rust2016)
-    }
-
-    fn new_boxed() -> Result<Box<dyn Lang>>
-    where
-        Self: Sized,
-    {
-        Ok(Box::new(Rust2016))
-    }
-
-    fn lang_name() -> &'static str
-    where
-        Self: Sized,
-    {
-        "rust2016"
-    }
-
-    fn init_async(&self) -> Progress<anyhow::Result<()>> {
-        init_async(RustVersion::Rust2016)
-    }
-
-    fn to_open(&self) -> Result<FilesToOpen> {
-        Ok(to_open(RustVersion::Rust2016))
-    }
-
-    fn open_docs(&self) -> Result<()> {
-        open_docs(RustVersion::Rust2016)
-    }
-
-    fn get_source(&self) -> Result<RawSource> {
-        get_source(RustVersion::Rust2016)
-    }
-
-    fn needs_compile(&self) -> Result<bool> {
-        Ok(needs_compile(RustVersion::Rust2016, false))
-    }
-
-    fn needs_release_compile(&self) -> Result<bool> {
-        Ok(needs_compile(RustVersion::Rust2016, true))
-    }
-
-    fn compile_command(&self) -> Result<Vec<Command>> {
-        compile_command(RustVersion::Rust2016, false)
-    }
-
-    fn release_compile_command(&self) -> Result<Vec<Command>> {
-        compile_command(RustVersion::Rust2016, true)
-    }
-
-    fn run_command(&self) -> Result<Command> {
-        run_command(RustVersion::Rust2016, false)
-    }
-
-    fn release_run_command(&self) -> Result<Command> {
-        run_command(RustVersion::Rust2016, true)
-    }
-
-    fn preprocess(&self, source: &RawSource, minify: MinifyMode) -> Result<Preprocessed> {
-        preprocess(RustVersion::Rust2016, source, minify)
-    }
-
-    fn lint(&self, source: &RawSource) -> Result<Vec<String>> {
-        lint(RustVersion::Rust2016, source)
-    }
-}
-
-fn check(ver: RustVersion) -> Result<bool> {
+fn check(ver: JudgeEnvironment) -> Result<bool> {
     let path_cargo_toml = Path::new("main/Cargo.toml");
     // check the existance of Cargo.toml first. if not, that's not a Rust project.
     if !path_cargo_toml.exists() {
         return Ok(false);
     }
 
-    // read Cargo.toml and check `edition` to determine Rust version
-    use toml::Value;
-    let cargo_toml: Value = stdfs::read_to_string(path_cargo_toml)
-        .context("failed to read Cargo.toml")?
-        .parse()
-        .context("failed to parse Cargo.toml")?;
-    let guessed_ver = cargo_toml
-        .get("package")
-        .and_then(|package| package.as_table())
-        .ok_or_else(|| anyhow!("malformed Cargo.toml: no [package] section"))?
-        .get("edition")
-        .map(|edition| match edition.as_str() {
-            None => Ok(RustVersion::Rust2016),
-            Some("2015") => Ok(RustVersion::Rust2016),
-            Some("2018") => Ok(RustVersion::Rust2020),
-            Some(edition) => bail!("failed to guess the version: unknown edition {}", edition),
-        })
-        .unwrap_or(Ok(RustVersion::Rust2016))?;
+    let features = get_enabled_features()?;
+    let guessed_ver = if features.contains(&"atc-2020".to_string()) {
+        JudgeEnvironment::AtCoder2020
+    } else {
+        bail!("failed to fetch the Rust version");
+    };
+
     Ok(ver == guessed_ver)
 }
 
-fn init_async(ver: RustVersion) -> Progress<Result<()>> {
+fn init_async(ver: JudgeEnvironment) -> Progress<Result<()>> {
     Progress::from_fn(move |sender| {
         let _ = sender.send("generating new cargo project".into());
         // generate a project
         match ver {
-            RustVersion::Rust2020 => {
-                match &CONFIG.langs.rust2020.project_template {
+            JudgeEnvironment::AtCoder2020 => {
+                match &CONFIG.langs.rust_atc_2020.project_template {
                     RustProjectTemplate::Git { repository, branch } => {
                         generate_git(repository, branch)
                     }
                     RustProjectTemplate::Local { path } => generate_local(path),
                 }
                 .context("failed to generate a project")?;
-            }
-            RustVersion::Rust2016 => {
-                let path = CONFIG
-                    .langs
-                    .rust2016
-                    .project_template_path
-                    .as_ref()
-                    .ok_or_else(|| anyhow!("project template for Rust 2016 is not specified"))?;
-                generate_local(path).context("failed to generate a project")?;
             }
         }
 
@@ -261,14 +172,14 @@ fn init_async(ver: RustVersion) -> Progress<Result<()>> {
     })
 }
 
-fn to_open(_ver: RustVersion) -> FilesToOpen {
+fn to_open(_ver: JudgeEnvironment) -> FilesToOpen {
     FilesToOpen {
         files: vec![Path::new("main").join("src").join("main.rs")],
         directory: PathBuf::from("main"),
     }
 }
 
-fn open_docs(_ver: RustVersion) -> Result<()> {
+fn open_docs(_ver: JudgeEnvironment) -> Result<()> {
     // open crate docs
     let path = to_absolute::to_absolute_from_current_dir("main/target/doc/main/index.html")
         .context("failed to get the absolute path for the document")?;
@@ -286,13 +197,13 @@ fn open_docs(_ver: RustVersion) -> Result<()> {
     Ok(())
 }
 
-fn get_source(_ver: RustVersion) -> Result<RawSource> {
+fn get_source(_ver: JudgeEnvironment) -> Result<RawSource> {
     stdfs::read_to_string("main/src/main.rs")
         .map(RawSource)
         .map_err(Into::into)
 }
 
-fn needs_compile(_ver: RustVersion, _release: bool) -> bool {
+fn needs_compile(_ver: JudgeEnvironment, _release: bool) -> bool {
     // in Rust, to avoid copying a large `target` directory, `target`
     // directory is symlinked to the template directory. This means that the
     // binary is placed in the same place for all projects. It causes the
@@ -301,11 +212,10 @@ fn needs_compile(_ver: RustVersion, _release: bool) -> bool {
     true
 }
 
-fn compile_command(ver: RustVersion, release: bool) -> Result<Vec<Command>> {
+fn compile_command(ver: JudgeEnvironment, release: bool) -> Result<Vec<Command>> {
     let cargo = which::which("cargo").map_err(|_| anyhow!("failed to find cargo in your PATH"))?;
     let ver = match ver {
-        RustVersion::Rust2020 => "+1.42.0",
-        RustVersion::Rust2016 => "+1.15.0",
+        JudgeEnvironment::AtCoder2020 => "+1.42.0",
     };
 
     let clean = Command::new(&cargo).modify(|cmd| {
@@ -327,7 +237,7 @@ fn compile_command(ver: RustVersion, release: bool) -> Result<Vec<Command>> {
     Ok(vec![clean, build])
 }
 
-fn run_command(_ver: RustVersion, release: bool) -> Result<Command> {
+fn run_command(_ver: JudgeEnvironment, release: bool) -> Result<Command> {
     let target = if release { "release" } else { "debug" };
     let binary = which::which(format!("main/target/{}/main", target))
         .map_err(|_| anyhow!("failed to get the built binary"))?;
@@ -338,7 +248,7 @@ fn run_command(_ver: RustVersion, release: bool) -> Result<Command> {
 }
 
 fn preprocess(
-    ver: RustVersion,
+    ver: JudgeEnvironment,
     RawSource(source): &RawSource,
     minify: MinifyMode,
 ) -> Result<Preprocessed> {
@@ -346,7 +256,7 @@ fn preprocess(
     Ok(Preprocessed(source))
 }
 
-fn lint(ver: RustVersion, source: &RawSource) -> Result<Vec<String>> {
+fn lint(ver: JudgeEnvironment, source: &RawSource) -> Result<Vec<String>> {
     let Preprocessed(pped) =
         preprocess(ver, source, MinifyMode::All).context("failed to preprocess the source")?;
 
@@ -398,6 +308,9 @@ fn generate_git(repository: &str, branch: &str) -> Result<()> {
 }
 
 fn generate_local(path: &Path) -> Result<()> {
+    // split path components and recollect them to normalize path separators
+    let path: PathBuf = path.components().collect();
+    let path: &Path = &path;
     eprintln_debug!("copying from `{}`", path.display());
 
     let options = CopyOptions {
@@ -438,7 +351,12 @@ fn generate_local(path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn expand_source(_ver: RustVersion, cwd: &Path, source: &str, mode: MinifyMode) -> Result<String> {
+fn expand_source(
+    _ver: JudgeEnvironment,
+    cwd: &Path,
+    source: &str,
+    mode: MinifyMode,
+) -> Result<String> {
     let file = syn::parse_file(&source).context("failed to parse the source code")?;
     let mut file = expand_file(cwd, file)?;
     remove_doc_comments(&mut file);

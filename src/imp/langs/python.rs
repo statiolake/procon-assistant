@@ -22,6 +22,10 @@ impl Lang for Python {
         "python"
     }
 
+    fn get_lang_name(&self) -> &'static str {
+        Self::lang_name()
+    }
+
     fn get_source(&self) -> Result<RawSource> {
         stdfs::read_to_string(Path::new("main.py"))
             .map(RawSource)

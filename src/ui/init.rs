@@ -24,7 +24,7 @@ pub struct Init {
 }
 
 impl Init {
-    pub fn run(self, _quiet: bool) -> Result<ExitStatus> {
+    pub fn run(self, quiet: bool) -> Result<ExitStatus> {
         let specified_lang = self.lang.as_ref().unwrap_or(&CONFIG.init.default_lang);
 
         let lang = langs::get_from_alias(specified_lang).context("failed to get the language")?;
@@ -76,7 +76,7 @@ impl Init {
             .context("init failed")?;
 
         if CONFIG.init.auto_open {
-            open::open().context("failed to open the generated project")?;
+            open::open(quiet).context("failed to open the generated project")?;
         }
 
         Ok(ExitStatus::Success)

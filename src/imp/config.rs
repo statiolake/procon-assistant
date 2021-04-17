@@ -111,10 +111,8 @@ impl FromStr for MinifyMode {
 pub struct Langs {
     #[serde(default)]
     pub cpp: Cpp,
-    #[serde(default)]
-    pub rust2020: Rust2020,
-    #[serde(default)]
-    pub rust2016: Rust2016,
+    #[serde(alias = "rust2020", default)]
+    pub rust_atc_2020: RustAtCoder2020,
 }
 
 #[derive(Deserialize)]
@@ -124,10 +122,10 @@ pub struct Cpp {
 }
 
 #[derive(Deserialize)]
-pub struct Rust2020 {
-    #[serde(default = "Rust2020::default_project_template")]
+pub struct RustAtCoder2020 {
+    #[serde(default = "RustAtCoder2020::default_project_template")]
     pub project_template: RustProjectTemplate,
-    #[serde(default = "Rust2020::default_needs_pre_compile")]
+    #[serde(default = "RustAtCoder2020::default_needs_pre_compile")]
     pub needs_pre_compile: bool,
 }
 
@@ -306,16 +304,16 @@ impl Cpp {
     }
 }
 
-impl Default for Rust2020 {
+impl Default for RustAtCoder2020 {
     fn default() -> Self {
-        Rust2020 {
-            project_template: Rust2020::default_project_template(),
-            needs_pre_compile: Rust2020::default_needs_pre_compile(),
+        RustAtCoder2020 {
+            project_template: RustAtCoder2020::default_project_template(),
+            needs_pre_compile: RustAtCoder2020::default_needs_pre_compile(),
         }
     }
 }
 
-impl Rust2020 {
+impl RustAtCoder2020 {
     pub fn default_project_template() -> RustProjectTemplate {
         RustProjectTemplate::Git {
             repository: "https://github.com/rust-lang-ja/atcoder-rust-base".to_string(),
