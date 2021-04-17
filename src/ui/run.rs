@@ -55,7 +55,12 @@ fn style_sep() -> Style {
 
 impl Run {
     pub fn run(self, quiet: bool) -> Result<ExitStatus> {
-        let lang = langs::guess_lang().context("failed to get language")?;
+        let lang =
+            langs::guess_lang().context("failed to guess the language of the current project")?;
+        if !quiet {
+            eprintln_info!("guessed language: {}", lang.get_lang_name());
+        }
+
         let status = compile::compile(quiet, self.release_compile, &*lang, self.force_compile)
             .context("failed to compile")?;
         let timeout_milliseconds = self

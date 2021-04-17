@@ -11,7 +11,11 @@ pub struct Clip;
 
 impl Clip {
     pub fn run(self, quiet: bool) -> Result<ExitStatus> {
-        let lang = langs::guess_lang().context("failed to guess the current language")?;
+        let lang =
+            langs::guess_lang().context("failed to guess the language of the current project")?;
+        if !quiet {
+            eprintln_info!("guessed language: {}", lang.get_lang_name());
+        }
         copy_to_clipboard(quiet, &*lang).context("failed to copy to the clipboard")?;
 
         Ok(ExitStatus::Success)

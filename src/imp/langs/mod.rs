@@ -36,6 +36,8 @@ pub trait Lang {
     where
         Self: Sized;
 
+    fn get_lang_name(&self) -> &'static str;
+
     fn init_async(&self) -> Progress<anyhow::Result<()>>;
     fn to_open(&self) -> Result<FilesToOpen>;
     fn open_docs(&self) -> Result<()>;

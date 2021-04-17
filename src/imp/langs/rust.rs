@@ -65,6 +65,10 @@ impl Lang for RustAtCoder2020 {
         "rust_atc_2020"
     }
 
+    fn get_lang_name(&self) -> &'static str {
+        "Rust (AtCoder, 2020)"
+    }
+
     fn init_async(&self) -> Progress<Result<()>> {
         init_async(JudgeEnvironment::AtCoder2020)
     }

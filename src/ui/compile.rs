@@ -22,7 +22,10 @@ pub struct Compile {
 impl Compile {
     pub fn run(self, quiet: bool) -> Result<ExitStatus> {
         let lang =
-            langs::guess_lang().context("failed to guess the language for the current project")?;
+            langs::guess_lang().context("failed to guess the language of the current project")?;
+        if !quiet {
+            eprintln_info!("guessed language: {}", lang.get_lang_name());
+        }
 
         let status = compile(quiet, self.release, &*lang, self.force)?;
         Ok(status)
