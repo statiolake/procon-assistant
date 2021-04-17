@@ -871,8 +871,17 @@ fn remove_tests(file: &mut syn::File) {
 
 fn remove_cfg_version(ver: RustVersion, file: &mut syn::File) -> anyhow::Result<()> {
     let features = match ver {
-        RustVersion::Rust2016 => &["atc-2016"],
-        RustVersion::Rust2020 => &["atc-2020"],
+        RustVersion::Rust2016 => &["atc-2016"] as &[&str],
+        // FIXME: Cargo.toml をパースしてチェックすべし
+        RustVersion::Rust2020 => &[
+            "atc-2020",
+            "crates-atc-2020",
+            "rust-142",
+            "rust-141",
+            "rust-140",
+            "rust-138",
+            "rust-131",
+        ],
     };
 
     let mut remover = ItemRemover::new(features);
@@ -896,7 +905,7 @@ fn remove_cfg_version(ver: RustVersion, file: &mut syn::File) -> anyhow::Result<
     struct ItemRemover {
         features: &'static [&'static str],
         parse_errors: Vec<anyhow::Error>,
-    };
+    }
 
     impl ItemRemover {
         fn new(features: &'static [&'static str]) -> ItemRemover {
