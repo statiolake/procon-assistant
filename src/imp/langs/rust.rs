@@ -308,6 +308,9 @@ fn generate_git(repository: &str, branch: &str) -> Result<()> {
 }
 
 fn generate_local(path: &Path) -> Result<()> {
+    // split path components and recollect them to normalize path separators
+    let path: PathBuf = path.components().collect();
+    let path: &Path = &path;
     eprintln_debug!("copying from `{}`", path.display());
 
     let options = CopyOptions {
