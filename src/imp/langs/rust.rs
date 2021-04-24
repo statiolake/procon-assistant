@@ -180,19 +180,25 @@ fn to_open(_ver: JudgeEnvironment) -> FilesToOpen {
 }
 
 fn open_docs(_ver: JudgeEnvironment) -> Result<()> {
-    // open crate docs
-    let path = to_absolute::to_absolute_from_current_dir("main/target/doc/main/index.html")
-        .context("failed to get the absolute path for the document")?;
-    let path_url_base = path.display().to_string().replace(MAIN_SEPARATOR, "/");
-    let crate_docs = format!("file:///{}", path_url_base);
-    process::open_browser(&crate_docs).context("failed to open crate docs")?;
-
-    // open std docs
+    // first open std docs
     Command::new("rustup")
         .arg("doc")
         .arg("--std")
         .spawn()
         .context("failed to open std doc")?;
+
+    // get path to crate docs
+    let path = CONFIG
+        .langs
+        .rust_atc_2020
+        .lib_doc_path
+        .as_ref()
+        .ok_or_else(|| anyhow!("crate documents not specified"))?;
+
+    // open docs
+    let path_url_base = path.display().to_string().replace(MAIN_SEPARATOR, "/");
+    let crate_docs = format!("file:///{}", path_url_base);
+    process::open_browser(&crate_docs).context("failed to open crate docs")?;
 
     Ok(())
 }

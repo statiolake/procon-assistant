@@ -127,6 +127,8 @@ pub struct RustAtCoder2020 {
     pub project_template: RustProjectTemplate,
     #[serde(default = "RustAtCoder2020::default_needs_pre_compile")]
     pub needs_pre_compile: bool,
+    #[serde(default = "RustAtCoder2020::default_lib_doc_path")]
+    pub lib_doc_path: Option<PathBuf>,
 }
 
 #[derive(Deserialize, Default)]
@@ -309,6 +311,7 @@ impl Default for RustAtCoder2020 {
         RustAtCoder2020 {
             project_template: RustAtCoder2020::default_project_template(),
             needs_pre_compile: RustAtCoder2020::default_needs_pre_compile(),
+            lib_doc_path: RustAtCoder2020::default_lib_doc_path(),
         }
     }
 }
@@ -323,6 +326,10 @@ impl RustAtCoder2020 {
 
     pub fn default_needs_pre_compile() -> bool {
         true
+    }
+
+    pub fn default_lib_doc_path() -> Option<PathBuf> {
+        None
     }
 }
 
