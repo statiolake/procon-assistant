@@ -2,10 +2,10 @@ use crate::eprintln_info;
 use crate::imp::langs;
 use crate::ExitStatus;
 use anyhow::{Context, Result};
-use clap::Clap;
+use clap::Parser;
 
-#[derive(Clap)]
-#[clap(about = "Opens a document for the current project")]
+#[derive(clap::Parser)]
+#[clap(help = "Opens a document for the current project")]
 pub struct Doc;
 
 impl Doc {

@@ -3,7 +3,7 @@ use crate::eprintln_tagged;
 use crate::imp::auth;
 use anyhow::{Context, Result};
 
-#[derive(clap::Clap)]
+#[derive(clap::Parser)]
 #[clap(about = "Logs in to AtCoder")]
 pub struct AtCoder;
 

@@ -3,7 +3,7 @@ use crate::imp::{process, test_case};
 use crate::ExitStatus;
 use anyhow::{Context, Result};
 
-#[derive(clap::Clap)]
+#[derive(clap::Parser)]
 #[clap(about = "Adds a new test case; creates `inX.txt` and `outX.txt` in the current directory")]
 pub struct AddCase;
 

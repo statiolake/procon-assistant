@@ -5,7 +5,7 @@ use crate::ExitStatus;
 use crate::{eprintln_info, eprintln_tagged, eprintln_warning};
 use anyhow::{Context, Result};
 
-#[derive(clap::Clap)]
+#[derive(clap::Parser)]
 #[clap(about = "Copies the source file to clipboard with your library expanded")]
 pub struct Clip;
 

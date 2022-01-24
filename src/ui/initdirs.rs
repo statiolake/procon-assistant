@@ -5,16 +5,16 @@ use anyhow::{bail, ensure};
 use anyhow::{Context, Result};
 use itertools::Itertools;
 
-#[derive(clap::Clap)]
+#[derive(clap::Parser)]
 #[clap(about = "Initializes directory tree")]
 pub struct InitDirs {
-    #[clap(about = "The name of contest (the name of created directory)")]
+    #[clap(help = "The name of contest (the name of created directory)")]
     contest_name: String,
 
-    #[clap(about = "The number of problems")]
+    #[clap(help = "The number of problems")]
     numof_problems: usize,
 
-    #[clap(about = "The first problem character")]
+    #[clap(help = "The first problem character")]
     beginning_char: char,
 }
 

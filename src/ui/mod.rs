@@ -19,10 +19,10 @@ use crate::imp::fs;
 use crate::ExitStatus;
 use crate::{eprintln_error, eprintln_info};
 use anyhow::Result;
-use clap::Clap;
+use clap::Parser;
 use std::error;
 
-#[derive(Clap)]
+#[derive(clap::Parser)]
 #[clap(version = "0.2", author = "statiolake")]
 struct Options {
     #[clap(short, long)]
@@ -32,7 +32,7 @@ struct Options {
     subcommand: SubCommand,
 }
 
-#[derive(Clap)]
+#[derive(clap::Parser)]
 enum SubCommand {
     #[clap(name = "initdirs", aliases = &["id"])]
     InitDirs(initdirs::InitDirs),

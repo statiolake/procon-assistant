@@ -11,12 +11,12 @@ use std::cell::RefCell;
 use std::env;
 use std::path::Path;
 
-#[derive(clap::Clap)]
+#[derive(clap::Parser)]
 #[clap(about = "Open generated files in a directory")]
 pub struct Open {
     #[clap(
         default_value = ".",
-        about = "The name of directory; if `.`, open current directory"
+        help = "The name of directory; if `.`, open current directory"
     )]
     dirname: String,
 }

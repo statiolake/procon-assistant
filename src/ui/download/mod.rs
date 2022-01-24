@@ -9,10 +9,10 @@ use scopeguard::defer;
 use std::path::Path;
 use std::{env, str};
 
-#[derive(clap::Clap)]
+#[derive(clap::Parser)]
 #[clap(about = "Fetches sample cases of all problems in a contest")]
 pub struct Download {
-    #[clap(about = "The contest-descriptor of the target. ex) atcoder:abc012")]
+    #[clap(help = "The contest-descriptor of the target. ex) atcoder:abc012")]
     contest_descriptor: Option<String>,
 }
 

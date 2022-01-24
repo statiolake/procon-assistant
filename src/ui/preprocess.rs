@@ -5,10 +5,10 @@ use crate::imp::langs::Preprocessed;
 use crate::ExitStatus;
 use anyhow::{Context, Result};
 
-#[derive(clap::Clap)]
+#[derive(clap::Parser)]
 #[clap(about = "Preprocesses current source file and prepares to submit")]
 pub struct Preprocess {
-    #[clap(short, long, about = "Minify mode")]
+    #[clap(short, long, help = "Minify mode")]
     minify: Option<MinifyMode>,
 }
 

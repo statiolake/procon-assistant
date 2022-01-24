@@ -7,10 +7,10 @@ use anyhow::{Context, Result};
 use std::env;
 use std::ffi::OsStr;
 
-#[derive(clap::Clap)]
+#[derive(clap::Parser)]
 #[clap(about = "Fetches sample cases of a problem")]
 pub struct Fetch {
-    #[clap(about = "The problem-descriptor of the target problem. ex) aoj:0123, atcoder:abc012a")]
+    #[clap(help = "The problem-descriptor of the target problem. ex) aoj:0123, atcoder:abc012a")]
     problem_descriptor: Option<String>,
 }
 

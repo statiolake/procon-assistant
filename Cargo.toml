@@ -20,7 +20,7 @@ which = "3.1.1"
 current_exe = { git = "https://github.com/statiolake/current-exe-rs" }
 to_absolute = { git = "https://github.com/statiolake/to-absolute-rs" }
 anyhow = "1.0.27"
-clap = "3.0.0-beta.4"
+clap = { version = "3.0.10", features = ["derive"] }
 chrono = "0.4.11"
 console = "0.10.0"
 vsplit = "0.1.0"

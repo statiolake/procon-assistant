@@ -4,14 +4,14 @@ pub mod atcoder;
 use crate::ExitStatus;
 use anyhow::{Context, Result};
 
-#[derive(clap::Clap)]
+#[derive(clap::Parser)]
 #[clap(about = "Logs in to a contest-site")]
 pub struct Login {
     #[clap(subcommand)]
     site: Site,
 }
 
-#[derive(clap::Clap)]
+#[derive(clap::Parser)]
 pub enum Site {
     #[clap(name = "atcoder", aliases = &["at"])]
     AtCoder(atcoder::AtCoder),

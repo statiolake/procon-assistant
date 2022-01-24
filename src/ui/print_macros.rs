@@ -9,7 +9,7 @@ macro_rules! __eprintln_tagged_impl {
             $tag,
             std::format_args!($($args)*),
             width = crate::ui::print_macros::TAG_WIDTH
-        );
+        )
     };
 }
 
@@ -59,7 +59,7 @@ macro_rules! eprintln_more {
         $crate::__eprintln_tagged_impl!(
             ":",
             $($args)*
-        );
+        )
     };
 }
 
@@ -69,6 +69,6 @@ macro_rules! eprintln_progress {
         $crate::__eprintln_tagged_impl!(
             console::style("Progress").blue().bold(),
             $($args)*
-        );
+        )
     };
 }

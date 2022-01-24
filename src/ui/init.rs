@@ -10,16 +10,16 @@ use std::cell::RefCell;
 use std::path::MAIN_SEPARATOR;
 use std::{env, fs};
 
-#[derive(clap::Clap)]
+#[derive(clap::Parser)]
 #[clap(about = "Generates files in a directory")]
 pub struct Init {
     #[clap(
         default_value = ".",
-        about = "The name of directory; if `.`, files will be generated in the current directory"
+        help = "The name of directory; if `.`, files will be generated in the current directory"
     )]
     dirname: String,
 
-    #[clap(short, long, about = "The lang to init")]
+    #[clap(short, long, help = "The lang to init")]
     lang: Option<String>,
 }
 

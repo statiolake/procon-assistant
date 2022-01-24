@@ -1,7 +1,7 @@
 use super::LoginUi;
 use anyhow::{Context, Result};
 
-#[derive(clap::Clap)]
+#[derive(clap::Parser)]
 #[clap(about = "Logs in to Aoj")]
 pub struct Aoj;
 

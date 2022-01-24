@@ -6,15 +6,15 @@ use crate::ExitStatus;
 use crate::{eprintln_info, eprintln_more, eprintln_tagged};
 use anyhow::{Context, Result};
 
-#[derive(clap::Clap)]
+#[derive(clap::Parser)]
 #[clap(about = "Compiles the current solution; the produced binary won't be tested automatically")]
 pub struct Compile {
-    #[clap(short, long, about = "Compiles in release mode")]
+    #[clap(short, long, help = "Compiles in release mode")]
     release: bool,
     #[clap(
         short,
         long,
-        about = "Recompiles even if the compiled binary seems to be up-to-date"
+        help = "Recompiles even if the compiled binary seems to be up-to-date"
     )]
     force: bool,
 }
