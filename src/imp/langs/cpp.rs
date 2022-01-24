@@ -263,7 +263,7 @@ fn generate(path: &Path) -> Result<()> {
         .replace("$GDB_PATH", &gdbpath_escaped())
         .replace("$PROJECT_PATH", &escape_path(abs_path_project_root));
 
-    write_file_ensure_parent_dirs(&path_project, &template)
+    write_file_ensure_parent_dirs(path_project, &template)
 }
 
 fn write_file_ensure_parent_dirs(path: &Path, contents: &str) -> Result<()> {
@@ -315,7 +315,7 @@ fn parse_include(
     let mut lines = source.lines().map(ToString::to_string).collect_vec();
 
     for line in lines.iter_mut() {
-        let inc_path: PathBuf = match RE_INCLUDE.captures(&line) {
+        let inc_path: PathBuf = match RE_INCLUDE.captures(line) {
             None => continue,
             Some(caps) => {
                 let inc_file = caps.name("inc_file").unwrap().as_str();
@@ -385,7 +385,7 @@ fn remove_pragma_once(mut lines: Vec<String>) -> Vec<String> {
 fn concat_safe_lines(lines: Vec<String>) -> Vec<String> {
     fn push_and_init(vec: &mut Vec<String>, line: &mut String) {
         if !line.is_empty() {
-            vec.push(mem::replace(line, String::new()));
+            vec.push(mem::take(line));
         }
     }
 

@@ -258,7 +258,7 @@ fn preprocess(
     RawSource(source): &RawSource,
     minify: MinifyMode,
 ) -> Result<Preprocessed> {
-    let source = expand_source(ver, Path::new("main/src"), &source, minify)?;
+    let source = expand_source(ver, Path::new("main/src"), source, minify)?;
     Ok(Preprocessed(source))
 }
 
@@ -363,7 +363,7 @@ fn expand_source(
     source: &str,
     mode: MinifyMode,
 ) -> Result<String> {
-    let file = syn::parse_file(&source).context("failed to parse the source code")?;
+    let file = syn::parse_file(source).context("failed to parse the source code")?;
     let mut file = expand_file(cwd, file)?;
     remove_doc_comments(&mut file);
     remove_tests(&mut file);
@@ -759,13 +759,13 @@ fn remove_tests(file: &mut syn::File) {
     struct ItemRemover;
     impl VisitMut for ItemRemover {
         fn visit_file_mut(&mut self, node: &mut File) {
-            node.items.retain(|item| retains_item(item));
+            node.items.retain(retains_item);
             visit_mut::visit_file_mut(self, node);
         }
 
         fn visit_item_mod_mut(&mut self, node: &mut ItemMod) {
             if let Some((_, items)) = &mut node.content {
-                items.retain(|item| retains_item(item));
+                items.retain(retains_item);
             }
 
             visit_mut::visit_item_mod_mut(self, node);
@@ -852,7 +852,7 @@ fn remove_tests(file: &mut syn::File) {
 }
 
 fn remove_cfg_version(features: &[&str], file: &mut syn::File) -> anyhow::Result<()> {
-    let mut remover = ItemRemover::new(&features);
+    let mut remover = ItemRemover::new(features);
     remover.visit_file_mut(file);
 
     return if remover.parse_errors.is_empty() {
@@ -984,8 +984,8 @@ fn remove_cfg_version(features: &[&str], file: &mut syn::File) -> anyhow::Result
         match stmt {
             Stmt::Local(s_local) => Some(&s_local.attrs),
             Stmt::Item(s_item) => extract_attrs_from_item(s_item),
-            Stmt::Expr(s_expr) => extract_attrs_from_expr(&s_expr),
-            Stmt::Semi(s_expr, _) => extract_attrs_from_expr(&s_expr),
+            Stmt::Expr(s_expr) => extract_attrs_from_expr(s_expr),
+            Stmt::Semi(s_expr, _) => extract_attrs_from_expr(s_expr),
         }
     }
 

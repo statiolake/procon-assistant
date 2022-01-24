@@ -47,7 +47,7 @@ impl Contest {
 
     pub fn contest_id(&self) -> &str {
         match *self {
-            Contest::ContestId { ref contest_id, .. } => &contest_id,
+            Contest::ContestId { ref contest_id, .. } => contest_id,
             Contest::DirectUrl { ref url } => match RE_DIRECT_URL_CONTEST_NAME.captures(url) {
                 None => "Unknown",
                 Some(caps) => caps.name("name").unwrap().as_str(),

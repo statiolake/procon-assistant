@@ -109,7 +109,7 @@ fn run_tests<L: Lang + ?Sized>(
     lang: &L,
     args: &[String],
 ) -> Result<TestResult> {
-    let tcs = enumerate_test_cases(&args)?;
+    let tcs = enumerate_test_cases(args)?;
     run(quiet, release, timeout, lang, tcs)
 }
 
@@ -202,7 +202,7 @@ fn print_result(quiet: bool, result: &JudgeResult, display: String) {
     let JudgeResult { result, elapsed } = result;
 
     // get color and short result string
-    let style = result_to_style(&result);
+    let style = result_to_style(result);
     let short_name = result.short_name();
 
     eprintln!(
