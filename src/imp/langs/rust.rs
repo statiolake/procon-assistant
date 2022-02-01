@@ -125,12 +125,10 @@ fn check(ver: JudgeEnvironment) -> Result<bool> {
         return Ok(false);
     }
 
-    let features = get_enabled_features()?;
-    let guessed_ver = if features.contains(&"atc-2020".to_string()) {
-        JudgeEnvironment::AtCoder2020
-    } else {
-        bail!("failed to fetch the Rust version");
-    };
+    let _features = get_enabled_features()?;
+
+    // AtCoder2020 is the only version currently supported.
+    let guessed_ver = JudgeEnvironment::AtCoder2020;
 
     Ok(ver == guessed_ver)
 }
