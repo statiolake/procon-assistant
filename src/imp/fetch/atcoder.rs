@@ -92,7 +92,7 @@ impl TestCaseProvider for AtCoder {
 
     fn fetch_test_case_files(&self) -> Result<Vec<TestCaseFile>> {
         let text = download_text(self.problem.url())?;
-        parse_text(&text).map_err(Into::into)
+        parse_text(&text)
     }
 }
 

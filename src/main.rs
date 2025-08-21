@@ -1,7 +1,7 @@
 pub mod imp;
 pub mod ui;
 
-use std::process;
+use std::process::ExitCode;
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum ExitStatus {
@@ -9,8 +9,9 @@ pub enum ExitStatus {
     Failure,
 }
 
-fn main() {
-    if ui::main() == ExitStatus::Failure {
-        process::exit(1);
+fn main() -> ExitCode {
+    match ui::main() {
+        ExitStatus::Success => ExitCode::SUCCESS,
+        ExitStatus::Failure => ExitCode::FAILURE,
     }
 }

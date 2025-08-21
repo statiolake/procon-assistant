@@ -129,7 +129,7 @@ impl Lang for Cpp {
         let mut cmd = Command::new(&gcc);
         let libdir = libdir().display().to_string();
         cmd.arg(format!("-I{}", libdir.escape_default()));
-        cmd.args(&[
+        cmd.args([
             "-g",
             #[cfg(windows)]
             "-gcodeview",
@@ -162,7 +162,7 @@ impl Lang for Cpp {
         let mut cmd = Command::new(&gcc);
         let libdir = libdir().display().to_string();
         cmd.arg(format!("-I{}", libdir.escape_default()));
-        cmd.args(&[
+        cmd.args([
             "-O3",
             #[cfg(windows)]
             "-Xclang",

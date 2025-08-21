@@ -23,6 +23,7 @@ use std::fs as stdfs;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 use std::process::{Command, Stdio};
+use syn::punctuated::Punctuated;
 
 pub struct RustAtCoder2020;
 
@@ -476,26 +477,13 @@ fn expand_file(cwd: &Path, mut file: syn::File) -> Result<syn::File> {
 }
 
 fn expand_mod(cwd: &Path, imod: syn::ItemMod) -> Result<syn::ItemMod> {
-    let semi_span = match imod.semi {
-        Some(semi) => semi.spans[0],
-        None => return Ok(imod),
-    };
-
     let attrs = imod.attrs;
     let mut paths = Vec::new();
     let mut rest_attrs = Vec::new();
     for attr in attrs {
-        let meta = match attr.parse_meta() {
-            Ok(meta) => meta,
-            Err(_) => {
-                rest_attrs.push(attr);
-                continue;
-            }
-        };
-
-        match meta {
-            syn::Meta::NameValue(syn::MetaNameValue { path, lit, .. }) if matches!(path.get_ident(), Some(ident) if ident == "path") => {
-                paths.push(lit)
+        match attr.meta {
+            syn::Meta::NameValue(syn::MetaNameValue { path, value, .. }) if matches!(path.get_ident(), Some(ident) if ident == "path") => {
+                paths.push(value)
             }
             _ => {
                 rest_attrs.push(attr);
@@ -507,7 +495,10 @@ fn expand_mod(cwd: &Path, imod: syn::ItemMod) -> Result<syn::ItemMod> {
     ensure!(paths.len() <= 1, "multiple paths are specified for module");
     let (path, next_cwd) = match paths.into_iter().next() {
         Some(path) => match path {
-            syn::Lit::Str(s) => {
+            syn::Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Str(s),
+                ..
+            }) => {
                 let path = PathBuf::from(s.value());
                 let next_cwd = path
                     .parent()
@@ -535,7 +526,7 @@ fn expand_mod(cwd: &Path, imod: syn::ItemMod) -> Result<syn::ItemMod> {
     };
 
     // load file from the path and parse
-    let source = stdfs::read_to_string(&cwd.join(&path)).with_context(|| {
+    let source = stdfs::read_to_string(cwd.join(&path)).with_context(|| {
         format!(
             "failed to read next file `{}` in `{}`",
             path.display(),
@@ -544,14 +535,16 @@ fn expand_mod(cwd: &Path, imod: syn::ItemMod) -> Result<syn::ItemMod> {
     })?;
     let file = syn::parse_file(&source).context("failed to parse next module file")?;
     let expanded = expand_file(&next_cwd, file).context("failed to expand next module file")?;
+    let crafted: syn::ItemMod = syn::parse_quote!(mod { #expanded });
 
     rest_attrs.extend(expanded.attrs);
     Ok(syn::ItemMod {
         attrs: rest_attrs,
         vis: imod.vis,
+        unsafety: imod.unsafety,
         mod_token: imod.mod_token,
         ident: imod.ident,
-        content: Some((syn::token::Brace { span: semi_span }, expanded.items)),
+        content: crafted.content,
         semi: None,
     })
 }
@@ -605,11 +598,6 @@ fn remove_doc_comments(file: &mut syn::File) {
             visit_mut::visit_impl_item_macro_mut(self, node);
         }
 
-        fn visit_impl_item_method_mut(&mut self, node: &mut ImplItemMethod) {
-            remove_doc_attr(&mut node.attrs);
-            visit_mut::visit_impl_item_method_mut(self, node);
-        }
-
         fn visit_impl_item_type_mut(&mut self, node: &mut ImplItemType) {
             remove_doc_attr(&mut node.attrs);
             visit_mut::visit_impl_item_type_mut(self, node);
@@ -650,11 +638,6 @@ fn remove_doc_comments(file: &mut syn::File) {
             visit_mut::visit_item_macro_mut(self, node);
         }
 
-        fn visit_item_macro2_mut(&mut self, node: &mut ItemMacro2) {
-            remove_doc_attr(&mut node.attrs);
-            visit_mut::visit_item_macro2_mut(self, node);
-        }
-
         fn visit_item_static_mut(&mut self, node: &mut ItemStatic) {
             remove_doc_attr(&mut node.attrs);
             visit_mut::visit_item_static_mut(self, node);
@@ -690,11 +673,6 @@ fn remove_doc_comments(file: &mut syn::File) {
             visit_mut::visit_item_use_mut(self, node);
         }
 
-        fn visit_lifetime_def_mut(&mut self, node: &mut LifetimeDef) {
-            remove_doc_attr(&mut node.attrs);
-            visit_mut::visit_lifetime_def_mut(self, node);
-        }
-
         fn visit_trait_item_const_mut(&mut self, node: &mut TraitItemConst) {
             remove_doc_attr(&mut node.attrs);
             visit_mut::visit_trait_item_const_mut(self, node);
@@ -703,11 +681,6 @@ fn remove_doc_comments(file: &mut syn::File) {
         fn visit_trait_item_macro_mut(&mut self, node: &mut TraitItemMacro) {
             remove_doc_attr(&mut node.attrs);
             visit_mut::visit_trait_item_macro_mut(self, node);
-        }
-
-        fn visit_trait_item_method_mut(&mut self, node: &mut TraitItemMethod) {
-            remove_doc_attr(&mut node.attrs);
-            visit_mut::visit_trait_item_method_mut(self, node);
         }
 
         fn visit_trait_item_type_mut(&mut self, node: &mut TraitItemType) {
@@ -734,8 +707,7 @@ fn remove_doc_comments(file: &mut syn::File) {
     fn remove_doc_attr(attrs: &mut Vec<Attribute>) {
         attrs.retain(|attr| {
             if_chain! {
-                if let Ok(meta) = attr.parse_meta();
-                if let Meta::NameValue(meta) = meta;
+                if let Meta::NameValue(meta) = &attr.meta;
                 if let Some(ident) = meta.path.get_ident();
                 then {
                     ident != "doc"
@@ -791,7 +763,6 @@ fn remove_tests(file: &mut syn::File) {
             Item::ForeignMod(i_foreign_mod) => &i_foreign_mod.attrs,
             Item::Impl(i_impl) => &i_impl.attrs,
             Item::Macro(i_macro) => &i_macro.attrs,
-            Item::Macro2(i_macro2) => &i_macro2.attrs,
             Item::Mod(i_mod) => &i_mod.attrs,
             Item::Static(i_static) => &i_static.attrs,
             Item::Struct(i_struct) => &i_struct.attrs,
@@ -812,35 +783,17 @@ fn remove_tests(file: &mut syn::File) {
 
         attrs.iter().all(|attr| {
             // parse #[test]
-            if_chain! {
-                if let Some(name) = attr.path.get_ident();
-                if name == "test";
-                then {
-                    return false;
-                }
+            if attr.path().is_ident("test") {
+                return false;
             }
 
             // parse #[cfg(test)]
             if_chain! {
-                if let Ok(meta) = attr.parse_meta();
-                if let Meta::List(list) = meta;
-                if let Some(name) = list.path.get_ident();
-                if name == "cfg";
+                if attr.meta.path().is_ident("cfg");
+                if let Ok(args) = attr.parse_args::<syn::Meta>();
+                if args.path().is_ident("test");
                 then {
-                    for nest in list.nested.iter() {
-                        let path = match nest {
-                            NestedMeta::Meta(Meta::Path(path)) => path,
-                            _ => continue,
-                        };
-
-                        if_chain! {
-                            if let Some(ident) = path.get_ident();
-                            if ident == "test";
-                            then {
-                                return false;
-                            }
-                        }
-                    }
+                    return false;
                 }
             }
 
@@ -943,7 +896,6 @@ fn remove_cfg_version(features: &[&str], file: &mut syn::File) -> anyhow::Result
             Item::ForeignMod(i_foreign_mod) => &i_foreign_mod.attrs,
             Item::Impl(i_impl) => &i_impl.attrs,
             Item::Macro(i_macro) => &i_macro.attrs,
-            Item::Macro2(i_macro2) => &i_macro2.attrs,
             Item::Mod(i_mod) => &i_mod.attrs,
             Item::Static(i_static) => &i_static.attrs,
             Item::Struct(i_struct) => &i_struct.attrs,
@@ -965,7 +917,6 @@ fn remove_cfg_version(features: &[&str], file: &mut syn::File) -> anyhow::Result
             Item::ForeignMod(i_foreign_mod) => &mut i_foreign_mod.attrs,
             Item::Impl(i_impl) => &mut i_impl.attrs,
             Item::Macro(i_macro) => &mut i_macro.attrs,
-            Item::Macro2(i_macro2) => &mut i_macro2.attrs,
             Item::Mod(i_mod) => &mut i_mod.attrs,
             Item::Static(i_static) => &mut i_static.attrs,
             Item::Struct(i_struct) => &mut i_struct.attrs,
@@ -982,8 +933,8 @@ fn remove_cfg_version(features: &[&str], file: &mut syn::File) -> anyhow::Result
         match stmt {
             Stmt::Local(s_local) => Some(&s_local.attrs),
             Stmt::Item(s_item) => extract_attrs_from_item(s_item),
-            Stmt::Expr(s_expr) => extract_attrs_from_expr(s_expr),
-            Stmt::Semi(s_expr, _) => extract_attrs_from_expr(s_expr),
+            Stmt::Expr(s_expr, _) => extract_attrs_from_expr(s_expr),
+            Stmt::Macro(s_macro) => Some(&s_macro.attrs),
         }
     }
 
@@ -991,8 +942,8 @@ fn remove_cfg_version(features: &[&str], file: &mut syn::File) -> anyhow::Result
         match stmt {
             Stmt::Local(s_local) => Some(&mut s_local.attrs),
             Stmt::Item(s_item) => extract_attrs_from_item_mut(s_item),
-            Stmt::Expr(s_expr) => extract_attrs_from_expr_mut(&mut *s_expr),
-            Stmt::Semi(s_expr, _) => extract_attrs_from_expr_mut(&mut *s_expr),
+            Stmt::Expr(s_expr, _) => extract_attrs_from_expr_mut(&mut *s_expr),
+            Stmt::Macro(s_macro) => Some(&mut s_macro.attrs),
         }
     }
 
@@ -1000,16 +951,15 @@ fn remove_cfg_version(features: &[&str], file: &mut syn::File) -> anyhow::Result
         match expr {
             Expr::Array(inner) => Some(&inner.attrs),
             Expr::Assign(inner) => Some(&inner.attrs),
-            Expr::AssignOp(inner) => Some(&inner.attrs),
             Expr::Async(inner) => Some(&inner.attrs),
             Expr::Await(inner) => Some(&inner.attrs),
             Expr::Binary(inner) => Some(&inner.attrs),
             Expr::Block(inner) => Some(&inner.attrs),
-            Expr::Box(inner) => Some(&inner.attrs),
             Expr::Break(inner) => Some(&inner.attrs),
             Expr::Call(inner) => Some(&inner.attrs),
             Expr::Cast(inner) => Some(&inner.attrs),
             Expr::Closure(inner) => Some(&inner.attrs),
+            Expr::Const(inner) => Some(&inner.attrs),
             Expr::Continue(inner) => Some(&inner.attrs),
             Expr::Field(inner) => Some(&inner.attrs),
             Expr::ForLoop(inner) => Some(&inner.attrs),
@@ -1032,7 +982,6 @@ fn remove_cfg_version(features: &[&str], file: &mut syn::File) -> anyhow::Result
             Expr::Try(inner) => Some(&inner.attrs),
             Expr::TryBlock(inner) => Some(&inner.attrs),
             Expr::Tuple(inner) => Some(&inner.attrs),
-            Expr::Type(inner) => Some(&inner.attrs),
             Expr::Unary(inner) => Some(&inner.attrs),
             Expr::Unsafe(inner) => Some(&inner.attrs),
             Expr::Verbatim(_) => None,
@@ -1046,15 +995,14 @@ fn remove_cfg_version(features: &[&str], file: &mut syn::File) -> anyhow::Result
         match expr {
             Expr::Array(inner) => Some(&mut inner.attrs),
             Expr::Assign(inner) => Some(&mut inner.attrs),
-            Expr::AssignOp(inner) => Some(&mut inner.attrs),
             Expr::Async(inner) => Some(&mut inner.attrs),
             Expr::Await(inner) => Some(&mut inner.attrs),
             Expr::Binary(inner) => Some(&mut inner.attrs),
             Expr::Block(inner) => Some(&mut inner.attrs),
-            Expr::Box(inner) => Some(&mut inner.attrs),
             Expr::Break(inner) => Some(&mut inner.attrs),
             Expr::Call(inner) => Some(&mut inner.attrs),
             Expr::Cast(inner) => Some(&mut inner.attrs),
+            Expr::Const(inner) => Some(&mut inner.attrs),
             Expr::Closure(inner) => Some(&mut inner.attrs),
             Expr::Continue(inner) => Some(&mut inner.attrs),
             Expr::Field(inner) => Some(&mut inner.attrs),
@@ -1078,7 +1026,6 @@ fn remove_cfg_version(features: &[&str], file: &mut syn::File) -> anyhow::Result
             Expr::Try(inner) => Some(&mut inner.attrs),
             Expr::TryBlock(inner) => Some(&mut inner.attrs),
             Expr::Tuple(inner) => Some(&mut inner.attrs),
-            Expr::Type(inner) => Some(&mut inner.attrs),
             Expr::Unary(inner) => Some(&mut inner.attrs),
             Expr::Unsafe(inner) => Some(&mut inner.attrs),
             Expr::Verbatim(_) => None,
@@ -1127,16 +1074,12 @@ fn remove_cfg_version(features: &[&str], file: &mut syn::File) -> anyhow::Result
         }
     }
 
-    fn parse_cfg_inner(nested: &NestedMeta) -> anyhow::Result<Cfg> {
-        let meta = match nested {
-            NestedMeta::Meta(meta) => meta,
-            _ => bail!("cfg() has no nested meta"),
-        };
+    fn parse_cfg_inner(meta: &syn::Meta) -> anyhow::Result<Cfg> {
         match meta {
             Meta::NameValue(meta) => if_chain! {
                 if let Some(ident) = meta.path.get_ident();
                 let name = ident.to_string();
-                if let Lit::Str(ref lit) = meta.lit;
+                if let Expr::Lit(ExprLit { lit: Lit::Str(ref lit), .. }) = meta.value;
                 let value = lit.value();
                 then {
                     return Ok(Cfg::NameValue { name, value });
@@ -1147,7 +1090,7 @@ fn remove_cfg_version(features: &[&str], file: &mut syn::File) -> anyhow::Result
                 let pred = ident.to_string();
                 then {
                     let args = list
-                        .nested
+                        .parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?
                         .iter()
                         .map(parse_cfg_inner)
                         .collect::<anyhow::Result<_>>()?;
@@ -1175,17 +1118,10 @@ fn remove_cfg_version(features: &[&str], file: &mut syn::File) -> anyhow::Result
         // parse #[cfg(feature = "...")]
         // parse #[cfg(not(feature = "..."))]
         if_chain! {
-            if let Ok(meta) = attr.parse_meta();
-            if let Meta::List(list) = meta;
-            if let Some(name) = list.path.get_ident();
-            if name == "cfg";
+            if attr.path().is_ident("cfg");
+            if let Ok(meta) = attr.parse_args::<syn::Meta>();
             then {
-                ensure!(
-                    list.nested.len() == 1,
-                    "unexpected number of arguments for cfg(): found {}",
-                    list.nested.len()
-                );
-                Some(parse_cfg_inner(&list.nested[0])).transpose()
+                Some(parse_cfg_inner(&meta)).transpose()
             } else {
                 Ok(None)
             }

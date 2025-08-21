@@ -8,7 +8,7 @@ macro_rules! __eprintln_tagged_impl {
             "{:>width$} {}",
             $tag,
             std::format_args!($($args)*),
-            width = crate::ui::print_macros::TAG_WIDTH
+            width = $crate::ui::print_macros::TAG_WIDTH
         )
     };
 }

@@ -31,7 +31,7 @@ impl super::ContestProvider for Local {
 
     fn make_fetchers(&self) -> Result<Fetchers> {
         let problem_list = load_problem_list(self.file_path.clone())?;
-        make_fetcher(problem_list).map_err(Into::into)
+        make_fetcher(problem_list)
     }
 }
 

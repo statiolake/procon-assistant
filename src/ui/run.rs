@@ -66,7 +66,7 @@ impl Run {
         let timeout_milliseconds = self
             .timeout_milliseconds
             .map(|timeout| {
-                if timeout.to_ascii_lowercase() == "inf" {
+                if timeout.eq_ignore_ascii_case("inf") {
                     Ok(None)
                 } else {
                     timeout
@@ -292,7 +292,7 @@ fn print_diffs(
 ) {
     use console::Term;
     use splitv::Pane;
-    use std::iter::{once, repeat};
+    use std::iter::once;
 
     let stderr = Term::stdout();
 
@@ -391,7 +391,7 @@ fn print_diffs(
         let line_sep = "-".repeat(line_no_width);
         let line_no_pane = Pane {
             lines: &once(line_sep.as_str())
-                .chain(repeat("").take(max_line_no))
+                .chain(std::iter::repeat_n("", max_line_no))
                 .collect_vec(),
             width: line_no_width,
         };

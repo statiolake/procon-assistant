@@ -10,7 +10,7 @@ use std::io::{stdin, Read, Write};
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::thread;
-use std::{cmp, fmt, fs, iter, time, usize};
+use std::{cmp, fmt, fs, iter, time};
 use wait_timeout::ChildExt;
 
 pub struct JudgeResult {
@@ -436,7 +436,7 @@ impl TestCase {
         let timer = time::Instant::now();
         // spawn the solution
         let mut child = spawn(cmd)?;
-        input_to_child(&mut child, &*self.get_input()?)?;
+        input_to_child(&mut child, &self.get_input()?)?;
 
         // wait for the solution to finish or timeout
         let (elapsed, maybe_result) = wait_or_timeout(timer, &mut child, timeout)?;
@@ -447,7 +447,7 @@ impl TestCase {
 
         // read the output
         let actual = split_into_lines(&stdout).map(ToString::to_string).collect();
-        let expected = split_into_lines(&*self.get_output()?)
+        let expected = split_into_lines(&self.get_output()?)
             .map(ToString::to_string)
             .collect();
         let result = Context::new(expected, actual).verify(stderr);
@@ -455,14 +455,14 @@ impl TestCase {
         Ok(JudgeResult { elapsed, result })
     }
 
-    pub fn get_input(&self) -> Result<Cow<[u8]>> {
+    pub fn get_input(&self) -> Result<Cow<'_, [u8]>> {
         match self {
             TestCase::File(f) => f.get_input(),
             TestCase::Stdin(s) => s.get_input(),
         }
     }
 
-    pub fn get_output(&self) -> Result<Cow<str>> {
+    pub fn get_output(&self) -> Result<Cow<'_, str>> {
         match self {
             TestCase::File(f) => f.get_output(),
             TestCase::Stdin(s) => s.get_output(),
@@ -553,11 +553,11 @@ impl TestCaseFile {
         Ok(())
     }
 
-    pub fn get_input(&self) -> Result<Cow<[u8]>> {
+    pub fn get_input(&self) -> Result<Cow<'_, [u8]>> {
         Ok(Cow::from(self.if_contents.as_bytes()))
     }
 
-    pub fn get_output(&self) -> Result<Cow<str>> {
+    pub fn get_output(&self) -> Result<Cow<'_, str>> {
         Ok(Cow::from(&self.of_contents))
     }
 }
@@ -566,7 +566,7 @@ impl TestCaseFile {
 pub struct TestCaseStdin;
 
 impl TestCaseStdin {
-    pub fn get_input(&self) -> Result<Cow<[u8]>> {
+    pub fn get_input(&self) -> Result<Cow<'_, [u8]>> {
         let mut input = String::new();
         stdin()
             .read_to_string(&mut input)
@@ -574,7 +574,7 @@ impl TestCaseStdin {
         Ok(Cow::from(input.into_bytes()))
     }
 
-    pub fn get_output(&self) -> Result<Cow<str>> {
+    pub fn get_output(&self) -> Result<Cow<'_, str>> {
         Ok(Cow::from("(no output can be specified for stdin)"))
     }
 }
@@ -631,7 +631,7 @@ pub fn remove_test_cases(indices: &[i32]) -> Result<()> {
     }
 
     // !! BE CAREFUL !! Remove all test cases.
-    clean_test_cases(&*test_case_files.borrow())?;
+    clean_test_cases(&test_case_files.borrow())?;
 
     let len = test_case_files.borrow().len() as i32;
     let mut removed = 0;

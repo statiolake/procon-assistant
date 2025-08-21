@@ -69,7 +69,7 @@ impl super::TestCaseProvider for Aoj {
         let text = download_text(self.problem.url())
             .with_context(|| format!("failed to fetch a problem: {}", self.problem.problem_id()))?;
 
-        parse_text(text).map_err(Into::into)
+        parse_text(text)
     }
 }
 
